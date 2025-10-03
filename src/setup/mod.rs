@@ -1,17 +1,22 @@
 /*! Handles the setup of the lkmv CLI tool
 */
 
+use crate::{
+    CLI_BLUE, CLI_GREEN, CLI_RED,
+    config::Config,
+    setup::bip32_bip39::{generate_bip39_mnemonic, get_bip32_root, mnemonic_from_recovery_phrase},
+};
+use affinidi_tdk::secrets_resolver::secrets::Secret;
 use anyhow::{Context, Result};
 use bip39::Mnemonic;
 use console::style;
 use dialoguer::{Confirm, theme::ColorfulTheme};
-use rand::{RngCore, rng};
-use zeroize::Zeroize;
+use ed25519_dalek_bip32::DerivationPath;
 
-use crate::{CLI_GREEN, CLI_RED, config::Config};
+mod bip32_bip39;
 
 /// Sets up the CLI tool
-pub fn cli_setup() -> Config {
+pub fn cli_setup() -> Result<Config> {
     println!(
         "{}",
         style("Initial setup of the lkmv tool").color256(CLI_GREEN)
@@ -25,11 +30,9 @@ pub fn cli_setup() -> Config {
         .interact()
         .unwrap()
     {
-        // Goto Recovery process
-        println!(
-            "{}",
-            style("Not implemented yet!").blink().color256(CLI_RED)
-        );
+        // Using Recovery Phrase
+        let mnemonic = mnemonic_from_recovery_phrase()?;
+        create_keys(&mnemonic)?;
     } else if Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Use (import) existing PGP Secrets?")
         .default(false)
@@ -44,72 +47,61 @@ pub fn cli_setup() -> Config {
     } else {
         // Creating new Secrets
 
-        let bip39 = generate_bip39();
-        let words: Vec<&str> = bip39.words().collect();
-
-        println!("Words\n{words:#?}")
+        let mnemonic = generate_bip39_mnemonic();
+        create_keys(&mnemonic)?;
     }
 
-    Config {}
+    Ok(Config {})
 }
 
-/// Generates a new BIP39 Mnemonic that is used as a seed and recovery phrase
-fn generate_bip39() -> Mnemonic {
-    // Create 256 bits of entropy
-    let mut entropy = [0u8; 32];
-    let mut rng = rng();
-    rng.fill_bytes(&mut entropy);
+/// Creates the Secret Key Material required
+fn create_keys(mnemonic: &Mnemonic) -> Result<()> {
+    let bip32_master = get_bip32_root(mnemonic.to_entropy().as_slice())?;
 
-    match Mnemonic::from_entropy(&entropy) {
-        Ok(mnemonic) => {
-            entropy.zeroize(); // Clear entropy from memory
-            mnemonic
-        }
-        Err(e) => {
-            panic!("Error creating BIP39 mnemonic from entropy: {e}");
-        }
-    }
-}
+    println!(
+        "{}",
+        style(
+            "BIP32 Master Key sucessfully created. All necessary keys will be derived from this Key"
+        )
+        .color256(CLI_BLUE)
+    );
 
-/// Recovers seed entropy from a BIP39 Recovery Mnemonic phrase
-/// words - The BIP39 Mnemonic phrase to recover from (whitespace separated words)
-fn recover_bip39_from_mnemonic(words: &str) -> Result<Mnemonic> {
-    Mnemonic::parse_normalized(words).context("Couldn't derive BIP39 mnemonic from words")
-}
+    // Authentication key
+    let auth_key = bip32_master
+        .derive(&"m/0'/0'/0'".parse::<DerivationPath>().unwrap())
+        .context("Failed to create ED25519 authentication key")?;
+    let auth_secret = Secret::generate_ed25519(
+        Some("authentication"),
+        Some(auth_key.signing_key.as_bytes()),
+    );
+    println!(
+        "{} {}",
+        style("Authentication Key (ED25519) created:").color256(CLI_BLUE),
+        style(auth_secret.get_public_keymultibase()?).color256(CLI_GREEN)
+    );
 
-#[cfg(test)]
-mod tests {
-    use bip39::Mnemonic;
+    // Encryption key
+    let enc_key = bip32_master
+        .derive(&"m/0'/0'/1'".parse::<DerivationPath>().unwrap())
+        .context("Failed to create X25519 encryption key")?;
+    let enc_secret =
+        Secret::generate_x25519(Some("encryption"), Some(enc_key.signing_key.as_bytes()))?;
+    println!(
+        "{} {}",
+        style("Encryption Key (X25519) created:").color256(CLI_BLUE),
+        style(enc_secret.get_public_keymultibase()?).color256(CLI_GREEN)
+    );
 
-    use crate::setup::recover_bip39_from_mnemonic;
-
-    const ENTROPY_BYTES: [u8; 32] = [
-        7, 26, 142, 230, 65, 85, 188, 182, 29, 129, 52, 229, 217, 159, 243, 182, 73, 89, 196, 246,
-        58, 28, 100, 144, 187, 21, 157, 39, 4, 188, 154, 180,
-    ];
-
-    const MNEMONIC_WORDS: [&str; 24] = [
-        "alpha", "stamp", "ridge", "live", "forward", "force", "invite", "charge", "total",
-        "smooth", "woman", "hold", "night", "tiny", "suggest", "drum", "goose", "magic", "shell",
-        "demise", "icon", "furnace", "hello", "manual",
-    ];
-
-    #[test]
-    fn test_generate_mnemonic() {
-        let mnemonic =
-            Mnemonic::from_entropy(&ENTROPY_BYTES).expect("Couldn't create mnemonic from entropy");
-
-        for (index, word) in mnemonic.words().enumerate() {
-            assert_eq!(MNEMONIC_WORDS[index], word);
-        }
-    }
-
-    #[test]
-    fn test_recover_mnemonic() {
-        let words = MNEMONIC_WORDS.join(" ");
-        let mnemonic = recover_bip39_from_mnemonic(&words)
-            .expect("Couldn't create BIP39 mnemonic from recovery phrase!");
-
-        assert_eq!(mnemonic.to_entropy(), ENTROPY_BYTES);
-    }
+    // Signing key
+    let sign_key = bip32_master
+        .derive(&"m/0'/0'/2'".parse::<DerivationPath>().unwrap())
+        .context("Failed to create ED25519 encryption key")?;
+    let sign_secret =
+        Secret::generate_ed25519(Some("signing"), Some(sign_key.signing_key.as_bytes()));
+    println!(
+        "{} {}",
+        style("Encryption Key (ED25519) created:").color256(CLI_BLUE),
+        style(sign_secret.get_public_keymultibase()?).color256(CLI_GREEN)
+    );
+    Ok(())
 }

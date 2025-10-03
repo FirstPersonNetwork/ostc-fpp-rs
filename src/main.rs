@@ -12,9 +12,10 @@ mod setup;
 mod status;
 
 // CLI Color codes
-const CLI_GREEN: u8 = 34;
-const CLI_BLUE: u8 = 69;
-const CLI_RED: u8 = 9;
+const CLI_BLUE: u8 = 69; // Use for general information
+const CLI_GREEN: u8 = 34; // Use for Successful text
+const CLI_RED: u8 = 9; // Use for Error messages
+const CLI_ORANGE: u8 = 214; // Use for cautionary data
 
 fn cli() -> Command {
     Command::new("lkmv")
@@ -42,9 +43,14 @@ fn main() {
         Some(("status", _)) => {
             print_status();
         }
-        Some(("setup", _)) => {
-            cli_setup();
-        }
+        Some(("setup", _)) => match cli_setup() {
+            Ok(_) => {
+                println!("Setup completed successfully.");
+            }
+            Err(e) => {
+                eprintln!("Setup failed: {e}");
+            }
+        },
         _ => {
             eprintln!("No valid subcommand was used. Use --help for more information.");
         }
