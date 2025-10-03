@@ -11,7 +11,7 @@
 
 ## Initial Setup
 
-Install the app locally from source:
+**Optional:** Install the app locally from source:
 
 ```bash
 cargo install --path .
@@ -24,4 +24,10 @@ Run the setup wizard:
 
 ```bash
 lkmv setup
+```
+
+If you do not install the app, you can run directly from source using:
+
+```bash
+cargo run -- setup
 ```
