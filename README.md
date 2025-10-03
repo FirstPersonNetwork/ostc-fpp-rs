@@ -6,3 +6,17 @@
 
 - `default`: [openpgp-card]
 - `openpgp-card`: Enables support for openpgp-card compatible devices.
+
+## Initial Setup
+
+Install the app locally from source:
+
+```bash
+cargo install --path .
+```
+
+Run the setup wizard:
+
+```bash
+lkmv setup
+```

@@ -2,10 +2,13 @@
 *
 */
 
+use crate::setup::cli_setup;
 use clap::Command;
 use status::print_status;
 use tracing_subscriber::EnvFilter;
 
+mod config;
+mod setup;
 mod status;
 
 // CLI Color codes
@@ -24,7 +27,7 @@ fn cli() -> Command {
 }
 
 // Handles initial setup and configuration of the CLI tool
-fn setup() {
+fn initialize() {
     // Setup logging/tracing
     // If no RUST_LOG ENV variable is set, defaults to MAX_LEVEL: ERROR
     tracing_subscriber::fmt()
@@ -33,11 +36,14 @@ fn setup() {
 }
 
 fn main() {
-    setup();
+    initialize();
 
     match cli().get_matches().subcommand() {
         Some(("status", _)) => {
             print_status();
+        }
+        Some(("setup", _)) => {
+            cli_setup();
         }
         _ => {
             eprintln!("No valid subcommand was used. Use --help for more information.");

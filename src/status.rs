@@ -43,7 +43,6 @@ fn feature_flags() {
             print!("{}", style(", ").bold().color256(CLI_GREEN))
         }
         print!("{}", style("openpgp-card").bold().color256(CLI_GREEN));
-        prev_flag = true;
     }
 
     println!();
