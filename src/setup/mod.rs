@@ -100,7 +100,7 @@ fn create_keys(mnemonic: &Mnemonic) -> Result<()> {
         Secret::generate_ed25519(Some("signing"), Some(sign_key.signing_key.as_bytes()));
     println!(
         "{} {}",
-        style("Encryption Key (ED25519) created:").color256(CLI_BLUE),
+        style("Signing Key (ED25519) created:").color256(CLI_BLUE),
         style(sign_secret.get_public_keymultibase()?).color256(CLI_GREEN)
     );
     Ok(())
