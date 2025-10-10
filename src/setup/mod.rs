@@ -2,9 +2,12 @@
 */
 
 use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_RED,
+    CLI_BLUE, CLI_GREEN,
     config::Config,
-    setup::bip32_bip39::{generate_bip39_mnemonic, get_bip32_root, mnemonic_from_recovery_phrase},
+    setup::{
+        bip32_bip39::{generate_bip39_mnemonic, get_bip32_root, mnemonic_from_recovery_phrase},
+        pgp_import::terminal_input_pgp_key,
+    },
 };
 use affinidi_tdk::secrets_resolver::secrets::Secret;
 use anyhow::{Context, Result};
@@ -14,6 +17,7 @@ use dialoguer::{Confirm, theme::ColorfulTheme};
 use ed25519_dalek_bip32::DerivationPath;
 
 mod bip32_bip39;
+mod pgp_import;
 
 /// Sets up the CLI tool
 pub fn cli_setup() -> Result<Config> {
@@ -40,10 +44,7 @@ pub fn cli_setup() -> Result<Config> {
         .unwrap()
     {
         // Import PGP Secret key material
-        println!(
-            "{}",
-            style("Not implemented yet!").blink().color256(CLI_RED)
-        );
+        terminal_input_pgp_key()?;
     } else {
         // Creating new Secrets
 

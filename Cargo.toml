@@ -20,9 +20,10 @@ anyhow = "1.0"
 bip39 = "2.2.0"
 clap = { version = "4.5", features = ["derive"] }
 console = "0.16"
-dialoguer = "0.12"
+dialoguer = { version = "0.12", features = ["password"] }
 ed25519-dalek-bip32 = "0.3"
 keyring = "3.6"
+pgp = "0.17"
 rand = "0.9"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

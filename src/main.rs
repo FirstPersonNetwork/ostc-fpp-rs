@@ -4,6 +4,7 @@
 
 use crate::setup::cli_setup;
 use clap::Command;
+use console::style;
 use status::print_status;
 use tracing_subscriber::EnvFilter;
 
@@ -16,6 +17,7 @@ const CLI_BLUE: u8 = 69; // Use for general information
 const CLI_GREEN: u8 = 34; // Use for Successful text
 const CLI_RED: u8 = 9; // Use for Error messages
 const CLI_ORANGE: u8 = 214; // Use for cautionary data
+const CLI_PURPLE: u8 = 129; // Use for Example data
 
 fn cli() -> Command {
     Command::new("lkmv")
@@ -45,7 +47,10 @@ fn main() {
         }
         Some(("setup", _)) => match cli_setup() {
             Ok(_) => {
-                println!("Setup completed successfully.");
+                println!(
+                    "\n{}",
+                    style("Setup completed successfully.").color256(CLI_GREEN)
+                );
             }
             Err(e) => {
                 eprintln!("Setup failed: {e}");
