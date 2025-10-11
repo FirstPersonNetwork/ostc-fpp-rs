@@ -10,10 +10,11 @@ use console::style;
 use dialoguer::{Confirm, Editor, Password, theme::ColorfulTheme};
 use pgp::{
     composed::{Deserializable, SignedSecretKey, SignedSecretSubKey},
-    crypto::public_key::PublicKeyAlgorithm,
+    crypto::ecdh,
     packet::KeyFlags,
     types::{KeyDetails, PlainSecretParams, SecretParams},
 };
+use zeroize::Zeroize;
 
 use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED};
 
@@ -31,17 +32,69 @@ pub struct PGPKeys {
 }
 
 impl PGPKeys {
-    pub fn import_sub_key(&mut self, key: &SignedSecretSubKey) {
-        println!("\n************************************************************");
-        println!("Algo: {:#?}", key.algorithm());
-        println!("Key ID: {:#?}", key.key_id());
-        println!("Fingerprint: {:#?}", key.fingerprint());
-
-        for sigs in &key.signatures {
-            println!("\tflags: sign: {}", sigs.key_flags().sign());
-            println!("\tflags: encrypt: {}", sigs.key_flags().encrypt_comms());
-            println!("\tflags: auth: {}", sigs.key_flags().authentication());
+    /// Confirms via the terminal if a valid imported key should be used for a specific purpose
+    pub fn confirm_key_use(&mut self, flag: KeyFlags, secret: Secret) {
+        if flag.sign()
+            && self.signing.is_none()
+            && Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt("Use this key for Signing?")
+                .default(true)
+                .interact()
+                .unwrap_or(false)
+        {
+            self.signing = Some(secret.clone());
         }
+
+        if (flag.encrypt_comms() || flag.encrypt_storage())
+            && self.encryption.is_none()
+            && Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt("Use this key for Encryption?")
+                .default(true)
+                .interact()
+                .unwrap_or(false)
+        {
+            self.encryption = Some(secret.clone());
+        }
+
+        if flag.authentication()
+            && self.authentication.is_none()
+            && Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt("Use this key for Authentication?")
+                .default(true)
+                .interact()
+                .unwrap_or(false)
+        {
+            self.authentication = Some(secret);
+        }
+    }
+
+    pub fn import_sub_key(&mut self, key: &mut SignedSecretSubKey, password: &str) {
+        println!();
+
+        println!(
+            "{} {}",
+            style("Sub-Key Fingerprint:").color256(CLI_BLUE),
+            style(key.fingerprint()).color256(CLI_GREEN)
+        );
+
+        if unlock_pgp_sub_key(&mut key.key, password).is_err() {
+            return;
+        }
+
+        let Some(signature) = key.signatures.first() else {
+            println!(
+                "{}",
+                style("No key signature found for this sub-key").color256(CLI_RED)
+            );
+            return;
+        };
+
+        show_key_purpose(signature.key_flags());
+
+        let Ok(secret) = check_crypto_algo_type(key.secret_params(), signature.key_flags()) else {
+            return;
+        };
+        self.confirm_key_use(signature.key_flags(), secret);
     }
 }
 
@@ -103,6 +156,7 @@ pub fn terminal_input_pgp_key() -> Result<PGPKeys> {
             .color256(CLI_ORANGE)
     );
 
+    println!();
     if !Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Continue?")
         .default(true)
@@ -131,41 +185,25 @@ pub fn check_pgp_keys(raw_key: &str) -> Result<PGPKeys> {
     let (mut keys, _) = SignedSecretKey::from_string(raw_key)?;
 
     // Try unlocking the key
-    let password: String = Password::with_theme(&ColorfulTheme::default())
+    let mut password: String = Password::with_theme(&ColorfulTheme::default())
         .with_prompt("Enter PGP Key Passphrase (if no passphrase, leave blank)")
         .allow_empty_password(true)
         .interact()
         .unwrap_or_default();
 
-    println!(
-        "{}",
-        style("Attempting to unlock and unencrypt PGP keys...").color256(CLI_BLUE)
-    );
-
-    keys.primary_key
-        .remove_password(&pgp::types::Password::from(password.as_bytes()))
-        .context("Couldn't remove PGP Password")?;
-
-    println!(
-        "{}",
-        style("Successfully unlocked PGP keys...").color256(CLI_GREEN)
-    );
-    println!();
+    unlock_pgp_key(&mut keys.primary_key, &password)?;
 
     let mut imported = PGPKeys::default();
 
-    extract_primary_key_details(&keys)?;
+    // Process the PGP Primary Key and assign it to the right slot
+    let (primary_flags, primary_secret) = extract_primary_key_details(&keys)?;
+    imported.confirm_key_use(primary_flags, primary_secret);
 
-    println!(
-        "\n{}",
-        style("Reading in sub-keys is a work in progress...")
-            .color256(CLI_ORANGE)
-            .blink()
-    );
-    for k in keys.secret_subkeys {
-        imported.import_sub_key(&k);
+    for k in keys.secret_subkeys.iter_mut() {
+        imported.import_sub_key(k, &password);
     }
 
+    password.zeroize();
     Ok(imported)
 }
 
@@ -200,15 +238,28 @@ fn extract_primary_key_details(primary_key: &SignedSecretKey) -> Result<(KeyFlag
         bail!("No key signature found for the primary key!");
     };
 
+    // Display the Key Purpose
+    show_key_purpose(signature.key_flags());
+
+    let secret = check_crypto_algo_type(
+        primary_key.primary_key.secret_params(),
+        signature.key_flags(),
+    )?;
+
+    Ok((signature.key_flags(), secret))
+}
+
+/// Prints the key purpose based on Key Flags
+fn show_key_purpose(flags: KeyFlags) {
     // Key purpose from key_flags
     let mut flag = false;
-    print!("{}", style("Primary Key Purpose: ").color256(CLI_BLUE));
-    if signature.key_flags().sign() {
+    print!("{}", style("Key Purpose: ").color256(CLI_BLUE));
+    if flags.sign() {
         print!("{}", style("Signing").color256(CLI_GREEN));
         flag = true;
     }
 
-    if signature.key_flags().encrypt_comms() || signature.key_flags().encrypt_storage() {
+    if flags.encrypt_comms() || flags.encrypt_storage() {
         if flag {
             print!("{}", style(", ").color256(CLI_GREEN));
         }
@@ -216,74 +267,124 @@ fn extract_primary_key_details(primary_key: &SignedSecretKey) -> Result<(KeyFlag
         flag = true;
     }
 
-    if signature.key_flags().authentication() {
+    if flags.authentication() {
         if flag {
             print!("{}", style(", ").color256(CLI_GREEN));
         }
         print!("{}", style("Authentication").color256(CLI_GREEN));
     }
     println!();
+}
 
-    // Crypto algo check
-    match primary_key.primary_key.algorithm() {
-        PublicKeyAlgorithm::EdDSALegacy => {
-            if !signature.key_flags().sign() && !signature.key_flags().authentication() {
-                println!(
-                    "{}{}",
-                    style("Invalid key crypto algorithm. Expected Ed25519 variant. Receieved: ")
-                        .color256(CLI_RED),
-                    style(format!("{:?}", primary_key.primary_key.algorithm()))
-                        .on_color256(CLI_ORANGE)
-                );
-                bail!("Invalid key crypto algorithm");
-            }
-            println!(
-                "{} {}",
-                style("Primary Key Algo:").color256(CLI_BLUE),
-                style("Ed25519 (Legacy)").color256(CLI_GREEN)
-            )
-        }
-        _ => {
-            println!(
-                "{}{}",
-                style("Invalid key crypto algorithm. No Curve25519 based algo found. Receieved: ")
-                    .color256(CLI_RED),
-                style(format!("{:?}", primary_key.primary_key.algorithm())).on_color256(CLI_ORANGE)
-            );
-            bail!("Invalid key crypto algorithm");
-        }
-    }
-
-    let secret = if let SecretParams::Plain(params) = primary_key.primary_key.secret_params() {
-        match params {
-            PlainSecretParams::Ed25519(secret) | PlainSecretParams::Ed25519Legacy(secret) => {
-                println!(
-                    "{}",
-                    style("Sucessfully retrieved Ed25519 Primary Key Secret material")
-                        .color256(CLI_GREEN)
-                );
-                Secret::generate_ed25519(None, Some(secret.as_bytes()))
-            }
-            PlainSecretParams::X25519(secret) => {
-                println!(
-                    "{}",
-                    style("Sucessfully retrieved X25519 Primary Key Secret material")
-                        .color256(CLI_GREEN)
-                );
-                Secret::generate_x25519(None, Some(secret.as_bytes()))?
-            }
-            _ => {
-                println!(
-                    "{}",
-                    style("Invalid primary key Secret Parameters").color256(CLI_RED)
-                );
-                bail!("Invalid primary key secret paramters");
-            }
-        }
-    } else {
+/// Ensures that only Curve25519 types are matched to the right purpose
+fn check_crypto_algo_type(params: &SecretParams, flags: KeyFlags) -> Result<Secret> {
+    let SecretParams::Plain(params) = params else {
         println!("{}", style("Expected to find encrypted secret parameters, instead received EncryptedSecretParams. Key was not unlocked properly").color256(CLI_RED));
         bail!("Key wasn't fully unlocked - ran into encrypted key secrets");
     };
 
-    Ok((signature.key_flags(), secret))
+    // Crypto algo check
+    Ok(match params {
+        PlainSecretParams::Ed25519(secret) | PlainSecretParams::Ed25519Legacy(secret) => {
+            if flags.sign() || flags.authentication() {
+                println!(
+                    "{}",
+                    style("Sucessfully retrieved Ed25519 Key Secret material").color256(CLI_GREEN)
+                );
+                Secret::generate_ed25519(None, Some(secret.as_bytes()))
+            } else {
+                println!(
+                    "{}",
+                    style("Ed25519 Key cannot be used for Encryption").color256(CLI_RED)
+                );
+                bail!("Invalid use of Ed25519 key");
+            }
+        }
+        PlainSecretParams::X25519(secret) => {
+            if flags.encrypt_comms() || flags.encrypt_storage() {
+                // Valid use of X25519
+                println!(
+                    "{}",
+                    style("Sucessfully retrieved X25519 Key Secret material").color256(CLI_GREEN)
+                );
+                Secret::generate_x25519(None, Some(secret.as_bytes()))?
+            } else {
+                println!(
+                    "{}",
+                    style("X25519 Key can only be used for Encryption").color256(CLI_RED)
+                );
+                bail!("Invalid use of X25519 key");
+            }
+        }
+        PlainSecretParams::ECDH(secret) => {
+            if (flags.encrypt_comms() || flags.encrypt_storage())
+                && let ecdh::SecretKey::Curve25519(secret) = secret
+            {
+                // Valid use of X25519
+                println!(
+                    "{}",
+                    style("Sucessfully retrieved X25519 Key Secret material").color256(CLI_GREEN)
+                );
+                Secret::generate_x25519(None, Some(secret.as_bytes()))?
+            } else if let ecdh::SecretKey::Curve25519(_) = secret {
+                println!(
+                    "{}",
+                    style("ECDH Key must be Curve25519!").color256(CLI_RED)
+                );
+                bail!("Invalid use of X25519 key");
+            } else {
+                println!(
+                    "{}",
+                    style("X25519 Key can only be used for Encryption").color256(CLI_RED)
+                );
+                bail!("Invalid use of X25519 key");
+            }
+        }
+        _ => {
+            println!(
+                "{} {}",
+                style("Invalid key Secret Parameters: ").color256(CLI_RED),
+                style(format!("{:#?}", params)).color256(CLI_ORANGE)
+            );
+            bail!("Invalid key secret paramters");
+        }
+    })
+}
+
+/// Unlocks the master PGP Key
+fn unlock_pgp_key(key: &mut pgp::packet::SecretKey, password: &str) -> Result<()> {
+    println!(
+        "{}",
+        style("Attempting to unlock and unencrypt Primary PGP key...").color256(CLI_BLUE)
+    );
+
+    key.remove_password(&pgp::types::Password::from(password.as_bytes()))
+        .context("Couldn't remove Primary PGP Password")?;
+
+    println!(
+        "{}",
+        style("Successfully unlocked Primary PGP key...").color256(CLI_GREEN)
+    );
+    println!();
+
+    Ok(())
+}
+
+/// Unlocks the master PGP Key
+fn unlock_pgp_sub_key(key: &mut pgp::packet::SecretSubkey, password: &str) -> Result<()> {
+    println!(
+        "{}",
+        style("Attempting to unlock and unencrypt Sub PGP key...").color256(CLI_BLUE)
+    );
+
+    key.remove_password(&pgp::types::Password::from(password.as_bytes()))
+        .context("Couldn't remove Sub PGP Password")?;
+
+    println!(
+        "{}",
+        style("Successfully unlocked Sub PGP key...").color256(CLI_GREEN)
+    );
+    println!();
+
+    Ok(())
 }
