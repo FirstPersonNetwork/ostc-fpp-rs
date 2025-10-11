@@ -25,6 +25,7 @@ ed25519-dalek-bip32 = "0.3"
 keyring = "3.6"
 pgp = "0.17"
 rand = "0.9"
+serde = "1.0"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 zeroize = "1.8"

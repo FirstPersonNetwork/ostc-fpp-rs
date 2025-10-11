@@ -32,6 +32,11 @@ pub struct PGPKeys {
 }
 
 impl PGPKeys {
+    /// Did we import any keys?
+    pub fn is_empty(&self) -> bool {
+        self.signing.is_none() && self.encryption.is_none() && self.authentication.is_none()
+    }
+
     /// Confirms via the terminal if a valid imported key should be used for a specific purpose
     pub fn confirm_key_use(&mut self, flag: KeyFlags, secret: Secret) {
         if flag.sign()
@@ -176,7 +181,41 @@ pub fn terminal_input_pgp_key() -> Result<PGPKeys> {
         }
     };
 
-    check_pgp_keys(&input)
+    let imported = check_pgp_keys(&input)?;
+
+    println!();
+    println!("{}", style("PGP Imported Key Status:").color256(CLI_BLUE));
+    if imported.is_empty() {
+        println!(
+            "  {}",
+            style("No keys were imported from PGP!").color256(CLI_PURPLE)
+        );
+    } else {
+        if let Some(key) = &imported.signing {
+            println!(
+                "  {} {}",
+                style("Signing Public Key:").color256(CLI_BLUE),
+                style(key.get_public_keymultibase()?).color256(CLI_GREEN)
+            );
+        }
+
+        if let Some(key) = &imported.authentication {
+            println!(
+                "  {} {}",
+                style("Authentication Public Key:").color256(CLI_BLUE),
+                style(key.get_public_keymultibase()?).color256(CLI_GREEN)
+            );
+        }
+
+        if let Some(key) = &imported.encryption {
+            println!(
+                "  {} {}",
+                style("Encryption Public Key:").color256(CLI_BLUE),
+                style(key.get_public_keymultibase()?).color256(CLI_GREEN)
+            );
+        }
+    }
+    Ok(imported)
 }
 
 /// Imports PGP Key structure from a export String
@@ -284,7 +323,7 @@ fn check_crypto_algo_type(params: &SecretParams, flags: KeyFlags) -> Result<Secr
     };
 
     // Crypto algo check
-    Ok(match params {
+    let mut secret = match params {
         PlainSecretParams::Ed25519(secret) | PlainSecretParams::Ed25519Legacy(secret) => {
             if flags.sign() || flags.authentication() {
                 println!(
@@ -348,7 +387,12 @@ fn check_crypto_algo_type(params: &SecretParams, flags: KeyFlags) -> Result<Secr
             );
             bail!("Invalid key secret paramters");
         }
-    })
+    };
+
+    // Set the Key ID to be the base58 encoded public key (this can be used as a basic did:key:z...
+    // DID)
+    secret.id = secret.get_public_keymultibase()?;
+    Ok(secret)
 }
 
 /// Unlocks the master PGP Key

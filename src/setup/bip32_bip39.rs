@@ -78,10 +78,17 @@ pub fn generate_bip39_mnemonic() -> Mnemonic {
             entropy.zeroize(); // Clear entropy from memory
 
             println!(
-                "\n{}\n{}",
-                style("BIP39 Recovery Phrase (Please store in a safe space):").color256(CLI_BLUE),
+                "\n{} {}",
+                style("BIP39 Recovery Phrase").color256(CLI_BLUE),
+                style("(Please store in a safe space):")
+                    .color256(CLI_RED)
+                    .blink()
+            );
+            println!(
+                "{}",
                 style(mnemonic.words().collect::<Vec<&str>>().join(" ")).color256(CLI_ORANGE)
             );
+            println!();
             mnemonic
         }
         Err(e) => {
