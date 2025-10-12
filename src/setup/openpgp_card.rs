@@ -17,6 +17,23 @@ pub fn setup_hardware_token(keys: &CommunityDIDKeys) -> Result<()> {
     );
     let mut cards = cards()?;
 
+    print_cards(&mut cards)?;
+    Ok(())
+}
+
+/// Get a list of active cards on this system
+pub fn cards() -> Result<Vec<Card<Open>>> {
+    let mut cards = vec![];
+
+    for backend in PcscBackend::cards(None)? {
+        let card = Card::<Open>::new(backend?)?;
+        cards.push(card);
+    }
+
+    Ok(cards)
+}
+
+pub fn print_cards(cards: &mut [Card<Open>]) -> Result<()> {
     println!(
         "{} {}",
         style("Cards found:").color256(CLI_BLUE),
@@ -40,19 +57,8 @@ pub fn setup_hardware_token(keys: &CommunityDIDKeys) -> Result<()> {
             println!("{}", style("<NOT SET>").color256(CLI_PURPLE).blink());
         }
     }
+
     Ok(())
-}
-
-/// Get a list of active cards on this system
-pub(crate) fn cards() -> Result<Vec<Card<Open>>> {
-    let mut cards = vec![];
-
-    for backend in PcscBackend::cards(None)? {
-        let card = Card::<Open>::new(backend?)?;
-        cards.push(card);
-    }
-
-    Ok(cards)
 }
 
 /// Formats the cardholder name

@@ -20,7 +20,7 @@ use ed25519_dalek_bip32::DerivationPath;
 
 mod bip32_bip39;
 #[cfg(feature = "openpgp-card")]
-mod openpgp_card;
+pub mod openpgp_card;
 mod pgp_import;
 
 /// Contains all setup information

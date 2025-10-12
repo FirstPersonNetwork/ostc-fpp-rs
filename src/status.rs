@@ -2,11 +2,8 @@
 *
 */
 
-#[cfg(not(feature = "openpgp-card"))]
-use crate::CLI_ORANGE;
-#[cfg(not(feature = "default"))]
-use crate::CLI_RED;
-use crate::{CLI_BLUE, CLI_GREEN};
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_RED};
+use anyhow::Result;
 use console::style;
 
 /// Prints diagnostic status to STDOUT
@@ -19,7 +16,13 @@ pub fn print_status() {
 
     feature_flags();
 
-    openpgp_cards_status();
+    if let Err(error) = openpgp_cards_status() {
+        println!(
+            "{} {}",
+            style("An error occurred in handling openpgp-cards:").color256(CLI_RED),
+            style(error.to_string()).color256(CLI_ORANGE)
+        );
+    }
 }
 
 // Rust Feature Flags enabled for this build
@@ -53,7 +56,7 @@ fn feature_flags() {
     println!();
 }
 
-fn openpgp_cards_status() {
+fn openpgp_cards_status() -> Result<()> {
     println!();
     print!("{} ", style("OpenPGP-Card support:").color256(CLI_BLUE));
 
@@ -61,5 +64,14 @@ fn openpgp_cards_status() {
     println!("{}", style("DISABLED").color256(CLI_ORANGE).bold());
 
     #[cfg(feature = "openpgp-card")]
-    println!("{} ", style("Enabled").color256(CLI_GREEN).bold());
+    {
+        use crate::setup::openpgp_card::{cards, print_cards};
+
+        println!("{} ", style("Enabled").color256(CLI_GREEN).bold());
+
+        let mut cards = cards()?;
+        print_cards(&mut cards)?;
+    }
+
+    Ok(())
 }
