@@ -101,7 +101,9 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
         // use imported key
         (
             signing.clone(),
-            KeySourceMaterial::Imported { key_id: signing.id },
+            KeySourceMaterial::Imported {
+                key_id: signing.id.clone(),
+            },
         )
     } else {
         let sign_key = bip32_master
@@ -132,7 +134,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
             (
                 authentication.clone(),
                 KeySourceMaterial::Imported {
-                    key_id: authentication.id,
+                    key_id: authentication.id.clone(),
                 },
             )
         } else {
@@ -163,7 +165,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
         (
             encryption.clone(),
             KeySourceMaterial::Imported {
-                key_id: encryption.id,
+                key_id: encryption.id.clone(),
             },
         )
     } else {
