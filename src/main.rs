@@ -9,6 +9,8 @@ use status::print_status;
 use tracing_subscriber::EnvFilter;
 
 mod config;
+#[cfg(feature = "openpgp-card")]
+mod openpgp_card;
 mod setup;
 mod status;
 
