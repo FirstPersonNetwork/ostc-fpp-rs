@@ -65,7 +65,7 @@ fn openpgp_cards_status() -> Result<()> {
 
     #[cfg(feature = "openpgp-card")]
     {
-        use crate::{openpgp_card::cards, setup::openpgp_card::print_cards};
+        use crate::openpgp_card::{cards, print_cards};
 
         println!("{} ", style("Enabled").color256(CLI_GREEN).bold());
 
