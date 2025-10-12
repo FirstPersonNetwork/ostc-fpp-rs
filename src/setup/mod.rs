@@ -1,12 +1,13 @@
 /*! Handles the setup of the lkmv CLI tool
 */
 
+#[cfg(feature = "openpgp-card")]
+use crate::setup::openpgp_card::setup_hardware_token;
 use crate::{
     CLI_BLUE, CLI_GREEN,
     config::KeySourceMaterial,
     setup::{
         bip32_bip39::{generate_bip39_mnemonic, get_bip32_root, mnemonic_from_recovery_phrase},
-        openpgp_card::setup_hardware_token,
         pgp_import::{PGPKeys, terminal_input_pgp_key},
     },
 };
@@ -18,6 +19,7 @@ use dialoguer::{Confirm, theme::ColorfulTheme};
 use ed25519_dalek_bip32::DerivationPath;
 
 mod bip32_bip39;
+#[cfg(feature = "openpgp-card")]
 mod openpgp_card;
 mod pgp_import;
 
@@ -78,6 +80,7 @@ pub fn cli_setup() -> Result<()> {
     let c_did_keys = create_keys(&mnemonic, &imported_keys)?;
 
     // Use hardware token?
+    #[cfg(feature = "openpgp-card")]
     setup_hardware_token(&c_did_keys)?;
 
     Ok(())
