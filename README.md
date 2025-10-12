@@ -31,3 +31,14 @@ If you do not install the app, you can run directly from source using:
 ```bash
 cargo run -- setup
 ```
+
+## Check Environment
+
+A lot is going on behind the app to ensure a safe, secure and private environment
+for this tool to work.
+
+You can check the status/health of your environment with the following command:
+
+```bash
+lkmv status
+```
