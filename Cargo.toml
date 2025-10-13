@@ -25,6 +25,7 @@ crossterm = "0.29"
 dialoguer = { version = "0.12", features = ["password"] }
 ed25519-dalek-bip32 = "0.3"
 keyring = "3.6"
+multibase = "0.9"
 pgp = "0.17"
 rand = "0.9"
 serde = "1.0"
