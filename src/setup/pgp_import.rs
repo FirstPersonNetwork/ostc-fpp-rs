@@ -1,7 +1,7 @@
 /*! Handles the import of PGP Key Material
 *   
 *   Annoyingly PGP spec is convoluted and treats the primary key differently to the sub keys
-*   So need to handle primary and sub-keys separately
+*   So need to handle primary and subkeys separately
 */
 
 use affinidi_tdk::secrets_resolver::secrets::Secret;
@@ -78,7 +78,7 @@ impl PGPKeys {
 
         println!(
             "{} {}",
-            style("Sub-Key Fingerprint:").color256(CLI_BLUE),
+            style("SubKey Fingerprint:").color256(CLI_BLUE),
             style(key.fingerprint()).color256(CLI_GREEN)
         );
 
@@ -89,7 +89,7 @@ impl PGPKeys {
         let Some(signature) = key.signatures.first() else {
             println!(
                 "{}",
-                style("No key signature found for this sub-key").color256(CLI_RED)
+                style("No key signature found for this subkey").color256(CLI_RED)
             );
             return;
         };
