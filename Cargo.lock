@@ -3417,8 +3417,10 @@ dependencies = [
  "keyring",
  "multibase",
  "openpgp-card",
+ "openpgp-card-rpgp",
  "pgp",
  "rand 0.9.2",
+ "secrecy",
  "serde",
  "tracing",
  "tracing-subscriber",
@@ -3792,6 +3794,26 @@ dependencies = [
  "secrecy",
  "sha2 0.10.9",
  "thiserror 1.0.69",
+]
+
+[[package]]
+name = "openpgp-card-rpgp"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eb56a7eab5e65d7933e2c6cc7b4b65932ce1c605834bfe26d61601e755b772bf"
+dependencies = [
+ "chrono",
+ "ed25519-dalek",
+ "openpgp-card",
+ "p256",
+ "p384",
+ "p521",
+ "pgp",
+ "rand 0.8.5",
+ "rsa",
+ "secrecy",
+ "thiserror 2.0.17",
+ "x25519-dalek",
 ]
 
 [[package]]

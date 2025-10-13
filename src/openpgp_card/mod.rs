@@ -2,7 +2,7 @@
 *   Handles everything todo with openpgp-card tokens
 */
 
-use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED};
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_RED};
 use anyhow::Result;
 use card_backend_pcsc::PcscBackend;
 use chrono::{DateTime, Utc};
@@ -18,6 +18,8 @@ use openpgp_card::{
     state::{Open, Transaction},
 };
 use std::fmt;
+
+pub mod write;
 
 /// Tags what the key is used for
 #[derive(Default, Debug, PartialEq)]
@@ -181,7 +183,7 @@ pub fn print_cards(cards: &mut [Card<Open>]) -> Result<()> {
         if let Some(cardholder) = format_cardholder_name(&open_card.cardholder_name()?) {
             println!("{}", style(cardholder).color256(CLI_GREEN));
         } else {
-            println!("{}", style("<NOT SET>").color256(CLI_PURPLE).blink());
+            println!("{}", style("<NOT SET>").color256(CLI_ORANGE));
         }
 
         // Check key status for this hardware token
@@ -257,6 +259,67 @@ pub fn get_key_info(
         _ => {}
     }
     Ok(key_info)
+}
+
+/// Checks that everything is ok with the keyslot
+pub fn check_keyslot(ki: &KeySlotInfo) -> bool {
+    if let Some(KeyStatus::NotPresent) = &ki.status {
+        return false;
+    }
+
+    match &ki.purpose {
+        KeyPurpose::Signing => {
+            if let Some(AlgorithmAttributes::Ecc(attr)) = &ki.algorithm {
+                if attr.curve() != &algorithm::Curve::Ed25519 {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+
+            // Best practice for Signing key is for it to require some form of user interface
+            if ki.touch_policy == TouchPolicy::Off {
+                return false;
+            }
+
+            if ki.public_key_material.is_none() {
+                return false;
+            }
+
+            true
+        }
+        KeyPurpose::Authentication => {
+            if let Some(AlgorithmAttributes::Ecc(attr)) = &ki.algorithm {
+                if attr.curve() != &algorithm::Curve::Ed25519 {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+
+            if ki.public_key_material.is_none() {
+                return false;
+            }
+
+            true
+        }
+        KeyPurpose::Encryption => {
+            if let Some(AlgorithmAttributes::Ecc(attr)) = &ki.algorithm {
+                if attr.curve() != &algorithm::Curve::Curve25519 {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+
+            if ki.public_key_material.is_none() {
+                return false;
+            }
+
+            true
+        }
+        KeyPurpose::Unknown => false,
+    }
 }
 
 /// Prints a hardware token key details to the console
@@ -405,7 +468,7 @@ pub fn print_key_info(ki: &KeySlotInfo) {
             KeyStatus::NotPresent => print!("{}", style(status).color256(CLI_RED)),
             KeyStatus::Unknown(_) => print!("{}", style(status).color256(CLI_RED)),
         }
-        print!(" {}", style(")").color256(CLI_BLUE));
+        print!("{}", style(")").color256(CLI_BLUE));
     }
 
     if let Some(ct) = &ki.creation_time {

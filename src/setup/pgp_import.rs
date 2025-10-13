@@ -74,6 +74,7 @@ impl PGPKeys {
     }
 
     pub fn import_sub_key(&mut self, key: &mut SignedSecretSubKey, password: &str) {
+        println!("TIMTAM: {key:#?}");
         println!();
 
         println!(
@@ -248,6 +249,7 @@ pub fn check_pgp_keys(raw_key: &str) -> Result<PGPKeys> {
 
 /// Extract important key info from the primary key
 fn extract_primary_key_details(primary_key: &SignedSecretKey) -> Result<(KeyFlags, Secret)> {
+    println!("TIMTAM: {primary_key:#?}");
     let Some(user) = primary_key.details.users.first() else {
         println!(
             "{}",

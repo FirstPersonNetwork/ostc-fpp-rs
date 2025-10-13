@@ -3,16 +3,17 @@
 */
 
 use crate::{
-    CLI_BLUE, CLI_ORANGE, CLI_PURPLE,
-    openpgp_card::{cards, print_cards},
+    CLI_BLUE, CLI_ORANGE, CLI_PURPLE, CLI_RED,
+    openpgp_card::{cards, print_cards, write::write_keys_to_card},
     setup::CommunityDIDKeys,
 };
-use anyhow::Result;
+use anyhow::{Result, bail};
 use console::style;
 use crossterm::{
     event::{self, Event},
     terminal,
 };
+use dialoguer::{Select, theme::ColorfulTheme};
 
 /// Handles storing secrets on an OpenPGP compatable card
 pub fn setup_hardware_token(keys: &CommunityDIDKeys) -> Result<()> {
@@ -56,6 +57,38 @@ pub fn setup_hardware_token(keys: &CommunityDIDKeys) -> Result<()> {
     } else {
         print_cards(&mut cards)?;
     }
+
+    let s_card: Vec<String> = cards
+        .iter_mut()
+        .map(|c| {
+            c.transaction()
+                .unwrap()
+                .application_identifier()
+                .unwrap()
+                .ident()
+        })
+        .collect();
+
+    println!();
+    let selected_option = Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("Pick which card you want to write your secrets to")
+        .default(0)
+        .items(&s_card)
+        .interact()
+        .unwrap();
+
+    let Some(selected_card) = cards.get_mut(selected_option) else {
+        println!(
+            "{}{}{}",
+            style("Couldn't find card (").color256(CLI_RED),
+            style(s_card.get(selected_option).unwrap()).color256(CLI_ORANGE),
+            style(")").color256(CLI_RED)
+        );
+        bail!("Couldn't select card for writing...");
+    };
+
+    // Attempt to write the keys to the card
+    write_keys_to_card(selected_card, keys)?;
 
     Ok(())
 }

@@ -12,7 +12,12 @@ repository = "https://github.com/FirstPersonNetwork/lkmv"
 
 [features]
 default = ["openpgp-card"]
-openpgp-card = ["dep:openpgp-card", "dep:card-backend-pcsc"]
+openpgp-card = [
+  "dep:openpgp-card",
+  "dep:card-backend-pcsc",
+  "dep:openpgp-card-rpgp",
+  "dep:secrecy",
+]
 
 [dependencies]
 affinidi-tdk = "0.2"
@@ -36,3 +41,5 @@ zeroize = "1.8"
 # Openpgp-Card Support
 openpgp-card = { version = "0.5", optional = true }
 card-backend-pcsc = { version = "0.5", optional = true }
+openpgp-card-rpgp = { version = "0.5", optional = true }
+secrecy = { version = "0.8", optional = true }
