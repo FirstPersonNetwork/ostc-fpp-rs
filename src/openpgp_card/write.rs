@@ -2,31 +2,25 @@
 *   Handles writing of data to the OpenPGP Card
 */
 
-use crate::{openpgp_card::KeyPurpose, setup::CommunityDIDKeys};
+use crate::{CLI_BLUE, CLI_GREEN, openpgp_card::KeyPurpose, setup::CommunityDIDKeys};
 use affinidi_tdk::secrets_resolver::secrets::Secret;
-use anyhow::Result;
+use anyhow::{Result, bail};
 use chrono::Utc;
-use dialoguer::{Input, Password, theme::ColorfulTheme};
+use console::style;
+use dialoguer::{Password, theme::ColorfulTheme};
 use ed25519_dalek_bip32::VerifyingKey;
-use openpgp_card::{
-    Card,
-    ocard::{
-        KeyType,
-        crypto::{CardUploadableKey, EccPub},
-    },
-    state::Open,
-};
+use openpgp_card::{Card, ocard::KeyType, state::Open};
 use openpgp_card_rpgp::UploadableKey;
 use pgp::{
-    bytes::Bytes,
-    crypto::{self, ecc_curve::ECCCurve, ed25519::Mode, public_key::PublicKeyAlgorithm},
+    crypto::{self, ed25519::Mode, public_key::PublicKeyAlgorithm},
     packet::{PacketHeader, PublicKey, SecretKey},
     types::{
-        EcdhPublicParams, EcdsaPublicParams, Ed25519PublicParams, EddsaLegacyPublicParams,
-        KeyVersion, PlainSecretParams, PublicParams, SecretParams, Tag,
+        EcdhPublicParams, EddsaLegacyPublicParams, KeyVersion, PlainSecretParams, PublicParams,
+        SecretParams, Tag,
     },
 };
 use secrecy::SecretString;
+use x25519_dalek::StaticSecret;
 
 /// Writes keys to the card
 pub fn write_keys_to_card(card: &mut Card<Open>, keys: &CommunityDIDKeys) -> Result<()> {
@@ -38,50 +32,121 @@ pub fn write_keys_to_card(card: &mut Card<Open>, keys: &CommunityDIDKeys) -> Res
         .unwrap()
         .into();
 
-    // Check the User PIN as well
-
-    // Create a PGP secret key packet
-    let uk = create_pgp_secret_packet(&keys.signing, KeyPurpose::Signing)?;
-
     // Try unlocking the card with the admin PIN
     let mut open_card = card.transaction()?;
     open_card.verify_admin_pin(admin_pin)?;
     let mut card = open_card.to_admin_card(None)?;
+
+    // Create a PGP secret key packet
+    println!("{}", style("Writing Signing key...").color256(CLI_BLUE));
+    let uk = create_pgp_secret_packet(&keys.signing, KeyPurpose::Signing)?;
     card.import_key(Box::new(uk), KeyType::Signing)?;
+    println!("  {}", style("Success").color256(CLI_GREEN));
+
+    println!(
+        "{}",
+        style("Writing Authentication key...").color256(CLI_BLUE)
+    );
+    let uk = create_pgp_secret_packet(&keys.authentication, KeyPurpose::Authentication)?;
+    card.import_key(Box::new(uk), KeyType::Authentication)?;
+    println!("  {}", style("Success").color256(CLI_GREEN));
+
+    println!("{}", style("Writing Encryption key...").color256(CLI_BLUE));
+    let uk = create_pgp_secret_packet(&keys.encryption, KeyPurpose::Encryption)?;
+    card.import_key(Box::new(uk), KeyType::Decryption)?;
+    println!("  {}", style("Success").color256(CLI_GREEN));
 
     Ok(())
 }
 
 /// Creates a PGO secret key packet from key details
 fn create_pgp_secret_packet(secret: &Secret, kp: KeyPurpose) -> Result<UploadableKey> {
-    // Create PublicKey
-    let pk_bytes: &[u8; 32] = secret.get_public_bytes().first_chunk::<32>().unwrap();
+    let (pk, sp) = match kp {
+        KeyPurpose::Signing => {
+            // Packet Lenth is 51 octets for EdDSA Legacy Keys (which is what is most supported)
+            let packet_header = PacketHeader::new_fixed(Tag::PublicKey, 51);
 
-    // Packet Lenth is 51 octets for EdDSA Legacy Keys (which is what is most supported)
-    let packet_header = PacketHeader::new_fixed(Tag::PublicKey, 51);
+            let pk = PublicKey::new_with_header(
+                packet_header,
+                KeyVersion::V4,
+                PublicKeyAlgorithm::EdDSALegacy,
+                Utc::now(),
+                None,
+                PublicParams::EdDSALegacy(EddsaLegacyPublicParams::Ed25519 {
+                    key: VerifyingKey::from_bytes(
+                        secret.get_public_bytes().first_chunk::<32>().unwrap(),
+                    )?,
+                }),
+            )?;
 
-    let pk = PublicKey::new_with_header(
-        packet_header,
-        KeyVersion::V4,
-        PublicKeyAlgorithm::EdDSALegacy,
-        Utc::now(),
-        None,
-        PublicParams::EdDSALegacy(EddsaLegacyPublicParams::Ed25519 {
-            key: VerifyingKey::from_bytes(pk_bytes)?,
-        }),
-    )?;
+            // Create SecretParams
+            let sp = SecretParams::Plain(PlainSecretParams::Ed25519Legacy(
+                crypto::ed25519::SecretKey::try_from_bytes(
+                    *secret.get_private_bytes().first_chunk::<32>().unwrap(),
+                    Mode::EdDSALegacy,
+                )?,
+            ));
 
-    // Create SecretParams
-    let sp = SecretParams::Plain(PlainSecretParams::Ed25519Legacy(
-        crypto::ed25519::SecretKey::try_from_bytes(
-            *secret.get_private_bytes().first_chunk::<32>().unwrap(),
-            Mode::EdDSALegacy,
-        )?,
-    ));
+            (pk, sp)
+        }
+        KeyPurpose::Authentication => {
+            // Packet Lenth is 51 octets for EdDSA Legacy Keys (which is what is most supported)
+            let packet_header = PacketHeader::new_fixed(Tag::PublicKey, 51);
 
-    // Create SecretKey
-    let sk = SecretKey::new(pk, sp)?;
+            let pk = PublicKey::new_with_header(
+                packet_header,
+                KeyVersion::V4,
+                PublicKeyAlgorithm::EdDSALegacy,
+                Utc::now(),
+                None,
+                PublicParams::EdDSALegacy(EddsaLegacyPublicParams::Ed25519 {
+                    key: VerifyingKey::from_bytes(
+                        secret.get_public_bytes().first_chunk::<32>().unwrap(),
+                    )?,
+                }),
+            )?;
+
+            // Create SecretParams
+            let sp = SecretParams::Plain(PlainSecretParams::Ed25519Legacy(
+                crypto::ed25519::SecretKey::try_from_bytes(
+                    *secret.get_private_bytes().first_chunk::<32>().unwrap(),
+                    Mode::EdDSALegacy,
+                )?,
+            ));
+
+            (pk, sp)
+        }
+        KeyPurpose::Encryption => {
+            // Packet Lenth is 56 octets for ECDH
+            let packet_header = PacketHeader::new_fixed(Tag::PublicKey, 56);
+
+            let pk = PublicKey::new_with_header(
+                packet_header,
+                KeyVersion::V4,
+                PublicKeyAlgorithm::ECDH,
+                Utc::now(),
+                None,
+                PublicParams::ECDH(EcdhPublicParams::Curve25519 {
+                    p: x25519_dalek::PublicKey::from(
+                        *secret.get_public_bytes().first_chunk::<32>().unwrap(),
+                    ),
+                    hash: crypto::hash::HashAlgorithm::Sha256,
+                    alg_sym: crypto::sym::SymmetricKeyAlgorithm::AES256,
+                }),
+            )?;
+
+            let ss = StaticSecret::from(*secret.get_private_bytes().first_chunk::<32>().unwrap());
+
+            // Create SecretParams
+            let sp = SecretParams::Plain(PlainSecretParams::ECDH(
+                crypto::ecdh::SecretKey::Curve25519(ss.into()),
+            ));
+
+            (pk, sp)
+        }
+        _ => bail!("Invalid Key Purpose being used to import secret key to hardware token"),
+    };
 
     // Convert to uploadable key
-    Ok(sk.into())
+    Ok(SecretKey::new(pk, sp)?.into())
 }
