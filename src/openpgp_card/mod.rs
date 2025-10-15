@@ -2,7 +2,7 @@
 *   Handles everything todo with openpgp-card tokens
 */
 
-use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_RED};
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_RED, setup::KeyPurpose};
 use anyhow::Result;
 use card_backend_pcsc::PcscBackend;
 use chrono::{DateTime, Utc};
@@ -21,38 +21,6 @@ use std::fmt;
 
 pub mod write;
 
-/// Tags what the key is used for
-#[derive(Default, Debug, PartialEq)]
-pub enum KeyPurpose {
-    Signing,
-    Authentication,
-    Encryption,
-    #[default]
-    Unknown,
-}
-
-impl fmt::Display for KeyPurpose {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            KeyPurpose::Signing => write!(f, "Signing"),
-            KeyPurpose::Authentication => write!(f, "Authentication"),
-            KeyPurpose::Encryption => write!(f, "Encryption"),
-            KeyPurpose::Unknown => write!(f, "Unknown"),
-        }
-    }
-}
-
-impl From<KeyType> for KeyPurpose {
-    fn from(kt: KeyType) -> Self {
-        match kt {
-            KeyType::Signing => KeyPurpose::Signing,
-            KeyType::Authentication => KeyPurpose::Authentication,
-            KeyType::Decryption => KeyPurpose::Encryption,
-            _ => KeyPurpose::Unknown,
-        }
-    }
-}
-
 pub struct KeySlotInfo {
     /// Purpose for this key (signing/authentication/encryption)
     purpose: KeyPurpose,
@@ -61,6 +29,9 @@ pub struct KeySlotInfo {
     /// Time that this key was generated
     /// 2025-10-02 03:21:06 UTC
     creation_time: Option<String>,
+    /// Time that this key will expire
+    /// 2025-10-02 03:21:06 UTC
+    expiry_time: Option<String>,
     /// Algorithm used for this key
     algorithm: Option<AlgorithmAttributes>,
     /// Does this key require touch to use?
@@ -81,6 +52,7 @@ impl Default for KeySlotInfo {
             purpose: KeyPurpose::Unknown,
             fingerprint: None,
             creation_time: None,
+            expiry_time: None,
             algorithm: None,
             touch_policy: TouchPolicy::Off,
             touch_features: Features::from(0_u8),
@@ -100,6 +72,9 @@ impl fmt::Debug for KeySlotInfo {
         }
         if let Some(ct) = &self.creation_time {
             writeln!(f, "  Creation Time: {}", ct)?;
+        }
+        if let Some(et) = &self.expiry_time {
+            writeln!(f, "  Expiry Time: {}", et)?;
         }
         if let Some(alg) = &self.algorithm {
             writeln!(f, "  Algorithm: {}", alg)?;

@@ -11,12 +11,16 @@ use crate::{
         pgp_import::{PGPKeys, terminal_input_pgp_key},
     },
 };
+#[cfg(feature = "openpgp-card")]
+use ::openpgp_card::ocard::KeyType;
 use affinidi_tdk::secrets_resolver::secrets::Secret;
 use anyhow::{Context, Result};
 use bip39::Mnemonic;
+use chrono::{DateTime, TimeDelta, Utc};
 use console::style;
 use dialoguer::{Confirm, theme::ColorfulTheme};
 use ed25519_dalek_bip32::DerivationPath;
+use std::fmt;
 
 mod bip32_bip39;
 #[cfg(feature = "openpgp-card")]
@@ -33,14 +37,57 @@ pub struct SetupConfig {
     pub key_paths: Vec<KeySourceMaterial>,
 }
 
+/// Tags what the key is used for
+#[derive(Default, Debug, PartialEq)]
+pub enum KeyPurpose {
+    Signing,
+    Authentication,
+    Encryption,
+    #[default]
+    Unknown,
+}
+
+impl fmt::Display for KeyPurpose {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            KeyPurpose::Signing => write!(f, "Signing"),
+            KeyPurpose::Authentication => write!(f, "Authentication"),
+            KeyPurpose::Encryption => write!(f, "Encryption"),
+            KeyPurpose::Unknown => write!(f, "Unknown"),
+        }
+    }
+}
+
+#[cfg(feature = "openpgp-card")]
+impl From<KeyType> for KeyPurpose {
+    fn from(kt: KeyType) -> Self {
+        match kt {
+            KeyType::Signing => KeyPurpose::Signing,
+            KeyType::Authentication => KeyPurpose::Authentication,
+            KeyType::Decryption => KeyPurpose::Encryption,
+            _ => KeyPurpose::Unknown,
+        }
+    }
+}
+
+/// Contains relevant key information required for setting up, configuring and managing keys
+#[derive(Clone, Debug)]
+pub struct KeyInfo {
+    /// Secret Key Material that can be used within the TDK Envirnonment
+    pub secret: Secret,
+    /// Where did this key come from? Derived from BIP32 or Imported?
+    pub source: KeySourceMaterial,
+
+    /// Section 5.5.2 of RFC 4880 - Expiry time if set is # of days since creation
+    pub expiry: Option<TimeDelta>,
+    pub created: DateTime<Utc>,
+}
+
 /// Secrets for the Community DID
 pub struct CommunityDIDKeys {
-    pub signing: Secret,
-    pub signing_path: KeySourceMaterial,
-    pub authentication: Secret,
-    pub authentication_path: KeySourceMaterial,
-    pub encryption: Secret,
-    pub encryption_path: KeySourceMaterial,
+    pub signing: KeyInfo,
+    pub authentication: KeyInfo,
+    pub encryption: KeyInfo,
 }
 
 /// Sets up the CLI tool
@@ -100,14 +147,9 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
     );
 
     // Signing key
-    let (signing, signing_path) = if let Some(signing) = imported_keys.signing.clone() {
+    let signing = if let Some(signing) = &imported_keys.signing {
         // use imported key
-        (
-            signing.clone(),
-            KeySourceMaterial::Imported {
-                key_id: signing.id.clone(),
-            },
-        )
+        signing.clone()
     } else {
         let sign_key = bip32_master
             .derive(&"m/0'/0'/0'".parse::<DerivationPath>().unwrap())
@@ -122,55 +164,50 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
             style("Signing Key (ED25519) created:").color256(CLI_BLUE),
             style(&sign_secret.id).color256(CLI_GREEN)
         );
-        (
-            sign_secret,
-            KeySourceMaterial::Derived {
+
+        KeyInfo {
+            secret: sign_secret,
+            source: KeySourceMaterial::Derived {
                 path: "m/0'/0'/0'".to_string(),
             },
-        )
+            expiry: None,
+            created: Utc::now(),
+        }
     };
 
     // Authentication key
-    let (authentication, authentication_path) =
-        if let Some(authentication) = imported_keys.authentication.clone() {
-            // use imported key
-            (
-                authentication.clone(),
-                KeySourceMaterial::Imported {
-                    key_id: authentication.id.clone(),
-                },
-            )
-        } else {
-            let auth_key = bip32_master
-                .derive(&"m/0'/0'/1'".parse::<DerivationPath>().unwrap())
-                .context("Failed to create ED25519 authentication key")?;
-            let mut auth_secret =
-                Secret::generate_ed25519(Some("auth"), Some(auth_key.signing_key.as_bytes()));
+    let authentication = if let Some(authentication) = &imported_keys.authentication {
+        // use imported key
+        authentication.clone()
+    } else {
+        let auth_key = bip32_master
+            .derive(&"m/0'/0'/1'".parse::<DerivationPath>().unwrap())
+            .context("Failed to create ED25519 authentication key")?;
+        let mut auth_secret =
+            Secret::generate_ed25519(Some("auth"), Some(auth_key.signing_key.as_bytes()));
 
-            auth_secret.id = auth_secret.get_public_keymultibase()?;
+        auth_secret.id = auth_secret.get_public_keymultibase()?;
 
-            println!(
-                "{} {}",
-                style("Authentication Key (ED25519) created:").color256(CLI_BLUE),
-                style(&auth_secret.id).color256(CLI_GREEN)
-            );
-            (
-                auth_secret,
-                KeySourceMaterial::Derived {
-                    path: "m/0'/0'/1'".to_string(),
-                },
-            )
-        };
+        println!(
+            "{} {}",
+            style("Authentication Key (ED25519) created:").color256(CLI_BLUE),
+            style(&auth_secret.id).color256(CLI_GREEN)
+        );
+
+        KeyInfo {
+            secret: auth_secret,
+            source: KeySourceMaterial::Derived {
+                path: "m/0'/0'/1'".to_string(),
+            },
+            expiry: None,
+            created: Utc::now(),
+        }
+    };
 
     // Encryption key
-    let (encryption, encryption_path) = if let Some(encryption) = imported_keys.encryption.clone() {
+    let encryption = if let Some(encryption) = &imported_keys.encryption {
         // use imported key
-        (
-            encryption.clone(),
-            KeySourceMaterial::Imported {
-                key_id: encryption.id.clone(),
-            },
-        )
+        encryption.clone()
     } else {
         let enc_key = bip32_master
             .derive(&"m/0'/0'/2'".parse::<DerivationPath>().unwrap())
@@ -185,20 +222,19 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
             style("Encryption Key (X25519) created:").color256(CLI_BLUE),
             style(&enc_secret.id).color256(CLI_GREEN)
         );
-        (
-            enc_secret,
-            KeySourceMaterial::Derived {
+        KeyInfo {
+            secret: enc_secret,
+            source: KeySourceMaterial::Derived {
                 path: "m/0'/0'/2'".to_string(),
             },
-        )
+            expiry: None,
+            created: Utc::now(),
+        }
     };
 
     Ok(CommunityDIDKeys {
         signing,
-        signing_path,
         authentication,
-        authentication_path,
         encryption,
-        encryption_path,
     })
 }

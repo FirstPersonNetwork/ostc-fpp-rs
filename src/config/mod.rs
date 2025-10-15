@@ -35,7 +35,7 @@ pub struct CommunityDID {
     pub document: Document,
 }
 /// Where did the source for the Key Material come from?
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum KeySourceMaterial {
     /// Sourced from BIP32 derivitive, Path for this key
     Derived { path: String },

@@ -2,8 +2,10 @@
 *   Handles writing of data to the OpenPGP Card
 */
 
-use crate::{CLI_BLUE, CLI_GREEN, openpgp_card::KeyPurpose, setup::CommunityDIDKeys};
-use affinidi_tdk::secrets_resolver::secrets::Secret;
+use crate::{
+    CLI_BLUE, CLI_GREEN,
+    setup::{CommunityDIDKeys, KeyInfo, KeyPurpose},
+};
 use anyhow::{Result, bail};
 use chrono::Utc;
 use console::style;
@@ -60,7 +62,7 @@ pub fn write_keys_to_card(card: &mut Card<Open>, keys: &CommunityDIDKeys) -> Res
 }
 
 /// Creates a PGO secret key packet from key details
-fn create_pgp_secret_packet(secret: &Secret, kp: KeyPurpose) -> Result<UploadableKey> {
+fn create_pgp_secret_packet(key: &KeyInfo, kp: KeyPurpose) -> Result<UploadableKey> {
     let (pk, sp) = match kp {
         KeyPurpose::Signing => {
             // Packet Lenth is 51 octets for EdDSA Legacy Keys (which is what is most supported)
@@ -71,10 +73,10 @@ fn create_pgp_secret_packet(secret: &Secret, kp: KeyPurpose) -> Result<Uploadabl
                 KeyVersion::V4,
                 PublicKeyAlgorithm::EdDSALegacy,
                 Utc::now(),
-                None,
+                key.expiry.map(|e| e.num_days() as u16),
                 PublicParams::EdDSALegacy(EddsaLegacyPublicParams::Ed25519 {
                     key: VerifyingKey::from_bytes(
-                        secret.get_public_bytes().first_chunk::<32>().unwrap(),
+                        key.secret.get_public_bytes().first_chunk::<32>().unwrap(),
                     )?,
                 }),
             )?;
@@ -82,7 +84,7 @@ fn create_pgp_secret_packet(secret: &Secret, kp: KeyPurpose) -> Result<Uploadabl
             // Create SecretParams
             let sp = SecretParams::Plain(PlainSecretParams::Ed25519Legacy(
                 crypto::ed25519::SecretKey::try_from_bytes(
-                    *secret.get_private_bytes().first_chunk::<32>().unwrap(),
+                    *key.secret.get_private_bytes().first_chunk::<32>().unwrap(),
                     Mode::EdDSALegacy,
                 )?,
             ));
@@ -98,10 +100,10 @@ fn create_pgp_secret_packet(secret: &Secret, kp: KeyPurpose) -> Result<Uploadabl
                 KeyVersion::V4,
                 PublicKeyAlgorithm::EdDSALegacy,
                 Utc::now(),
-                None,
+                key.expiry.map(|e| e.num_days() as u16),
                 PublicParams::EdDSALegacy(EddsaLegacyPublicParams::Ed25519 {
                     key: VerifyingKey::from_bytes(
-                        secret.get_public_bytes().first_chunk::<32>().unwrap(),
+                        key.secret.get_public_bytes().first_chunk::<32>().unwrap(),
                     )?,
                 }),
             )?;
@@ -109,7 +111,7 @@ fn create_pgp_secret_packet(secret: &Secret, kp: KeyPurpose) -> Result<Uploadabl
             // Create SecretParams
             let sp = SecretParams::Plain(PlainSecretParams::Ed25519Legacy(
                 crypto::ed25519::SecretKey::try_from_bytes(
-                    *secret.get_private_bytes().first_chunk::<32>().unwrap(),
+                    *key.secret.get_private_bytes().first_chunk::<32>().unwrap(),
                     Mode::EdDSALegacy,
                 )?,
             ));
@@ -125,17 +127,18 @@ fn create_pgp_secret_packet(secret: &Secret, kp: KeyPurpose) -> Result<Uploadabl
                 KeyVersion::V4,
                 PublicKeyAlgorithm::ECDH,
                 Utc::now(),
-                None,
+                key.expiry.map(|e| e.num_days() as u16),
                 PublicParams::ECDH(EcdhPublicParams::Curve25519 {
                     p: x25519_dalek::PublicKey::from(
-                        *secret.get_public_bytes().first_chunk::<32>().unwrap(),
+                        *key.secret.get_public_bytes().first_chunk::<32>().unwrap(),
                     ),
                     hash: crypto::hash::HashAlgorithm::Sha256,
                     alg_sym: crypto::sym::SymmetricKeyAlgorithm::AES256,
                 }),
             )?;
 
-            let ss = StaticSecret::from(*secret.get_private_bytes().first_chunk::<32>().unwrap());
+            let ss =
+                StaticSecret::from(*key.secret.get_private_bytes().first_chunk::<32>().unwrap());
 
             // Create SecretParams
             let sp = SecretParams::Plain(PlainSecretParams::ECDH(
