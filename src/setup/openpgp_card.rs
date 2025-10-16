@@ -16,7 +16,10 @@ use crossterm::{
 use dialoguer::{Confirm, Select, theme::ColorfulTheme};
 
 /// Handles storing secrets on an OpenPGP compatable card
-pub fn setup_hardware_token(term: &Term, keys: &CommunityDIDKeys) -> Result<()> {
+/// Returns:
+/// None: No Hardware token being used
+/// Some(String): The card identifier of the card used
+pub fn setup_hardware_token(term: &Term, keys: &CommunityDIDKeys) -> Result<Option<String>> {
     println!();
 
     println!(
@@ -53,12 +56,12 @@ pub fn setup_hardware_token(term: &Term, keys: &CommunityDIDKeys) -> Result<()> 
             "{}",
             style("No hardware tokens were found!").color256(CLI_ORANGE)
         );
-        return Ok(());
+        return Ok(None);
     } else {
         print_cards(&mut cards)?;
     }
 
-    let s_card: Vec<String> = cards
+    let mut s_card: Vec<String> = cards
         .iter_mut()
         .map(|c| {
             c.transaction()
@@ -69,6 +72,8 @@ pub fn setup_hardware_token(term: &Term, keys: &CommunityDIDKeys) -> Result<()> 
         })
         .collect();
 
+    s_card.push("Do not use Hardware Token".to_string());
+
     println!();
     let selected_option = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Pick which card you want to write your secrets to")
@@ -76,6 +81,14 @@ pub fn setup_hardware_token(term: &Term, keys: &CommunityDIDKeys) -> Result<()> 
         .items(&s_card)
         .interact()
         .unwrap();
+
+    if selected_option == s_card.len() - 1 {
+        println!(
+            "{}",
+            style("Skipping hardware token setup...").color256(CLI_ORANGE)
+        );
+        return Ok(None);
+    }
 
     let Some(selected_card) = cards.get_mut(selected_option) else {
         println!(
@@ -108,5 +121,6 @@ pub fn setup_hardware_token(term: &Term, keys: &CommunityDIDKeys) -> Result<()> 
     // Attempt to write the keys to the card
     write_keys_to_card(selected_card, keys)?;
 
-    Ok(())
+    // Return the card identifier
+    Ok(s_card.get(selected_option).map(|s| s.to_string()))
 }
