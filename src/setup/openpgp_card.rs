@@ -4,19 +4,19 @@
 
 use crate::{
     CLI_BLUE, CLI_ORANGE, CLI_PURPLE, CLI_RED,
-    openpgp_card::{cards, print_cards, write::write_keys_to_card},
+    openpgp_card::{cards, factory_reset, print_cards, write::write_keys_to_card},
     setup::CommunityDIDKeys,
 };
 use anyhow::{Result, bail};
-use console::style;
+use console::{Term, style};
 use crossterm::{
     event::{self, Event},
     terminal,
 };
-use dialoguer::{Select, theme::ColorfulTheme};
+use dialoguer::{Confirm, Select, theme::ColorfulTheme};
 
 /// Handles storing secrets on an OpenPGP compatable card
-pub fn setup_hardware_token(keys: &CommunityDIDKeys) -> Result<()> {
+pub fn setup_hardware_token(term: &Term, keys: &CommunityDIDKeys) -> Result<()> {
     println!();
 
     println!(
@@ -86,6 +86,15 @@ pub fn setup_hardware_token(keys: &CommunityDIDKeys) -> Result<()> {
         );
         bail!("Couldn't select card for writing...");
     };
+
+    // Ask to factory reset card?
+    if Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt("Do you want to factory reset the card before writing? (This will delete all existing keys on the card)")
+        .default(false)
+        .interact()?
+    {
+        factory_reset(term, selected_card)?;
+    }
 
     // Attempt to write the keys to the card
     write_keys_to_card(selected_card, keys)?;

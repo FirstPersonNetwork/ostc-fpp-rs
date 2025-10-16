@@ -4,7 +4,7 @@
 
 use crate::setup::cli_setup;
 use clap::Command;
-use console::style;
+use console::{Term, style};
 use status::print_status;
 use tracing_subscriber::EnvFilter;
 
@@ -32,22 +32,26 @@ fn cli() -> Command {
 }
 
 // Handles initial setup and configuration of the CLI tool
-fn initialize() {
+fn initialize(term: &Term) {
     // Setup logging/tracing
     // If no RUST_LOG ENV variable is set, defaults to MAX_LEVEL: ERROR
     tracing_subscriber::fmt()
         .with_env_filter(EnvFilter::from_default_env())
         .init();
+
+    term.set_title("lkmv");
 }
 
 fn main() {
-    initialize();
+    let term = Term::stdout();
+
+    initialize(&term);
 
     match cli().get_matches().subcommand() {
         Some(("status", _)) => {
             print_status();
         }
-        Some(("setup", _)) => match cli_setup() {
+        Some(("setup", _)) => match cli_setup(&term) {
             Ok(_) => {
                 println!(
                     "\n{}",

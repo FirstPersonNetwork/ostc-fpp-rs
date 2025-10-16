@@ -17,7 +17,7 @@ use affinidi_tdk::secrets_resolver::secrets::Secret;
 use anyhow::{Context, Result};
 use bip39::Mnemonic;
 use chrono::{DateTime, TimeDelta, Utc};
-use console::style;
+use console::{Term, style};
 use dialoguer::{Confirm, theme::ColorfulTheme};
 use ed25519_dalek_bip32::DerivationPath;
 use std::fmt;
@@ -91,7 +91,7 @@ pub struct CommunityDIDKeys {
 }
 
 /// Sets up the CLI tool
-pub fn cli_setup() -> Result<()> {
+pub fn cli_setup(term: &Term) -> Result<()> {
     println!(
         "{}",
         style("Initial setup of the lkmv tool").color256(CLI_GREEN)
@@ -128,7 +128,7 @@ pub fn cli_setup() -> Result<()> {
 
     // Use hardware token?
     #[cfg(feature = "openpgp-card")]
-    setup_hardware_token(&c_did_keys)?;
+    setup_hardware_token(term, &c_did_keys)?;
 
     Ok(())
 }

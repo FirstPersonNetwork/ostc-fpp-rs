@@ -6,7 +6,7 @@ use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_RED, setup::KeyPurpose};
 use anyhow::Result;
 use card_backend_pcsc::PcscBackend;
 use chrono::{DateTime, Utc};
-use console::style;
+use console::{Term, style};
 use openpgp_card::{
     Card,
     ocard::{
@@ -456,4 +456,22 @@ pub fn print_key_info(ki: &KeySlotInfo) {
     }
 
     println!();
+}
+
+/// Performs a factory reset on the card, erasing all keys and data
+pub fn factory_reset(term: &Term, card: &mut Card<Open>) -> Result<()> {
+    println!("{}", style("Factory resetting card...").color256(CLI_BLUE));
+    term.hide_cursor()?;
+    let mut card = card.transaction()?;
+    card.factory_reset()?;
+    term.flush()?;
+    term.clear_last_lines(1)?;
+    term.show_cursor()?;
+    println!(
+        "{} {}",
+        style("Factory resetting card...").color256(CLI_BLUE),
+        style("Success!").color256(CLI_GREEN)
+    );
+
+    Ok(())
 }
