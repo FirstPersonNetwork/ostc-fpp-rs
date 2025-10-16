@@ -8,8 +8,7 @@ use crate::{
 };
 use anyhow::{Result, bail};
 use chrono::Utc;
-use console::style;
-use dialoguer::{Password, theme::ColorfulTheme};
+use console::{Term, style};
 use ed25519_dalek_bip32::VerifyingKey;
 use openpgp_card::{Card, ocard::KeyType, state::Open};
 use openpgp_card_rpgp::UploadableKey;
@@ -25,38 +24,44 @@ use secrecy::SecretString;
 use x25519_dalek::StaticSecret;
 
 /// Writes keys to the card
-pub fn write_keys_to_card(card: &mut Card<Open>, keys: &CommunityDIDKeys) -> Result<()> {
-    // Open the card in admin mode
-    let admin_pin: SecretString = Password::with_theme(&ColorfulTheme::default())
-        .with_prompt("Admin PIN")
-        .allow_empty_password(true)
-        .interact()
-        .unwrap()
-        .into();
-
+pub fn write_keys_to_card(
+    term: &Term,
+    card: &mut Card<Open>,
+    keys: &CommunityDIDKeys,
+    admin_pin: &SecretString,
+) -> Result<()> {
     // Try unlocking the card with the admin PIN
     let mut open_card = card.transaction()?;
-    open_card.verify_admin_pin(admin_pin)?;
+    open_card.verify_admin_pin(admin_pin.clone())?;
     let mut card = open_card.to_admin_card(None)?;
 
     // Create a PGP secret key packet
-    println!("{}", style("Writing Signing key...").color256(CLI_BLUE));
+    print!("{}", style("Writing Signing key...").color256(CLI_BLUE));
+    term.flush()?;
+    term.hide_cursor()?;
     let uk = create_pgp_secret_packet(&keys.signing, KeyPurpose::Signing)?;
     card.import_key(Box::new(uk), KeyType::Signing)?;
-    println!("  {}", style("Success").color256(CLI_GREEN));
+    term.hide_cursor()?;
+    println!(" {}", style("Success").color256(CLI_GREEN));
 
-    println!(
+    print!(
         "{}",
         style("Writing Authentication key...").color256(CLI_BLUE)
     );
+    term.flush()?;
+    term.hide_cursor()?;
     let uk = create_pgp_secret_packet(&keys.authentication, KeyPurpose::Authentication)?;
     card.import_key(Box::new(uk), KeyType::Authentication)?;
-    println!("  {}", style("Success").color256(CLI_GREEN));
+    term.show_cursor()?;
+    println!(" {}", style("Success").color256(CLI_GREEN));
 
-    println!("{}", style("Writing Encryption key...").color256(CLI_BLUE));
+    print!("{}", style("Writing Encryption key...").color256(CLI_BLUE));
+    term.flush()?;
+    term.hide_cursor()?;
     let uk = create_pgp_secret_packet(&keys.encryption, KeyPurpose::Encryption)?;
     card.import_key(Box::new(uk), KeyType::Decryption)?;
-    println!("  {}", style("Success").color256(CLI_GREEN));
+    term.show_cursor()?;
+    println!(" {}", style("Success").color256(CLI_GREEN));
 
     Ok(())
 }

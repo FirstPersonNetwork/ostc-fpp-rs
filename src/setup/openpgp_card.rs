@@ -3,8 +3,10 @@
 */
 
 use crate::{
-    CLI_BLUE, CLI_ORANGE, CLI_PURPLE, CLI_RED,
-    openpgp_card::{cards, factory_reset, print_cards, write::write_keys_to_card},
+    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
+    openpgp_card::{
+        cards, factory_reset, print_cards, set_signing_touch_policy, write::write_keys_to_card,
+    },
     setup::CommunityDIDKeys,
 };
 use anyhow::{Result, bail};
@@ -13,7 +15,8 @@ use crossterm::{
     event::{self, Event},
     terminal,
 };
-use dialoguer::{Confirm, Select, theme::ColorfulTheme};
+use dialoguer::{Confirm, Password, Select, theme::ColorfulTheme};
+use secrecy::SecretString;
 
 /// Handles storing secrets on an OpenPGP compatable card
 /// Returns:
@@ -118,8 +121,37 @@ pub fn setup_hardware_token(term: &Term, keys: &CommunityDIDKeys) -> Result<Opti
         factory_reset(term, selected_card)?;
     }
 
+    // Open the card in admin mode
+    let admin_pin: SecretString = Password::with_theme(&ColorfulTheme::default())
+        .with_prompt("Admin PIN")
+        .allow_empty_password(true)
+        .interact()
+        .unwrap()
+        .into();
+
     // Attempt to write the keys to the card
-    write_keys_to_card(selected_card, keys)?;
+    write_keys_to_card(term, selected_card, keys, &admin_pin)?;
+
+    // Set Touch on for the Signing Key
+    println!("{}", style("Best practice is to force an interaction with the hardware token for critical operations, such as signing data.").color256(CLI_BLUE));
+    if Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt(format!(
+            "Do you want to set the SIGNING key to require touch? {}",
+            style(
+                "(This will require you to touch the hardware token every time you sign something)"
+            )
+            .color256(CLI_GREEN),
+        ))
+        .default(true)
+        .interact()?
+    {
+        set_signing_touch_policy(term, selected_card, &admin_pin)?;
+    } else {
+        println!(
+            "{}",
+            style("The SIGNING key will NOT require touch.").color256(CLI_ORANGE)
+        );
+    }
 
     // Return the card identifier
     Ok(s_card.get(selected_option).map(|s| s.to_string()))

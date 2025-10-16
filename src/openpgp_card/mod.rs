@@ -17,6 +17,7 @@ use openpgp_card::{
     },
     state::{Open, Transaction},
 };
+use secrecy::SecretString;
 use std::fmt;
 
 pub mod write;
@@ -460,18 +461,35 @@ pub fn print_key_info(ki: &KeySlotInfo) {
 
 /// Performs a factory reset on the card, erasing all keys and data
 pub fn factory_reset(term: &Term, card: &mut Card<Open>) -> Result<()> {
-    println!("{}", style("Factory resetting card...").color256(CLI_BLUE));
+    print!("{}", style("Factory resetting card...").color256(CLI_BLUE));
     term.hide_cursor()?;
+    term.flush()?;
     let mut card = card.transaction()?;
     card.factory_reset()?;
-    term.flush()?;
-    term.clear_last_lines(1)?;
     term.show_cursor()?;
-    println!(
-        "{} {}",
-        style("Factory resetting card...").color256(CLI_BLUE),
-        style("Success!").color256(CLI_GREEN)
+    println!(" {}", style("Success!").color256(CLI_GREEN));
+
+    Ok(())
+}
+pub fn set_signing_touch_policy(
+    term: &Term,
+    card: &mut Card<Open>,
+    admin_pin: &SecretString,
+) -> Result<()> {
+    let mut open_card = card.transaction()?;
+    open_card.verify_admin_pin(admin_pin.clone())?;
+    let mut card = open_card.to_admin_card(None)?;
+
+    print!(
+        "{}",
+        style("Set the SIGNING key to require touch (cache for 15 seconds).").color256(CLI_BLUE)
     );
+    term.flush()?;
+    term.hide_cursor()?;
+
+    card.set_touch_policy(KeyType::Signing, TouchPolicy::Cached)?;
+    term.show_cursor()?;
+    println!(" {}", style("Success").color256(CLI_GREEN));
 
     Ok(())
 }
