@@ -58,7 +58,7 @@ fn feature_flags() {
 
 fn openpgp_cards_status() -> Result<()> {
     println!();
-    print!("{} ", style("OpenPGP-Card support:").color256(CLI_BLUE));
+    print!("{} ", style("OpenPGP Card support:").color256(CLI_BLUE));
 
     #[cfg(not(feature = "openpgp-card"))]
     println!("{}", style("DISABLED").color256(CLI_ORANGE).bold());

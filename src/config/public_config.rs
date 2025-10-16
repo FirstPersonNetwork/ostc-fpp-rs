@@ -1,5 +1,5 @@
 /*!
-*  Public [crate::config::Config] information that is stored in Plaintext on disk
+*  Public [crate::config::Config] information that is stored in plaintext on disk
 */
 
 use serde::{Deserialize, Serialize};

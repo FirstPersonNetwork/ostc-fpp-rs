@@ -66,8 +66,8 @@ impl Default for KeySlotInfo {
 
 impl fmt::Debug for KeySlotInfo {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "KeyPurpose: {:?}", self.purpose)?;
-        writeln!(f, "KeySlotInfo {{")?;
+        writeln!(f, "Key Purpose: {:?}", self.purpose)?;
+        writeln!(f, "Key Slot Info {{")?;
         if let Some(fp) = &self.fingerprint {
             writeln!(f, "  Fingerprint: {}", fp)?;
         }
@@ -155,7 +155,7 @@ pub fn print_cards(cards: &mut [Card<Open>]) -> Result<()> {
             style(app_identifier.manufacturer_name()).color256(CLI_GREEN),
         );
 
-        print!(" {}", style("Card Holder Name: ").color256(CLI_BLUE));
+        print!(" {}", style("Cardholder Name: ").color256(CLI_BLUE));
         if let Some(cardholder) = format_cardholder_name(&open_card.cardholder_name()?) {
             println!("{}", style(cardholder).color256(CLI_GREEN));
         } else {
@@ -339,7 +339,7 @@ pub fn print_key_info(ki: &KeySlotInfo) {
                     "  {}{}{}{}",
                     style("Keyslot (").color256(CLI_BLUE),
                     style(&ki.purpose).color256(CLI_ORANGE),
-                    style(") expected crypto algorithm Ed25519, instead this is key is: ")
+                    style(") expected crypto algorithm Ed25519, instead this key is: ")
                         .color256(CLI_BLUE),
                     style(algo).color256(CLI_RED)
                 );
@@ -373,7 +373,7 @@ pub fn print_key_info(ki: &KeySlotInfo) {
                     "  {}{}{}{}",
                     style("Keyslot (").color256(CLI_BLUE),
                     style(&ki.purpose).color256(CLI_ORANGE),
-                    style(") expected crypto algorithm X25519, instead this is key is: ")
+                    style(") expected crypto algorithm X25519, instead this key is: ")
                         .color256(CLI_BLUE),
                     style(algo).color256(CLI_RED)
                 );
@@ -482,7 +482,7 @@ pub fn set_signing_touch_policy(
 
     print!(
         "{}",
-        style("Set the SIGNING key to require touch (cache for 15 seconds).").color256(CLI_BLUE)
+        style("Set the Signing key to require touch (cache for 15 seconds).").color256(CLI_BLUE)
     );
     term.flush()?;
     term.hide_cursor()?;

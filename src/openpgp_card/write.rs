@@ -66,7 +66,7 @@ pub fn write_keys_to_card(
     Ok(())
 }
 
-/// Creates a PGO secret key packet from key details
+/// Creates a PGP secret key packet from key details
 fn create_pgp_secret_packet(key: &KeyInfo, kp: KeyPurpose) -> Result<UploadableKey> {
     let (pk, sp) = match kp {
         KeyPurpose::Signing => {
@@ -97,7 +97,7 @@ fn create_pgp_secret_packet(key: &KeyInfo, kp: KeyPurpose) -> Result<UploadableK
             (pk, sp)
         }
         KeyPurpose::Authentication => {
-            // Packet Lenth is 51 octets for EdDSA Legacy Keys (which is what is most supported)
+            // Packet Length is 51 octets for EdDSA Legacy Keys (which is what is most supported)
             let packet_header = PacketHeader::new_fixed(Tag::PublicKey, 51);
 
             let pk = PublicKey::new_with_header(
@@ -124,7 +124,7 @@ fn create_pgp_secret_packet(key: &KeyInfo, kp: KeyPurpose) -> Result<UploadableK
             (pk, sp)
         }
         KeyPurpose::Encryption => {
-            // Packet Lenth is 56 octets for ECDH
+            // Packet Length is 56 octets for ECDH
             let packet_header = PacketHeader::new_fixed(Tag::PublicKey, 56);
 
             let pk = PublicKey::new_with_header(

@@ -1,5 +1,5 @@
 /*! BIP32 (derived keys) and BIP39 (mnemonic recovery phrases)
-*  implementations  live here
+*  implementations live here
 */
 
 use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_RED};
@@ -30,7 +30,7 @@ pub fn mnemonic_from_recovery_phrase() -> Result<Mnemonic> {
 
     fn inner() -> Result<Mnemonic> {
         let input: String = Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("Enter your BIP39 recovery phrase")
+            .with_prompt("Enter your 24 word recovery phrase")
             .report(false)
             .interact_text()
             .context("Couldn't read recovery phrase from user input")?;

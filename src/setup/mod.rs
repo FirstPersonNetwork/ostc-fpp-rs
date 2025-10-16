@@ -73,7 +73,7 @@ impl From<KeyType> for KeyPurpose {
 /// Contains relevant key information required for setting up, configuring and managing keys
 #[derive(Clone, Debug)]
 pub struct KeyInfo {
-    /// Secret Key Material that can be used within the TDK Envirnonment
+    /// Secret Key Material that can be used within the TDK environment
     pub secret: Secret,
     /// Where did this key come from? Derived from BIP32 or Imported?
     pub source: KeySourceMaterial,
@@ -100,7 +100,7 @@ pub fn cli_setup(term: &Term) -> Result<()> {
 
     // Are we recovering from a Recovery Phrase?
     let mnemonic = if Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Recover Secrets from BIP39 recovery phrase?")
+        .with_prompt("Recover Secrets from 24 word recovery phrase?")
         .default(false)
         .interact()
         .unwrap()
@@ -112,7 +112,7 @@ pub fn cli_setup(term: &Term) -> Result<()> {
     };
 
     let imported_keys = if Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Use (import) existing PGP Secrets?")
+        .with_prompt("Use (import) existing PGP keys?")
         .default(false)
         .interact()
         .unwrap()
@@ -153,7 +153,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
     } else {
         let sign_key = bip32_master
             .derive(&"m/0'/0'/0'".parse::<DerivationPath>().unwrap())
-            .context("Failed to create ED25519 signing key")?;
+            .context("Failed to create Ed25519 signing key")?;
         let mut sign_secret =
             Secret::generate_ed25519(Some("sign"), Some(sign_key.signing_key.as_bytes()));
 
@@ -161,7 +161,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
 
         println!(
             "{} {}",
-            style("Signing Key (ED25519) created:").color256(CLI_BLUE),
+            style("Signing Key (Ed25519) created:").color256(CLI_BLUE),
             style(&sign_secret.id).color256(CLI_GREEN)
         );
 
@@ -182,7 +182,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
     } else {
         let auth_key = bip32_master
             .derive(&"m/0'/0'/1'".parse::<DerivationPath>().unwrap())
-            .context("Failed to create ED25519 authentication key")?;
+            .context("Failed to create Ed25519 authentication key")?;
         let mut auth_secret =
             Secret::generate_ed25519(Some("auth"), Some(auth_key.signing_key.as_bytes()));
 
@@ -190,7 +190,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
 
         println!(
             "{} {}",
-            style("Authentication Key (ED25519) created:").color256(CLI_BLUE),
+            style("Authentication Key (Ed25519) created:").color256(CLI_BLUE),
             style(&auth_secret.id).color256(CLI_GREEN)
         );
 

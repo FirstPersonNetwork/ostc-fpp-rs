@@ -110,7 +110,7 @@ impl PGPKeys {
             created.to_owned()
         } else {
             println!("{}", style("N/A").color256(CLI_ORANGE));
-            println!("{}", style("WARN: A key must have a create time, as it is missing we assume new create time of now").color256(CLI_ORANGE));
+            println!("{}", style("WARNING: A key must have a creation time, as it is missing we assume new creation time of now").color256(CLI_ORANGE));
             Utc::now()
         };
 
@@ -158,7 +158,7 @@ impl PGPKeys {
 pub fn terminal_input_pgp_key() -> Result<PGPKeys> {
     println!(
         "{}",
-        style("You are going to be prompted to enter pre-created PGP Private key details.")
+        style("You will be prompted to enter pre-created PGP private key details.")
             .color256(CLI_BLUE)
     );
     println!();
@@ -180,12 +180,12 @@ pub fn terminal_input_pgp_key() -> Result<PGPKeys> {
     );
     println!(
         "{}",
-        style("This PGP Private Key must be the export of a PGP Key with the following details:")
+        style("This PGP private key must be the export of a PGP key with the following details:")
             .color256(CLI_BLUE)
     );
     println!(
         "\t{}",
-        style("1. Signing and Authentication keys must be ED25519").color256(CLI_BLUE)
+        style("1. Signing and Authentication keys must be Ed25519").color256(CLI_BLUE)
     );
     println!(
         "\t{}",
@@ -215,23 +215,23 @@ pub fn terminal_input_pgp_key() -> Result<PGPKeys> {
         .interact()
         .unwrap_or(false)
     {
-        bail!("PGP Import aborted by user")
+        bail!("PGP key import aborted by user")
     }
 
     let input: String = match Editor::new()
-        .edit("Paste your Private PGP Key here")
-        .context("An error occurred importing PGP Private Key")?
+        .edit("Paste your PGP private key here")
+        .context("An error occurred importing PGP private key")?
     {
         Some(input) => input,
         _ => {
-            bail!("Aborted PGP Key Import");
+            bail!("Aborted PGP key import");
         }
     };
 
     let imported = check_pgp_keys(&input)?;
 
     println!();
-    println!("{}", style("PGP Imported Key Status:").color256(CLI_BLUE));
+    println!("{}", style("Imported PGP Key Status:").color256(CLI_BLUE));
     if imported.is_empty() {
         println!(
             "  {}",
@@ -294,12 +294,12 @@ pub fn check_pgp_keys(raw_key: &str) -> Result<PGPKeys> {
         println!(
             "{}",
             style(
-                "Unknown key purpose (expected Signing, Authentication or Encryption/Decryption!"
+                "Unknown key purpose - expected Signing, Authentication or Encryption/Decryption!"
             )
             .color256(CLI_RED)
         );
         bail!(
-            "Unknown Key Purpose found - expected Signing, Authentication or Encryption/Decryption"
+            "Unknown key purpose found - expected Signing, Authentication or Encryption/Decryption"
         );
     };
 
@@ -318,9 +318,9 @@ fn extract_primary_key_details(primary_key: &SignedSecretKey) -> Result<(KeyFlag
     let Some(user) = primary_key.details.users.first() else {
         println!(
             "{}",
-            style("Couldn't find a valid user in the PGP Primary key!").color256(CLI_RED)
+            style("Couldn't find a valid user in the PGP primary key!").color256(CLI_RED)
         );
-        bail!("Invalid User in the PGP Primary key!");
+        bail!("Invalid User in the PGP primary key!");
     };
 
     print!("{} ", style("Primary Key User:").color256(CLI_BLUE));
@@ -349,7 +349,7 @@ fn extract_primary_key_details(primary_key: &SignedSecretKey) -> Result<(KeyFlag
         created.to_owned()
     } else {
         print!("{}", style("N/A").color256(CLI_ORANGE));
-        println!("\n{}", style("WARN: Something strange has occurred. You have a key with an expiry, but no creation date. this is an invalid state...").color256(CLI_RED));
+        println!("\n{}", style("WARNING: Something strange has occurred. You have a key with an expiry but no creation date. This is an invalid state.").color256(CLI_RED));
         Utc::now()
     };
 
@@ -421,13 +421,13 @@ fn check_crypto_algo_type(params: &SecretParams, flags: KeyFlags) -> Result<Secr
             if flags.sign() || flags.authentication() {
                 println!(
                     "{}",
-                    style("Sucessfully retrieved Ed25519 Key Secret material").color256(CLI_GREEN)
+                    style("Sucessfully retrieved Ed25519 key secret material").color256(CLI_GREEN)
                 );
                 Secret::generate_ed25519(None, Some(secret.as_bytes()))
             } else {
                 println!(
                     "{}",
-                    style("Ed25519 Key cannot be used for Encryption").color256(CLI_RED)
+                    style("Ed25519 key cannot be used for Encryption").color256(CLI_RED)
                 );
                 bail!("Invalid use of Ed25519 key");
             }
@@ -437,7 +437,7 @@ fn check_crypto_algo_type(params: &SecretParams, flags: KeyFlags) -> Result<Secr
                 // Valid use of X25519
                 println!(
                     "{}",
-                    style("Sucessfully retrieved X25519 Key Secret material").color256(CLI_GREEN)
+                    style("Sucessfully retrieved X25519 key secret material").color256(CLI_GREEN)
                 );
                 Secret::generate_x25519(None, Some(secret.as_bytes()))?
             } else {
@@ -455,7 +455,7 @@ fn check_crypto_algo_type(params: &SecretParams, flags: KeyFlags) -> Result<Secr
                 // Valid use of X25519
                 println!(
                     "{}",
-                    style("Sucessfully retrieved X25519 Key Secret material").color256(CLI_GREEN)
+                    style("Sucessfully retrieved X25519 key secret material").color256(CLI_GREEN)
                 );
                 Secret::generate_x25519(None, Some(secret.as_bytes()))?
             } else if let ecdh::SecretKey::Curve25519(_) = secret {
@@ -475,7 +475,7 @@ fn check_crypto_algo_type(params: &SecretParams, flags: KeyFlags) -> Result<Secr
         _ => {
             println!(
                 "{} {}",
-                style("Invalid key Secret Parameters: ").color256(CLI_RED),
+                style("Invalid key secret parameters: ").color256(CLI_RED),
                 style(format!("{:#?}", params)).color256(CLI_ORANGE)
             );
             bail!("Invalid key secret paramters");
@@ -492,13 +492,13 @@ fn check_crypto_algo_type(params: &SecretParams, flags: KeyFlags) -> Result<Secr
 fn unlock_pgp_key(key: &mut pgp::packet::SecretKey, password: &str) -> Result<()> {
     println!(
         "{}{}{}",
-        style("Attempting to unlock and unencrypt Primary PGP key (").color256(CLI_BLUE),
+        style("Attempting to unlock and unencrypt PGP primary key (").color256(CLI_BLUE),
         style(key.fingerprint()).color256(CLI_GREEN),
         style(")").color256(CLI_BLUE)
     );
 
     key.remove_password(&pgp::types::Password::from(password.as_bytes()))
-        .context("Couldn't remove Primary PGP Password")?;
+        .context("Couldn't remove PGP primary key password")?;
 
     Ok(())
 }
@@ -507,13 +507,13 @@ fn unlock_pgp_key(key: &mut pgp::packet::SecretKey, password: &str) -> Result<()
 fn unlock_pgp_sub_key(key: &mut pgp::packet::SecretSubkey, password: &str) -> Result<()> {
     println!(
         "{}{}{}",
-        style("Attempting to unlock and unencrypt Sub PGP key (").color256(CLI_BLUE),
+        style("Attempting to unlock and unencrypt PGP subkey (").color256(CLI_BLUE),
         style(key.fingerprint()).color256(CLI_GREEN),
         style(")").color256(CLI_BLUE)
     );
 
     key.remove_password(&pgp::types::Password::from(password.as_bytes()))
-        .context("Couldn't remove Sub PGP Password")?;
+        .context("Couldn't remove PGP subkey password")?;
 
     Ok(())
 }

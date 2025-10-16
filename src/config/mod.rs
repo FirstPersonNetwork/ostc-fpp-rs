@@ -2,7 +2,7 @@
 *
 * Configuration is spread across three different contexts:
 * 1. [Config]: Represents the active in-memory application config
-* 2. [secured_config::SecuredConfig]: Represents [Config] info that is stord securely
+* 2. [secured_config::SecuredConfig]: Represents [Config] info that is stored securely
 * 3. [public_config::PublicConfig]: Represents [Config] info that is stored in plaintext on disk
 */
 
@@ -13,7 +13,7 @@ pub mod public_config;
 pub mod secured_config;
 
 /// Configuration information for lkmv tool
-/// This is the active Configuration used by the application itself
+/// This is the active configuration used by the application itself
 /// When you want to load/save this configuration, it will become:
 /// 1. [public_config::PublicConfig]: Configuration information that is saved to disk
 /// 2. [secured_config::SecuredConfig]: Configuration information that is encrypted and saved to secure storage
@@ -37,7 +37,7 @@ pub struct CommunityDID {
 /// Where did the source for the Key Material come from?
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub enum KeySourceMaterial {
-    /// Sourced from BIP32 derivitive, Path for this key
+    /// Sourced from BIP32 derivative, Path for this key
     Derived { path: String },
 
     /// Sourced from an external Key Import

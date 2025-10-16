@@ -19,7 +19,7 @@ use crossterm::{
 use dialoguer::{Confirm, Password, Select, theme::ColorfulTheme};
 use secrecy::SecretString;
 
-/// Handles storing secrets on an OpenPGP compatable card
+/// Handles storing secrets on an OpenPGP compatible card
 /// Returns:
 /// None: No Hardware token being used
 /// Some(String): The card identifier of the card used
@@ -108,7 +108,7 @@ pub fn setup_hardware_token(term: &Term, keys: &CommunityDIDKeys) -> Result<Opti
     println!(
         "\n{}",
         style(
-            "It is reccomended to factory reset your hardware token to ensure a fresh and known starting point."
+            "It is recommended to factory reset your hardware token to ensure a fresh and known starting point."
         ).color256(CLI_BLUE)
     );
     if Confirm::with_theme(&ColorfulTheme::default())
@@ -137,7 +137,7 @@ pub fn setup_hardware_token(term: &Term, keys: &CommunityDIDKeys) -> Result<Opti
     println!("{}", style("Best practice is to force an interaction with the hardware token for critical operations, such as signing data.").color256(CLI_BLUE));
     if Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt(format!(
-            "Do you want to set the SIGNING key to require touch? {}",
+            "Do you want to set the Signing key to require touch? {}",
             style(
                 "(This will require you to touch the hardware token every time you sign something)"
             )
@@ -150,7 +150,7 @@ pub fn setup_hardware_token(term: &Term, keys: &CommunityDIDKeys) -> Result<Opti
     } else {
         println!(
             "{}",
-            style("The SIGNING key will NOT require touch.").color256(CLI_ORANGE)
+            style("The Signing key will NOT require touch.").color256(CLI_ORANGE)
         );
     }
 

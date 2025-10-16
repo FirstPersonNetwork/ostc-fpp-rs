@@ -28,7 +28,7 @@ fn cli() -> Command {
         .arg_required_else_help(true)
         .allow_external_subcommands(true)
         .subcommand(Command::new("status").about("Displays status of the lkmv tool"))
-        .subcommand(Command::new("setup").about("Initial setup of the lkmv configuration"))
+        .subcommand(Command::new("setup").about("Initial configuration of the lkmv tool"))
 }
 
 // Handles initial setup and configuration of the CLI tool
