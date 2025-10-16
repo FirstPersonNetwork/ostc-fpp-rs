@@ -88,8 +88,17 @@ pub fn setup_hardware_token(term: &Term, keys: &CommunityDIDKeys) -> Result<()> 
     };
 
     // Ask to factory reset card?
+    println!(
+        "\n{}",
+        style(
+            "It is reccomended to factory reset your hardware token to ensure a fresh and known starting point."
+        ).color256(CLI_BLUE)
+    );
     if Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Do you want to factory reset the card before writing? (This will delete all existing keys on the card)")
+        .with_prompt(format!(
+            "Do you want to factory reset the card before writing? {}",
+            style("(This will delete all existing keys on the card)").color256(CLI_ORANGE),
+        ))
         .default(false)
         .interact()?
     {
