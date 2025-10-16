@@ -2,7 +2,7 @@
 *   Handles everything todo with openpgp-card tokens
 */
 
-use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_RED, setup::KeyPurpose};
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, setup::KeyPurpose};
 use anyhow::Result;
 use card_backend_pcsc::PcscBackend;
 use chrono::{DateTime, Utc};
@@ -488,6 +488,34 @@ pub fn set_signing_touch_policy(
     term.hide_cursor()?;
 
     card.set_touch_policy(KeyType::Signing, TouchPolicy::Cached)?;
+    term.show_cursor()?;
+    println!(" {}", style("Success").color256(CLI_GREEN));
+
+    Ok(())
+}
+
+/// Sets the cardholder name
+/// name: Max length is 39 characters
+pub fn set_cardholder_name(
+    term: &Term,
+    card: &mut Card<Open>,
+    admin_pin: &SecretString,
+    name: &str,
+) -> Result<()> {
+    let mut open_card = card.transaction()?;
+    open_card.verify_admin_pin(admin_pin.clone())?;
+    let mut card = open_card.to_admin_card(None)?;
+
+    print!(
+        "{}{}{}",
+        style("Setting cardholder name to (").color256(CLI_BLUE),
+        style(name).color256(CLI_PURPLE),
+        style(")...").color256(CLI_BLUE),
+    );
+    term.flush()?;
+    term.hide_cursor()?;
+    card.set_cardholder_name(name)?;
+
     term.show_cursor()?;
     println!(" {}", style("Success").color256(CLI_GREEN));
 

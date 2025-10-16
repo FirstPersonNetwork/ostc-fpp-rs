@@ -1,11 +1,12 @@
 /*!
-*   Stores the Communioty DID Secrets on an OpenPGP compatible card (E.g. Nitrokey)
+*   Stores the Community DID Secrets on an OpenPGP compatible card (E.g. Nitrokey)
 */
 
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
     openpgp_card::{
-        cards, factory_reset, print_cards, set_signing_touch_policy, write::write_keys_to_card,
+        cards, factory_reset, print_cards, set_cardholder_name, set_signing_touch_policy,
+        write::write_keys_to_card,
     },
     setup::CommunityDIDKeys,
 };
@@ -151,6 +152,29 @@ pub fn setup_hardware_token(term: &Term, keys: &CommunityDIDKeys) -> Result<Opti
             "{}",
             style("The SIGNING key will NOT require touch.").color256(CLI_ORANGE)
         );
+    }
+
+    // Set cardholder name?
+    println!("{}{}{}", style("You can set the cardholder name, must be less than 39 characters in length. Should be in the format ").color256(CLI_BLUE),
+        style("LAST_NAME<<FIRST_NAME<OTHER<OTHER").color256(CLI_PURPLE),
+        style(" but it is up to you what you put here. No encoding is done on this.").color256(CLI_BLUE));
+
+    if Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt("Do you want to set the Cardholder Name?")
+        .default(true)
+        .interact()?
+    {
+        let cardholder_name: String = dialoguer::Input::with_theme(&ColorfulTheme::default())
+            .with_prompt("Cardholder Name")
+            .validate_with(|input: &String| {
+                if input.len() > 39 {
+                    Err("Cardholder name must be less than 39 characters")
+                } else {
+                    Ok(())
+                }
+            })
+            .interact_text()?;
+        set_cardholder_name(term, selected_card, &admin_pin, &cardholder_name)?;
     }
 
     // Return the card identifier
