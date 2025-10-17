@@ -5,7 +5,7 @@
 use crate::setup::openpgp_card::setup_hardware_token;
 use crate::{
     CLI_BLUE, CLI_GREEN,
-    config::KeySourceMaterial,
+    config::{CommunityDID, Config, KeySourceMaterial, secured_config::SecuredConfig},
     setup::{
         bip32_bip39::{generate_bip39_mnemonic, get_bip32_root, mnemonic_from_recovery_phrase},
         pgp_import::{PGPKeys, terminal_input_pgp_key},
@@ -13,29 +13,19 @@ use crate::{
 };
 #[cfg(feature = "openpgp-card")]
 use ::openpgp_card::ocard::KeyType;
-use affinidi_tdk::secrets_resolver::secrets::Secret;
+use affinidi_tdk::{did_common::Document, secrets_resolver::secrets::Secret};
 use anyhow::{Context, Result};
 use bip39::Mnemonic;
 use chrono::{DateTime, TimeDelta, Utc};
 use console::{Term, style};
 use dialoguer::{Confirm, theme::ColorfulTheme};
 use ed25519_dalek_bip32::DerivationPath;
-use std::fmt;
+use std::{collections::HashMap, fmt};
 
 mod bip32_bip39;
 #[cfg(feature = "openpgp-card")]
 pub mod openpgp_card;
 mod pgp_import;
-
-/// Contains all setup information
-#[derive(Default)]
-pub struct SetupConfig {
-    /// All secrets created during setup
-    pub secrets: Vec<Secret>,
-
-    /// Keyy path info (where did the keys come from?)
-    pub key_paths: Vec<KeySourceMaterial>,
-}
 
 /// Tags what the key is used for
 #[derive(Default, Debug, PartialEq)]
@@ -128,7 +118,43 @@ pub fn cli_setup(term: &Term) -> Result<()> {
 
     // Use hardware token?
     #[cfg(feature = "openpgp-card")]
-    setup_hardware_token(term, &c_did_keys)?;
+    let token_id = setup_hardware_token(term, &c_did_keys)?;
+
+    // Create Configuration
+    let mut key_path = HashMap::new();
+    key_path.insert(
+        c_did_keys.signing.secret.id.clone(),
+        c_did_keys.signing.source.clone(),
+    );
+    key_path.insert(
+        c_did_keys.authentication.secret.id.clone(),
+        c_did_keys.authentication.source.clone(),
+    );
+    key_path.insert(
+        c_did_keys.encryption.secret.id.clone(),
+        c_did_keys.encryption.source.clone(),
+    );
+
+    // TODO: Ask for unlock phrase here if no hardware token
+
+    // Try saving the bip32 seed to OS Secure Store
+    let sc = SecuredConfig::new(mnemonic.to_entropy().as_slice());
+    sc.initial_save(token_id.as_ref(), None)?;
+
+    let config = Config {
+        bip32_seed: get_bip32_root(mnemonic.to_entropy().as_slice())?,
+        token_id,
+        keys_path: key_path,
+        // TODO: Replace this with correct DID
+        community_did: CommunityDID {
+            id: "TODO".to_string(),
+            document: Document::new("did:todo:fix_this_later")?,
+        },
+        // TODO: Implement lock/unlock passphrase
+        unlock_code: false,
+    };
+
+    config.save()?;
 
     Ok(())
 }

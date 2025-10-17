@@ -2,6 +2,13 @@
 
 [![Rust](https://img.shields.io/badge/rust-1.88.0%2B-blue.svg?maxAge=3600)](https://github.com/FirstPersonNetwork/lkmv)
 
+## Prerequisites
+
+1. Rust version 1.88 or higher (Install [Rust](https://rust-lang.org/learn/get-started/)
+   if needed)
+2. Set any environment variables as needed
+   - `LKMV_CONFIG`: Path to lkmv configuration file (default: ~/.config/lkmv/config.json)
+
 ## Rust Feature Flags
 
 - `default`: [openpgp-card]

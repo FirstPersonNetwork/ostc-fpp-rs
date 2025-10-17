@@ -20,6 +20,7 @@ use openpgp_card::{
 use secrecy::SecretString;
 use std::fmt;
 
+pub mod crypt;
 pub mod write;
 
 pub struct KeySlotInfo {
@@ -105,6 +106,14 @@ pub fn cards() -> Result<Vec<Card<Open>>> {
     }
 
     Ok(cards)
+}
+
+/// Opens a specific openpgp-card by an identifier
+pub fn open_card(token_id: &str) -> Result<Card<Open>> {
+    let cards = PcscBackend::card_backends(None)?;
+    let card = Card::<Open>::open_by_ident(cards, token_id)?;
+
+    Ok(card)
 }
 
 /// Formats the cardholder name
@@ -237,6 +246,7 @@ pub fn get_key_info(
     Ok(key_info)
 }
 
+/*
 /// Checks that everything is ok with the keyslot
 pub fn check_keyslot(ki: &KeySlotInfo) -> bool {
     if let Some(KeyStatus::NotPresent) = &ki.status {
@@ -297,6 +307,7 @@ pub fn check_keyslot(ki: &KeySlotInfo) -> bool {
         KeyPurpose::Unknown => false,
     }
 }
+*/
 
 /// Prints a hardware token key details to the console
 pub fn print_key_info(ki: &KeySlotInfo) {

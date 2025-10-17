@@ -2,9 +2,12 @@
 *
 */
 
-use crate::setup::cli_setup;
+use crate::{config::Config, setup::cli_setup};
+use anyhow::Result;
 use clap::Command;
 use console::{Term, style};
+use dialoguer::{Password, theme::ColorfulTheme};
+use sha2::{Digest, Sha256};
 use status::print_status;
 use tracing_subscriber::EnvFilter;
 
@@ -29,6 +32,7 @@ fn cli() -> Command {
         .allow_external_subcommands(true)
         .subcommand(Command::new("status").about("Displays status of the lkmv tool"))
         .subcommand(Command::new("setup").about("Initial configuration of the lkmv tool"))
+        .subcommand(Command::new("test").about("Test loading secrets"))
 }
 
 // Handles initial setup and configuration of the CLI tool
@@ -62,8 +66,35 @@ fn main() {
                 eprintln!("Setup failed: {e}");
             }
         },
+        Some(("test", _)) => match Config::load() {
+            Ok(_) => {
+                println!("{}", style("SUCCESS").color256(CLI_GREEN));
+            }
+            Err(e) => {
+                println!(
+                    "{}{}",
+                    style("ERROR: ").color256(CLI_RED),
+                    style(e).color256(CLI_ORANGE)
+                );
+            }
+        },
         _ => {
             eprintln!("No valid subcommand was used. Use --help for more information.");
         }
     }
+}
+
+/// Prompts user for their unlock code when not using a hardware token
+/// returns the SHA256 hash of whatever they entered
+pub fn get_unlock_code() -> Result<[u8; 32]> {
+    let unlock_code = Password::with_theme(&ColorfulTheme::default())
+        .with_prompt("Please enter your lkmv unlock code")
+        .allow_empty_password(true)
+        .interact()
+        .unwrap_or_default();
+
+    let mut hasher = Sha256::new();
+    hasher.update(unlock_code.as_bytes());
+
+    Ok(hasher.finalize().into())
 }

@@ -8,7 +8,7 @@ use bip39::Mnemonic;
 use console::style;
 use dialoguer::{Confirm, Input, theme::ColorfulTheme};
 use ed25519_dalek_bip32::ExtendedSigningKey;
-use rand::{RngCore, rng};
+use rand::{RngCore, thread_rng};
 use zeroize::Zeroize;
 
 // ****************************************************************************
@@ -70,7 +70,7 @@ pub fn mnemonic_from_recovery_phrase() -> Result<Mnemonic> {
 pub fn generate_bip39_mnemonic() -> Mnemonic {
     // Create 256 bits of entropy
     let mut entropy = [0u8; 32];
-    let mut rng = rng();
+    let mut rng = rand::thread_rng();
     rng.fill_bytes(&mut entropy);
 
     match Mnemonic::from_entropy(&entropy) {
