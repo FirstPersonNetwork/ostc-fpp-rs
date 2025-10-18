@@ -9,6 +9,7 @@
 */
 
 use crate::{CLI_ORANGE, CLI_RED, config::KeySourceMaterial};
+use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce, aead::Aead};
 use affinidi_tdk::secrets_resolver::secrets::Secret;
 use anyhow::{Context, Result, bail};
 use base64::{
@@ -81,7 +82,8 @@ impl SecuredConfig {
                 "Token has been configured, but no openpgp-card feature-flag has been enabled! exiting..."
             );
         } else if let Some(unlock) = unlock {
-            vec![]
+            println!("TIMTAM: Using passphrase");
+            unlock_code_encrypt(unlock, &input)?
         } else {
             // Plain-text
             input
@@ -166,4 +168,23 @@ impl SecuredConfig {
 
     pub fn save_keys_path() -> Result<()> {}
     */
+}
+
+/// Creates an AES-256 key from the hash of the unlock code and attempts to encrypt using it
+fn unlock_code_encrypt(unlock: &[u8; 32], input: &[u8]) -> Result<Vec<u8>> {
+    let key: &Key<Aes256Gcm> = unlock.into();
+    let nonce = Nonce::from_slice(b"lkmv nonce!!");
+    let cipher = Aes256Gcm::new(key);
+
+    match cipher.encrypt(nonce, input) {
+        Ok(encrypted) => Ok(encrypted),
+        Err(e) => {
+            println!(
+                "{}{}",
+                style("ERROR: Couldn't encrypt data. Reason: ").color256(CLI_RED),
+                style(e).color256(CLI_ORANGE)
+            );
+            bail!(e);
+        }
+    }
 }

@@ -20,6 +20,7 @@ use chrono::{DateTime, TimeDelta, Utc};
 use console::{Term, style};
 use dialoguer::{Confirm, theme::ColorfulTheme};
 use ed25519_dalek_bip32::DerivationPath;
+use sha2::Digest;
 use std::{collections::HashMap, fmt};
 
 mod bip32_bip39;
@@ -135,11 +136,18 @@ pub fn cli_setup(term: &Term) -> Result<()> {
         c_did_keys.encryption.source.clone(),
     );
 
-    // TODO: Ask for unlock phrase here if no hardware token
+    // If hardware token is not being used, then ask for an unlock code
+    let unlock_code = if token_id.is_none() {
+        // Check if an unlock code is desired?
+        create_unlock_code()
+    } else {
+        // No need for an unlock code when using hardware token
+        None
+    };
 
     // Try saving the bip32 seed to OS Secure Store
     let sc = SecuredConfig::new(mnemonic.to_entropy().as_slice());
-    sc.initial_save(token_id.as_ref(), None)?;
+    sc.initial_save(token_id.as_ref(), unlock_code.as_ref())?;
 
     let config = Config {
         bip32_seed: get_bip32_root(mnemonic.to_entropy().as_slice())?,
@@ -150,8 +158,7 @@ pub fn cli_setup(term: &Term) -> Result<()> {
             id: "TODO".to_string(),
             document: Document::new("did:todo:fix_this_later")?,
         },
-        // TODO: Implement lock/unlock passphrase
-        unlock_code: false,
+        unlock_code: unlock_code.is_some(),
     };
 
     config.save()?;
@@ -263,4 +270,28 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
         authentication,
         encryption,
     })
+}
+
+fn create_unlock_code() -> Option<[u8; 32]> {
+    println!("{}", style("NOTE: You are not using any hardware token. While secret information will be stored in your OS secure store where possible, it is best practice to protect this data with an unlock code.").color256(CLI_BLUE));
+    println!("  {}", style("This unlock code is asked on application start so it can unlock secret configuration data required.").color256(CLI_BLUE));
+
+    if Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt("Would you like to set an unlock code to protect your secrets?")
+        .default(true)
+        .interact()
+        .unwrap()
+    {
+        // Get unlock code from terminal
+        let unlock_code: String = dialoguer::Password::with_theme(&ColorfulTheme::default())
+            .with_prompt("Enter Unlock Code")
+            .with_confirmation("Confirm Unlock Code", "Unlock Codes do not match")
+            .interact()
+            .unwrap();
+
+        // Create SHA2-256 hash of the unlock code
+        Some(sha2::Sha256::digest(unlock_code.as_bytes()).into())
+    } else {
+        None
+    }
 }
