@@ -35,7 +35,7 @@ pub fn token_encrypt(token_id: &str, data: &[u8]) -> Result<Vec<u8>> {
 
     let token_public_key = PublicKey::from(public_key);
 
-    let mut rng = rand::thread_rng();
+    let rng = rand::thread_rng();
     //
     // Use X25519 to encrypt the data
     let ephemeral_secret = EphemeralSecret::random_from_rng(rng);
@@ -50,7 +50,7 @@ pub fn token_encrypt(token_id: &str, data: &[u8]) -> Result<Vec<u8>> {
     let key = Key::<Aes256Gcm>::from_slice(&symmetric_key);
     let cipher = Aes256Gcm::new(key);
 
-    let nonce = Nonce::from_slice(b"lkmv nonce");
+    let nonce = Nonce::from_slice(b"lkmv-nonce!!");
     match cipher.encrypt(nonce, data) {
         Ok(bytes) => Ok(bytes),
         Err(e) => {
