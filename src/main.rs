@@ -7,7 +7,7 @@ use anyhow::Result;
 use clap::Command;
 use console::{Term, style};
 use dialoguer::{Password, theme::ColorfulTheme};
-use sha2::{Digest, Sha256};
+use sha2::Digest;
 use status::print_status;
 use tracing_subscriber::EnvFilter;
 
@@ -93,8 +93,5 @@ pub fn get_unlock_code() -> Result<[u8; 32]> {
         .interact()
         .unwrap_or_default();
 
-    let mut hasher = Sha256::new();
-    hasher.update(unlock_code.as_bytes());
-
-    Ok(hasher.finalize().into())
+    Ok(sha2::Sha256::digest(unlock_code.as_bytes()).into())
 }

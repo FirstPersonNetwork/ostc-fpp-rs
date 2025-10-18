@@ -9,7 +9,7 @@
 */
 
 use crate::{CLI_ORANGE, CLI_RED, config::KeySourceMaterial};
-use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce, aead::Aead};
+use aes_gcm::{AeadCore, Aes256Gcm, KeyInit, aead::Aead};
 use affinidi_tdk::secrets_resolver::secrets::Secret;
 use anyhow::{Context, Result, bail};
 use base64::{
@@ -18,6 +18,7 @@ use base64::{
 };
 use console::style;
 use keyring::Entry;
+use rand::{SeedableRng, rngs::StdRng};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -89,7 +90,7 @@ impl SecuredConfig {
             input
         };
 
-        entry.set_secret(BASE64_STANDARD_NO_PAD.encode(bytes).as_bytes())?;
+        entry.set_secret(BASE64_URL_SAFE_NO_PAD.encode(bytes).as_bytes())?;
         Ok(())
     }
 
@@ -102,7 +103,9 @@ impl SecuredConfig {
         let entry = Entry::new(SERVICE, USER)?;
         let secret_bytes =
             match entry.get_secret() {
-                Ok(secret) => secret,
+                Ok(secret) => BASE64_URL_SAFE_NO_PAD
+                    .decode(secret)
+                    .context("Couldn't decode BASE64 Secure Config from OS Secret Store")?,
                 Err(keyring::error::Error::NoEntry) => {
                     bail!(keyring::error::Error::NoEntry);
                 }
@@ -117,24 +120,25 @@ impl SecuredConfig {
                 }
             };
 
-        let secret_str = if let Some(token) = token {
+        let plain_bytes = if let Some(token) = token {
             #[cfg(feature = "openpgp-card")]
             {
-                "TODO: Token".to_string()
+                "TODO: Token".to_string();
+                secret_bytes
             }
             #[cfg(not(feature = "openpgp-card"))]
             bail!(
                 "Token has been configured, but no openpgp-card feature-flag has been enabled! exiting..."
             );
         } else if let Some(unlock) = unlock {
-            // Using passwork/PIN to unlock
-            "TODO: Unlock".to_string()
+            unlock_code_decrypt(unlock, &secret_bytes)?
         } else {
             // This is a raw string from the OS Secure Store
-            String::from_utf8(secret_bytes)?
+            secret_bytes
         };
 
-        todo!("Need to finish");
+        serde_json::from_slice(plain_bytes.as_slice())
+            .context("Couldn't deserialize Secured Configuration")
     }
 
     /*
@@ -172,16 +176,37 @@ impl SecuredConfig {
 
 /// Creates an AES-256 key from the hash of the unlock code and attempts to encrypt using it
 fn unlock_code_encrypt(unlock: &[u8; 32], input: &[u8]) -> Result<Vec<u8>> {
-    let key: &Key<Aes256Gcm> = unlock.into();
-    let nonce = Nonce::from_slice(b"lkmv nonce!!");
-    let cipher = Aes256Gcm::new(key);
+    let mut rng = StdRng::from_seed(*unlock);
+    let key = Aes256Gcm::generate_key(&mut rng);
+    let nonce = Aes256Gcm::generate_nonce(&mut rng);
+    let cipher = Aes256Gcm::new(&key);
 
-    match cipher.encrypt(nonce, input) {
+    match cipher.encrypt(&nonce, input) {
         Ok(encrypted) => Ok(encrypted),
         Err(e) => {
             println!(
                 "{}{}",
                 style("ERROR: Couldn't encrypt data. Reason: ").color256(CLI_RED),
+                style(e).color256(CLI_ORANGE)
+            );
+            bail!(e);
+        }
+    }
+}
+
+/// Creates an AES-256 key from the hash of the unlock code and attempts to decrypt using it
+fn unlock_code_decrypt(unlock: &[u8; 32], input: &[u8]) -> Result<Vec<u8>> {
+    let mut rng = StdRng::from_seed(*unlock);
+    let key = Aes256Gcm::generate_key(&mut rng);
+    let nonce = Aes256Gcm::generate_nonce(&mut rng);
+    let cipher = Aes256Gcm::new(&key);
+
+    match cipher.decrypt(&nonce, input) {
+        Ok(decrypted) => Ok(decrypted),
+        Err(e) => {
+            println!(
+                "{}{}",
+                style("ERROR: Couldn't decrypt data. Reason: ").color256(CLI_RED),
                 style(e).color256(CLI_ORANGE)
             );
             bail!(e);

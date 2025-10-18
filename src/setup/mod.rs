@@ -120,6 +120,8 @@ pub fn cli_setup(term: &Term) -> Result<()> {
     // Use hardware token?
     #[cfg(feature = "openpgp-card")]
     let token_id = setup_hardware_token(term, &c_did_keys)?;
+    #[cfg(not(feature = "openpgp-card"))]
+    let token_id = None;
 
     // Create Configuration
     let mut key_path = HashMap::new();
