@@ -498,7 +498,7 @@ pub fn set_signing_touch_policy(
     term.flush()?;
     term.hide_cursor()?;
 
-    card.set_touch_policy(KeyType::Signing, TouchPolicy::Cached)?;
+    card.set_touch_policy(KeyType::Signing, TouchPolicy::On)?;
     term.show_cursor()?;
     println!(" {}", style("Success").color256(CLI_GREEN));
 
