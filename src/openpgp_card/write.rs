@@ -21,7 +21,7 @@ use pgp::{
     },
 };
 use secrecy::SecretString;
-use x25519_dalek::StaticSecret;
+use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret};
 
 /// Writes keys to the card
 pub fn write_keys_to_card(
@@ -127,6 +127,10 @@ fn create_pgp_secret_packet(key: &KeyInfo, kp: KeyPurpose) -> Result<UploadableK
             // Packet Length is 56 octets for ECDH
             let packet_header = PacketHeader::new_fixed(Tag::PublicKey, 56);
 
+            let x25519_secret =
+                StaticSecret::from(*key.secret.get_private_bytes().first_chunk::<32>().unwrap());
+            let x25519_pk = X25519PublicKey::from(&x25519_secret);
+
             let pk = PublicKey::new_with_header(
                 packet_header,
                 KeyVersion::V4,
@@ -134,20 +138,15 @@ fn create_pgp_secret_packet(key: &KeyInfo, kp: KeyPurpose) -> Result<UploadableK
                 Utc::now(),
                 key.expiry.map(|e| e.num_days() as u16),
                 PublicParams::ECDH(EcdhPublicParams::Curve25519 {
-                    p: x25519_dalek::PublicKey::from(
-                        *key.secret.get_public_bytes().first_chunk::<32>().unwrap(),
-                    ),
+                    p: x25519_pk,
                     hash: crypto::hash::HashAlgorithm::Sha256,
                     alg_sym: crypto::sym::SymmetricKeyAlgorithm::AES256,
                 }),
             )?;
 
-            let ss =
-                StaticSecret::from(*key.secret.get_private_bytes().first_chunk::<32>().unwrap());
-
             // Create SecretParams
             let sp = SecretParams::Plain(PlainSecretParams::ECDH(
-                crypto::ecdh::SecretKey::Curve25519(ss.into()),
+                crypto::ecdh::SecretKey::Curve25519(x25519_secret.into()),
             ));
 
             (pk, sp)

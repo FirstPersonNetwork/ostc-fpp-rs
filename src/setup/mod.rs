@@ -13,7 +13,10 @@ use crate::{
 };
 #[cfg(feature = "openpgp-card")]
 use ::openpgp_card::ocard::KeyType;
-use affinidi_tdk::{did_common::Document, secrets_resolver::secrets::Secret};
+use affinidi_tdk::{
+    did_common::Document,
+    secrets_resolver::{crypto::ed25519::ed25519_private_to_x25519_private_key, secrets::Secret},
+};
 use anyhow::{Context, Result};
 use bip39::Mnemonic;
 use chrono::{DateTime, TimeDelta, Utc};
@@ -247,11 +250,19 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
         let enc_key = bip32_master
             .derive(&"m/0'/0'/2'".parse::<DerivationPath>().unwrap())
             .context("Failed to create X25519 encryption key")?;
-        let mut enc_secret =
-            Secret::generate_ed25519(Some("enc"), Some(enc_key.signing_key.as_bytes()));
+
+        // Convert the Ed25519 seed to an X25519 Seed
+        let x25519_seed = ed25519_private_to_x25519_private_key(enc_key.signing_key.as_bytes());
+
+        // Generate the X25519 Secret and Public Key
+        let mut enc_secret = Secret::generate_x25519(Some("enc"), Some(&x25519_seed))?;
 
         enc_secret.id = enc_secret.get_public_keymultibase()?;
 
+        println!(
+            "TIMTAM: Public Hex: {}",
+            hex::encode(enc_secret.get_public_bytes())
+        );
         println!(
             "{} {}",
             style("Encryption Key (X25519) created:").color256(CLI_BLUE),

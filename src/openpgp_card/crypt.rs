@@ -1,17 +1,19 @@
 /*! Encrypt/Decrypt functions using the openpgp-card
 */
 
-use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce, aead::Aead};
+use crate::openpgp_card::open_card;
 use anyhow::{Context, Result, bail};
-use console::style;
-use hkdf::Hkdf;
-use openpgp_card::ocard::{KeyType, crypto::PublicKeyMaterial};
-use sha2::Sha256;
-use x25519_dalek::{EphemeralSecret, PublicKey};
+use openpgp_card::ocard::KeyType;
+use openpgp_card_rpgp::CardSlot;
+use pgp::{
+    crypto::public_key::PublicKeyAlgorithm,
+    ser::Serialize,
+    types::{EskType, PkeskBytes},
+};
+use secrecy::SecretString;
+use std::io::BufReader;
 
-use crate::{CLI_ORANGE, CLI_RED, openpgp_card::open_card};
-
-/// Uses the decrypt/encrypt key on the token to encrypt data
+/// Uses the decrypt public key on the token to encrypt data
 pub fn token_encrypt(token_id: &str, data: &[u8]) -> Result<Vec<u8>> {
     let mut card =
         open_card(token_id).context(format!("Couldn't find hardware token ({})", token_id))?;
@@ -19,47 +21,41 @@ pub fn token_encrypt(token_id: &str, data: &[u8]) -> Result<Vec<u8>> {
         .transaction()
         .context("Couldn't create hardware token transaction - encrypt")?;
 
-    // Get the public_key info for the decrypt key
-    let public_key = if let PublicKeyMaterial::E(pk) = card
-        .public_key_material(KeyType::Decryption)
-        .context("Couldn't get public key from hardware token - encrypt")?
-    {
-        if let Some(bytes) = pk.data().first_chunk::<32>() {
-            bytes.to_owned()
-        } else {
-            bail!("decrypt public key doesn't have 32 bytes!");
-        }
-    } else {
-        bail!("Incorrect decrypt key type on hardware token. Must be ECC not RSA!");
-    };
-
-    let token_public_key = PublicKey::from(public_key);
+    let cs = CardSlot::init_from_card(&mut card, KeyType::Decryption, &|| {
+        eprintln!("Touch is required to get decrypt public-key")
+    })?;
 
     let rng = rand::thread_rng();
-    //
-    // Use X25519 to encrypt the data
-    let ephemeral_secret = EphemeralSecret::random_from_rng(rng);
+    let pk = cs.public_key();
+    let encrypted = pk.encrypt(rng, data, EskType::V6)?;
+    println!("TIMTAM: {:#?}", encrypted);
 
-    let shared_secret = ephemeral_secret.diffie_hellman(&token_public_key);
+    println!("TIMTAM: {:?}", encrypted.to_bytes());
+    Ok(encrypted.to_bytes()?)
+}
 
-    let hkdf = Hkdf::<Sha256>::new(None, shared_secret.as_bytes());
-    let mut symmetric_key = [0u8; 32]; // For AES-256
-    hkdf.expand(b"encryption key", &mut symmetric_key)
-        .expect("Failed to expand HKDF");
+/// Uses the decrypt key on the token to decrypt data
+pub fn token_decrypt(token_id: &str, data: &[u8]) -> Result<Vec<u8>> {
+    let mut card =
+        open_card(token_id).context(format!("Couldn't find hardware token ({})", token_id))?;
+    let mut card = card
+        .transaction()
+        .context("Couldn't create hardware token transaction - decrypt")?;
 
-    let key = Key::<Aes256Gcm>::from_slice(&symmetric_key);
-    let cipher = Aes256Gcm::new(key);
+    card.verify_user_pin(SecretString::new("123456".into()))?;
+    card.to_user_card(None)?;
 
-    let nonce = Nonce::from_slice(b"lkmv-nonce!!");
-    match cipher.encrypt(nonce, data) {
-        Ok(bytes) => Ok(bytes),
-        Err(e) => {
-            println!(
-                "{}{}",
-                style("ERROR: Couldn't encrypt data. Reason: ").color256(CLI_RED),
-                style(e).color256(CLI_ORANGE)
-            );
-            bail!(e);
-        }
-    }
+    let cs = CardSlot::init_from_card(&mut card, KeyType::Decryption, &|| {
+        eprintln!("Touch confirmation needed for decryption");
+    })?;
+
+    // Convert the raw bytes back into a Public Key Encrypted Session Key
+    let raw_br = BufReader::new(data);
+    let pk_esk = PkeskBytes::try_from_reader(&PublicKeyAlgorithm::ECDH, 6, raw_br)?;
+    println!("TIMTAM: {:#?}", pk_esk);
+    let (decrypted, key) = cs.decrypt(&pk_esk)?;
+
+    println!("TIMTAM: Key_algo: {:#?}", key);
+
+    Ok(decrypted)
 }

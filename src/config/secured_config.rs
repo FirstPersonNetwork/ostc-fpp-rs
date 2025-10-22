@@ -83,7 +83,6 @@ impl SecuredConfig {
                 "Token has been configured, but no openpgp-card feature-flag has been enabled! exiting..."
             );
         } else if let Some(unlock) = unlock {
-            println!("TIMTAM: Using passphrase");
             unlock_code_encrypt(unlock, &input)?
         } else {
             // Plain-text
@@ -123,8 +122,9 @@ impl SecuredConfig {
         let plain_bytes = if let Some(token) = token {
             #[cfg(feature = "openpgp-card")]
             {
-                "TODO: Token".to_string();
-                secret_bytes
+                use crate::openpgp_card::crypt::token_decrypt;
+
+                token_decrypt(token, secret_bytes.as_slice())?
             }
             #[cfg(not(feature = "openpgp-card"))]
             bail!(
@@ -208,6 +208,10 @@ fn unlock_code_decrypt(unlock: &[u8; 32], input: &[u8]) -> Result<Vec<u8>> {
                 "{}{}",
                 style("ERROR: Couldn't decrypt data. Reason: ").color256(CLI_RED),
                 style(e).color256(CLI_ORANGE)
+            );
+            println!(
+                "  {}",
+                style("Likely due to using an incorrect unlock code!").color256(CLI_ORANGE)
             );
             bail!(e);
         }
