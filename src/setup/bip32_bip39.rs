@@ -8,7 +8,7 @@ use bip39::Mnemonic;
 use console::style;
 use dialoguer::{Confirm, Input, theme::ColorfulTheme};
 use ed25519_dalek_bip32::ExtendedSigningKey;
-use rand::{RngCore, thread_rng};
+use rand::RngCore;
 use zeroize::Zeroize;
 
 // ****************************************************************************

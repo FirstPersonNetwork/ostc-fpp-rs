@@ -127,9 +127,9 @@ fn create_pgp_secret_packet(key: &KeyInfo, kp: KeyPurpose) -> Result<UploadableK
             // Packet Length is 56 octets for ECDH
             let packet_header = PacketHeader::new_fixed(Tag::PublicKey, 56);
 
-            let x25519_secret =
+            let x25519_sk =
                 StaticSecret::from(*key.secret.get_private_bytes().first_chunk::<32>().unwrap());
-            let x25519_pk = X25519PublicKey::from(&x25519_secret);
+            let x25519_pk = X25519PublicKey::from(&x25519_sk);
 
             let pk = PublicKey::new_with_header(
                 packet_header,
@@ -146,7 +146,7 @@ fn create_pgp_secret_packet(key: &KeyInfo, kp: KeyPurpose) -> Result<UploadableK
 
             // Create SecretParams
             let sp = SecretParams::Plain(PlainSecretParams::ECDH(
-                crypto::ecdh::SecretKey::Curve25519(x25519_secret.into()),
+                crypto::ecdh::SecretKey::Curve25519(x25519_sk.into()),
             ));
 
             (pk, sp)

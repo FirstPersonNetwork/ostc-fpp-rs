@@ -12,7 +12,6 @@ use status::print_status;
 use tracing_subscriber::EnvFilter;
 
 mod config;
-mod gg_test;
 #[cfg(feature = "openpgp-card")]
 mod openpgp_card;
 mod setup;
@@ -67,9 +66,14 @@ fn main() {
                 eprintln!("Setup failed: {e}");
             }
         },
-        Some(("test", _)) => match Config::load() {
-            Ok(_) => {
+        Some(("test", _)) => match Config::load(&term) {
+            Ok(cfg) => {
                 println!("{}", style("SUCCESS").color256(CLI_GREEN));
+                println!();
+                println!(
+                    "{}",
+                    style(format!("Config: {:#?}", cfg)).color256(CLI_PURPLE)
+                );
             }
             Err(e) => {
                 println!(

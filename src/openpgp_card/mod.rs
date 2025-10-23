@@ -493,7 +493,7 @@ pub fn set_signing_touch_policy(
 
     print!(
         "{}",
-        style("Set the Signing key to require touch (cache for 15 seconds).").color256(CLI_BLUE)
+        style("Set the Signing key to require touch").color256(CLI_BLUE)
     );
     term.flush()?;
     term.hide_cursor()?;

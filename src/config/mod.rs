@@ -14,6 +14,8 @@ use crate::{
 };
 use affinidi_tdk::did_common::Document;
 use anyhow::{Context, Result};
+use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
+use console::Term;
 use ed25519_dalek_bip32::ExtendedSigningKey;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -73,7 +75,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn load() -> Result<Self> {
+    pub fn load(term: &Term) -> Result<Self> {
         let pc = PublicConfig::load().context("Couldn't load Public Configuration")?;
 
         let unlock_code = if pc.token_id.is_none() && pc.unlock_code {
@@ -82,8 +84,23 @@ impl Config {
             None
         };
 
-        let sc = SecuredConfig::load(pc.token_id.as_ref(), unlock_code.as_ref())?;
+        let sc = SecuredConfig::load(term, pc.token_id.as_ref(), unlock_code.as_ref())?;
 
-        todo!("Config::load() needs to be completed");
+        Ok(Config {
+            bip32_seed: ExtendedSigningKey::from_seed(
+                BASE64_URL_SAFE_NO_PAD
+                    .decode(sc.bip32_seed)
+                    .context("Couldn't base64 decode BIP32 seed")?
+                    .as_slice(),
+            )?,
+            token_id: pc.token_id,
+            community_did: CommunityDID {
+                id: pc.community_did,
+                // TODO: Replace the DID Document with a resolved Document
+                document: Document::default(),
+            },
+            keys_path: sc.keys_path,
+            unlock_code: pc.unlock_code,
+        })
     }
 }

@@ -3401,6 +3401,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "bip39",
+ "byteorder",
  "card-backend-pcsc",
  "chrono",
  "clap",
