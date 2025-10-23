@@ -22,7 +22,6 @@ openpgp-card = [
 [dependencies]
 aes-gcm = "0.10"
 affinidi-tdk = "0.2"
-# affinidi-tdk = { version = "0.2", path = "../../affinidi/affinidi-tdk-rs/crates/affinidi-tdk/affinidi-tdk/" }
 anyhow = "1.0"
 base64 = "0.22"
 bip39 = "2.2.0"
@@ -35,7 +34,6 @@ dirs = "6.0"
 dialoguer = { version = "0.12", features = ["password"] }
 ed25519-dalek-bip32 = "0.3"
 hex = "0.4"
-hkdf = "0.12"
 keyring = "3.6"
 pgp = "0.17"
 # This is locked 0.8 due to *-dalek crates not udpated to rand 0.9

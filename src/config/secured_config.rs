@@ -8,14 +8,17 @@
 *  Must intially save bip32_seed first before any keys can be stored
 */
 
-use crate::{CLI_ORANGE, CLI_RED, config::KeySourceMaterial};
+use crate::{
+    CLI_ORANGE, CLI_RED,
+    config::{Config, KeySourceMaterial},
+};
 use aes_gcm::{AeadCore, Aes256Gcm, KeyInit, aead::Aead};
-use affinidi_tdk::secrets_resolver::secrets::Secret;
 use anyhow::{Context, Result, bail};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use console::{Term, style};
 use keyring::Entry;
 use rand::{SeedableRng, rngs::StdRng};
+use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -126,38 +129,27 @@ pub struct SecuredConfig {
     // base64 encoded BIP32 private seed
     pub bip32_seed: String,
 
-    /// Secrets stored in the OS Secure Storage
-    /// key: #key-id
-    /// value: Secret
-    pub keys: HashMap<String, Secret>,
-
     /// Where did the keys being used come from?
     /// key: #key-id
     /// value: Derived Path (BIP32 or Imported)
     pub keys_path: HashMap<String, KeySourceMaterial>,
 }
 
-impl SecuredConfig {
-    /// Create a blank new SecuredConfig with just the BIP32 seed
-    pub fn new(bip32: &[u8]) -> Self {
-        let bip32 = BASE64_URL_SAFE_NO_PAD.encode(bip32);
+impl From<&Config> for SecuredConfig {
+    /// Extracts secured/private information from the full Config
+    fn from(cfg: &Config) -> Self {
         SecuredConfig {
-            bip32_seed: bip32,
-            keys: HashMap::new(),
-            keys_path: HashMap::new(),
+            bip32_seed: cfg.bip32_seed.expose_secret().to_owned(),
+            keys_path: cfg.keys_path.clone(),
         }
     }
+}
 
-    /// Does a fresh save of a SecuredConfig to the OS Secure Store
-    pub fn initial_save(&self, token: Option<&String>, unlock: Option<&[u8; 32]>) -> Result<()> {
-        self.save(token, unlock)?;
-        Ok(())
-    }
-
+impl SecuredConfig {
     /// Internal private function that saves a SecuredConfig to the OS Secure Store
     /// Encrypts the secret info as needed based on token/unlock parameters
     /// Converts to BASE64 then saves to OS Secure Store
-    fn save(&self, token: Option<&String>, unlock: Option<&[u8; 32]>) -> Result<()> {
+    pub fn save(&self, token: Option<&String>, unlock: Option<&[u8; 32]>) -> Result<()> {
         let entry = Entry::new(SERVICE, USER)?;
 
         // Serialize SecuredConfig to byte array

@@ -17,6 +17,7 @@ use anyhow::{Context, Result};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use console::Term;
 use ed25519_dalek_bip32::ExtendedSigningKey;
+use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -31,7 +32,10 @@ pub mod secured_config;
 #[derive(Debug)]
 pub struct Config {
     /// Root node of derivitave keys
-    pub bip32_seed: ExtendedSigningKey,
+    pub bip32_root: ExtendedSigningKey,
+
+    // Protected BIP32 seed
+    pub bip32_seed: SecretString,
 
     /// Our public Community DID used to identify ourselves within the Linux Foundation ecosystem
     pub community_did: CommunityDID,
@@ -68,9 +72,12 @@ pub enum KeySourceMaterial {
 
 impl Config {
     /// Handles saving
-    pub fn save(&self) -> Result<()> {
+    pub fn save(&self, unlock_code: Option<&[u8; 32]>) -> Result<()> {
         let pc = PublicConfig::from(self);
         pc.save()?;
+
+        let sc = SecuredConfig::from(self);
+        sc.save(self.token_id.as_ref(), unlock_code)?;
 
         Ok(())
     }
@@ -87,12 +94,13 @@ impl Config {
         let sc = SecuredConfig::load(term, pc.token_id.as_ref(), unlock_code.as_ref())?;
 
         Ok(Config {
-            bip32_seed: ExtendedSigningKey::from_seed(
+            bip32_root: ExtendedSigningKey::from_seed(
                 BASE64_URL_SAFE_NO_PAD
-                    .decode(sc.bip32_seed)
+                    .decode(&sc.bip32_seed)
                     .context("Couldn't base64 decode BIP32 seed")?
                     .as_slice(),
             )?,
+            bip32_seed: SecretString::new(sc.bip32_seed),
             token_id: pc.token_id,
             community_did: CommunityDID {
                 id: pc.community_did,

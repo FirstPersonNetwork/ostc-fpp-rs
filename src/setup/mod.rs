@@ -5,7 +5,7 @@
 use crate::setup::openpgp_card::setup_hardware_token;
 use crate::{
     CLI_BLUE, CLI_GREEN,
-    config::{CommunityDID, Config, KeySourceMaterial, secured_config::SecuredConfig},
+    config::{CommunityDID, Config, KeySourceMaterial},
     setup::{
         bip32_bip39::{generate_bip39_mnemonic, get_bip32_root, mnemonic_from_recovery_phrase},
         pgp_import::{PGPKeys, terminal_input_pgp_key},
@@ -18,11 +18,13 @@ use affinidi_tdk::{
     secrets_resolver::{crypto::ed25519::ed25519_private_to_x25519_private_key, secrets::Secret},
 };
 use anyhow::{Context, Result};
+use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use bip39::Mnemonic;
 use chrono::{DateTime, TimeDelta, Utc};
 use console::{Term, style};
 use dialoguer::{Confirm, theme::ColorfulTheme};
 use ed25519_dalek_bip32::DerivationPath;
+use secrecy::SecretString;
 use sha2::Digest;
 use std::{collections::HashMap, fmt};
 
@@ -150,12 +152,9 @@ pub fn cli_setup(term: &Term) -> Result<()> {
         None
     };
 
-    // Try saving the bip32 seed to OS Secure Store
-    let sc = SecuredConfig::new(mnemonic.to_entropy().as_slice());
-    sc.initial_save(token_id.as_ref(), unlock_code.as_ref())?;
-
     let config = Config {
-        bip32_seed: get_bip32_root(mnemonic.to_entropy().as_slice())?,
+        bip32_root: get_bip32_root(mnemonic.to_entropy().as_slice())?,
+        bip32_seed: SecretString::new(BASE64_URL_SAFE_NO_PAD.encode(mnemonic.to_entropy())),
         token_id,
         keys_path: key_path,
         // TODO: Replace this with correct DID
@@ -166,7 +165,7 @@ pub fn cli_setup(term: &Term) -> Result<()> {
         unlock_code: unlock_code.is_some(),
     };
 
-    config.save()?;
+    config.save(unlock_code.as_ref())?;
 
     Ok(())
 }
