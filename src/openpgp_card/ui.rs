@@ -53,7 +53,7 @@ impl UserPin {
     /// Requests user Pin from the user
     fn get_user_pin() -> SecretString {
         let pin = Password::with_theme(&ColorfulTheme::default())
-            .with_prompt("Please enter Token User PIN")
+            .with_prompt("Please enter Token User PIN <blank = default>")
             .allow_empty_password(true)
             .interact()
             .unwrap();
