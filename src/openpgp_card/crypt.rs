@@ -4,7 +4,7 @@
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_RED,
     config::secured_config::{unlock_code_decrypt, unlock_code_encrypt},
-    openpgp_card::open_card,
+    openpgp_card::{open_card, ui::UserPin},
 };
 use anyhow::{Context, Result, bail};
 use byteorder::{BigEndian, ByteOrder};
@@ -17,7 +17,6 @@ use pgp::{
     types::{EskType, PkeskBytes},
 };
 use rand::Rng;
-use secrecy::SecretString;
 use std::io::BufReader;
 use zeroize::Zeroize;
 
@@ -78,7 +77,13 @@ pub fn token_encrypt(token_id: &str, data: &[u8]) -> Result<(Vec<u8>, Vec<u8>)> 
 
 /// Uses the decrypt key on the token to decrypt ESK
 /// Then the secret seed from the ESK is used to decrypt the data payload using AES-GCM
-pub fn token_decrypt(term: &Term, token_id: &str, esk: &[u8], data: &[u8]) -> Result<Vec<u8>> {
+pub fn token_decrypt(
+    term: &Term,
+    user_pin: &mut UserPin,
+    token_id: &str,
+    esk: &[u8],
+    data: &[u8],
+) -> Result<Vec<u8>> {
     print!(
         "{}",
         style("Unlocking hardware token...").color256(CLI_BLUE)
@@ -92,7 +97,7 @@ pub fn token_decrypt(term: &Term, token_id: &str, esk: &[u8], data: &[u8]) -> Re
         .transaction()
         .context("Couldn't create hardware token transaction - decrypt")?;
 
-    card.verify_user_pin(SecretString::new("123456".into()))?;
+    card.verify_user_pin(user_pin.get_pin().clone())?;
     card.to_user_card(None)?;
 
     term.show_cursor()?;

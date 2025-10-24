@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use std::{env, fs, path::Path};
 
 /// Primary top-level structure used for storing [crate::config::Config] data that is not sensitive
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PublicConfig {
     /// Identifier for a hardware token if being used
     pub token_id: Option<String>,
@@ -25,11 +25,7 @@ pub struct PublicConfig {
 impl From<&Config> for PublicConfig {
     /// Extracts public information from the full Config
     fn from(cfg: &Config) -> Self {
-        PublicConfig {
-            token_id: cfg.token_id.clone(),
-            unlock_code: cfg.unlock_code,
-            community_did: cfg.community_did.id.clone(),
-        }
+        cfg.public.clone()
     }
 }
 

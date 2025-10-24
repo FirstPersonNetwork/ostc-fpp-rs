@@ -6,7 +6,7 @@ use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
     openpgp_card::{
         cards, factory_reset, print_cards, set_cardholder_name, set_signing_touch_policy,
-        write::write_keys_to_card,
+        ui::AdminPin, write::write_keys_to_card,
     },
     setup::CommunityDIDKeys,
 };
@@ -16,14 +16,17 @@ use crossterm::{
     event::{self, Event},
     terminal,
 };
-use dialoguer::{Confirm, Password, Select, theme::ColorfulTheme};
-use secrecy::SecretString;
+use dialoguer::{Confirm, Select, theme::ColorfulTheme};
 
 /// Handles storing secrets on an OpenPGP compatible card
 /// Returns:
 /// None: No Hardware token being used
 /// Some(String): The card identifier of the card used
-pub fn setup_hardware_token(term: &Term, keys: &CommunityDIDKeys) -> Result<Option<String>> {
+pub fn setup_hardware_token(
+    term: &Term,
+    admin_pin: &mut AdminPin,
+    keys: &CommunityDIDKeys,
+) -> Result<Option<String>> {
     println!();
 
     println!(
@@ -123,15 +126,9 @@ pub fn setup_hardware_token(term: &Term, keys: &CommunityDIDKeys) -> Result<Opti
     }
 
     // Open the card in admin mode
-    let admin_pin: SecretString = Password::with_theme(&ColorfulTheme::default())
-        .with_prompt("Admin PIN")
-        .allow_empty_password(true)
-        .interact()
-        .unwrap()
-        .into();
 
     // Attempt to write the keys to the card
-    write_keys_to_card(term, selected_card, keys, &admin_pin)?;
+    write_keys_to_card(term, selected_card, keys, admin_pin.get_pin())?;
 
     // Set Touch on for the Signing Key
     println!("{}", style("Best practice is to force an interaction with the hardware token for critical operations, such as signing data.").color256(CLI_BLUE));
@@ -146,7 +143,7 @@ pub fn setup_hardware_token(term: &Term, keys: &CommunityDIDKeys) -> Result<Opti
         .default(true)
         .interact()?
     {
-        set_signing_touch_policy(term, selected_card, &admin_pin)?;
+        set_signing_touch_policy(term, selected_card, admin_pin)?;
     } else {
         println!(
             "{}",
@@ -174,7 +171,7 @@ pub fn setup_hardware_token(term: &Term, keys: &CommunityDIDKeys) -> Result<Opti
                 }
             })
             .interact_text()?;
-        set_cardholder_name(term, selected_card, &admin_pin, &cardholder_name)?;
+        set_cardholder_name(term, selected_card, admin_pin, &cardholder_name)?;
     }
 
     // Return the card identifier

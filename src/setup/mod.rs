@@ -1,21 +1,23 @@
 /*! Handles the setup of the lkmv CLI tool
 */
 
-#[cfg(feature = "openpgp-card")]
-use crate::setup::openpgp_card::setup_hardware_token;
 use crate::{
     CLI_BLUE, CLI_GREEN,
-    config::{CommunityDID, Config, KeySourceMaterial},
+    config::{Config, KeySourceMaterial, public_config::PublicConfig},
     setup::{
         bip32_bip39::{generate_bip39_mnemonic, get_bip32_root, mnemonic_from_recovery_phrase},
         pgp_import::{PGPKeys, terminal_input_pgp_key},
     },
 };
 #[cfg(feature = "openpgp-card")]
+use crate::{
+    openpgp_card::ui::{AdminPin, UserPin},
+    setup::openpgp_card::setup_hardware_token,
+};
+#[cfg(feature = "openpgp-card")]
 use ::openpgp_card::ocard::KeyType;
-use affinidi_tdk::{
-    did_common::Document,
-    secrets_resolver::{crypto::ed25519::ed25519_private_to_x25519_private_key, secrets::Secret},
+use affinidi_tdk::secrets_resolver::{
+    crypto::ed25519::ed25519_private_to_x25519_private_key, secrets::Secret,
 };
 use anyhow::{Context, Result};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
@@ -124,7 +126,10 @@ pub fn cli_setup(term: &Term) -> Result<()> {
 
     // Use hardware token?
     #[cfg(feature = "openpgp-card")]
-    let token_id = setup_hardware_token(term, &c_did_keys)?;
+    let token_id = {
+        let mut admin_pin = AdminPin::default();
+        setup_hardware_token(term, &mut admin_pin, &c_did_keys)?
+    };
     #[cfg(not(feature = "openpgp-card"))]
     let token_id = None;
 
@@ -155,14 +160,17 @@ pub fn cli_setup(term: &Term) -> Result<()> {
     let config = Config {
         bip32_root: get_bip32_root(mnemonic.to_entropy().as_slice())?,
         bip32_seed: SecretString::new(BASE64_URL_SAFE_NO_PAD.encode(mnemonic.to_entropy())),
-        token_id,
-        keys_path: key_path,
-        // TODO: Replace this with correct DID
-        community_did: CommunityDID {
-            id: "TODO".to_string(),
-            document: Document::new("did:todo:fix_this_later")?,
+        public: PublicConfig {
+            token_id,
+            // TODO: Replace this with correct DID
+            community_did: "TODO".to_string(),
+            unlock_code: unlock_code.is_some(),
         },
-        unlock_code: unlock_code.is_some(),
+        keys_path: key_path,
+        #[cfg(feature = "openpgp-card")]
+        token_admin_pin: AdminPin::default(),
+        #[cfg(feature = "openpgp-card")]
+        token_user_pin: UserPin::default(),
     };
 
     config.save(unlock_code.as_ref())?;

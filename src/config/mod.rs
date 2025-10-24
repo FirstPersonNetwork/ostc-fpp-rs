@@ -8,6 +8,8 @@
 * NOTE: Secure Config information is saved item by item as needed to the secure storage
 */
 
+#[cfg(feature = "openpgp-card")]
+use crate::openpgp_card::ui::{AdminPin, UserPin};
 use crate::{
     config::{public_config::PublicConfig, secured_config::SecuredConfig},
     get_unlock_code,
@@ -31,23 +33,28 @@ pub mod secured_config;
 /// 2. [secured_config::SecuredConfig]: Configuration information that is encrypted and saved to secure storage
 #[derive(Debug)]
 pub struct Config {
-    /// Root node of derivitave keys
+    /// Public readable config items when saved to disk
+    pub public: PublicConfig,
+
+    /// Root node of derivative keys
     pub bip32_root: ExtendedSigningKey,
 
     // Protected BIP32 seed
     pub bip32_seed: SecretString,
 
-    /// Our public Community DID used to identify ourselves within the Linux Foundation ecosystem
-    pub community_did: CommunityDID,
-
-    /// If using a hardware token, what is it's ID?
-    pub token_id: Option<String>,
-
-    /// If no hardware token, then should we use an unlock hash?
-    pub unlock_code: bool,
-
     /// Where did the key values come from? Derived or Imported?
     pub keys_path: HashMap<String, KeySourceMaterial>,
+
+    // *********************************************
+    // Temporary Config values
+    //
+    #[cfg(feature = "openpgp-card")]
+    /// Hardware token Admin PIN
+    pub token_admin_pin: AdminPin,
+
+    #[cfg(feature = "openpgp-card")]
+    /// Hardware token User PIN
+    pub token_user_pin: UserPin,
 }
 
 /// Our public Community DID used to identify ourselves within the Linux Foundation ecosystem
@@ -77,7 +84,7 @@ impl Config {
         pc.save()?;
 
         let sc = SecuredConfig::from(self);
-        sc.save(self.token_id.as_ref(), unlock_code)?;
+        sc.save(self.public.token_id.as_ref(), unlock_code)?;
 
         Ok(())
     }
@@ -91,7 +98,15 @@ impl Config {
             None
         };
 
-        let sc = SecuredConfig::load(term, pc.token_id.as_ref(), unlock_code.as_ref())?;
+        #[cfg(feature = "openpgp-card")]
+        let mut token_user_pin = UserPin::default();
+        let sc = SecuredConfig::load(
+            term,
+            #[cfg(feature = "openpgp-card")]
+            &mut token_user_pin,
+            pc.token_id.as_ref(),
+            unlock_code.as_ref(),
+        )?;
 
         Ok(Config {
             bip32_root: ExtendedSigningKey::from_seed(
@@ -101,14 +116,12 @@ impl Config {
                     .as_slice(),
             )?,
             bip32_seed: SecretString::new(sc.bip32_seed),
-            token_id: pc.token_id,
-            community_did: CommunityDID {
-                id: pc.community_did,
-                // TODO: Replace the DID Document with a resolved Document
-                document: Document::default(),
-            },
+            public: pc,
             keys_path: sc.keys_path,
-            unlock_code: pc.unlock_code,
+            #[cfg(feature = "openpgp-card")]
+            token_admin_pin: AdminPin::default(),
+            #[cfg(feature = "openpgp-card")]
+            token_user_pin,
         })
     }
 }

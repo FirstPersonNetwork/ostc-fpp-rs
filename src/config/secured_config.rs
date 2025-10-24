@@ -8,6 +8,8 @@
 *  Must intially save bip32_seed first before any keys can be stored
 */
 
+#[cfg(feature = "openpgp-card")]
+use crate::openpgp_card::ui::UserPin;
 use crate::{
     CLI_ORANGE, CLI_RED,
     config::{Config, KeySourceMaterial},
@@ -21,6 +23,7 @@ use rand::{SeedableRng, rngs::StdRng};
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use zeroize::Zeroize;
 
 /// Constants for storing secure info in the OS Secure Store
 const SERVICE: &str = "lkmv";
@@ -32,7 +35,7 @@ const USER: &str = "lkmv-secrets";
 /// 3. PlainText - No Encryption at all - USE AT YOUR OWN RISK!
 ///
 /// NOTE: All strings are BASE64 encoded
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Zeroize)]
 #[serde(untagged)]
 enum SecuredConfigFormat {
     /// Hardware token encrypted data
@@ -61,6 +64,7 @@ impl SecuredConfigFormat {
     pub fn unlock(
         &self,
         term: &Term,
+        #[cfg(feature = "openpgp-card")] user_pin: &mut UserPin,
         token: Option<&String>,
         unlock: Option<&[u8; 32]>,
     ) -> Result<SecuredConfig> {
@@ -74,6 +78,8 @@ impl SecuredConfigFormat {
 
                         token_decrypt(
                             term,
+                            #[cfg(feature = "openpgp-card")]
+                            user_pin,
                             token,
                             &BASE64_URL_SAFE_NO_PAD
                                 .decode(esk)
@@ -124,7 +130,7 @@ impl SecuredConfigFormat {
 
 /// Secured Configuration information for lkmv tool
 /// Try to keep this as small as possible for ease of secure storage
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Zeroize)]
 pub struct SecuredConfig {
     // base64 encoded BIP32 private seed
     pub bip32_seed: String,
@@ -132,6 +138,7 @@ pub struct SecuredConfig {
     /// Where did the keys being used come from?
     /// key: #key-id
     /// value: Derived Path (BIP32 or Imported)
+    #[zeroize(skip)]
     pub keys_path: HashMap<String, KeySourceMaterial>,
 }
 
@@ -199,7 +206,12 @@ impl SecuredConfig {
     /// unlock: Use a Password/PIN to unlock secret storage if no hardware token
     /// If token is None and unlock is false, assumes no protection apart from the OS Secure Store
     /// itself
-    pub fn load(term: &Term, token: Option<&String>, unlock: Option<&[u8; 32]>) -> Result<Self> {
+    pub fn load(
+        term: &Term,
+        #[cfg(feature = "openpgp-card")] user_pin: &mut UserPin,
+        token: Option<&String>,
+        unlock: Option<&[u8; 32]>,
+    ) -> Result<Self> {
         let entry = Entry::new(SERVICE, USER)?;
         let raw_secured_config: SecuredConfigFormat =
             match entry.get_secret() {
@@ -226,7 +238,13 @@ impl SecuredConfig {
                 }
             };
 
-        raw_secured_config.unlock(term, token, unlock)
+        raw_secured_config.unlock(
+            term,
+            #[cfg(feature = "openpgp-card")]
+            user_pin,
+            token,
+            unlock,
+        )
     }
 
     /*

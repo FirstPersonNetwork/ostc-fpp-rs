@@ -16,7 +16,6 @@ openpgp-card = [
   "dep:openpgp-card",
   "dep:card-backend-pcsc",
   "dep:openpgp-card-rpgp",
-  "dep:secrecy",
 ]
 
 [dependencies]
@@ -39,6 +38,8 @@ pgp = "0.17"
 # This is locked 0.8 due to *-dalek crates not udpated to rand 0.9
 rand = "0.8"
 regex = "1.12"
+# this is locked to 0.8.x as openpgp-card is only using 0.8 in it's interfaces - checked 0.5.1 version
+secrecy = "0.8"
 serde = "1.0"
 serde_json = "1.0"
 sha2 = "0.10"
@@ -50,5 +51,3 @@ zeroize = "1.8"
 openpgp-card = { version = "0.5", optional = true }
 card-backend-pcsc = { version = "0.5", optional = true }
 openpgp-card-rpgp = { version = "0.5", optional = true }
-# this is locked to 0.8.x as openpgp-card is only using 0.8 in it's interfaces - checked 0.5.1 version
-secrecy = { version = "0.8", optional = true }

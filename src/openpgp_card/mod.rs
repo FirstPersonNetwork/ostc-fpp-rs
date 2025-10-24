@@ -2,7 +2,10 @@
 *   Handles everything todo with openpgp-card tokens
 */
 
-use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, setup::KeyPurpose};
+use crate::{
+    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, openpgp_card::ui::AdminPin,
+    setup::KeyPurpose,
+};
 use anyhow::Result;
 use card_backend_pcsc::PcscBackend;
 use chrono::{DateTime, Utc};
@@ -17,10 +20,10 @@ use openpgp_card::{
     },
     state::{Open, Transaction},
 };
-use secrecy::SecretString;
 use std::fmt;
 
 pub mod crypt;
+pub mod ui;
 pub mod write;
 
 pub struct KeySlotInfo {
@@ -246,69 +249,6 @@ pub fn get_key_info(
     Ok(key_info)
 }
 
-/*
-/// Checks that everything is ok with the keyslot
-pub fn check_keyslot(ki: &KeySlotInfo) -> bool {
-    if let Some(KeyStatus::NotPresent) = &ki.status {
-        return false;
-    }
-
-    match &ki.purpose {
-        KeyPurpose::Signing => {
-            if let Some(AlgorithmAttributes::Ecc(attr)) = &ki.algorithm {
-                if attr.curve() != &algorithm::Curve::Ed25519 {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-
-            // Best practice for Signing key is for it to require some form of user interface
-            if ki.touch_policy == TouchPolicy::Off {
-                return false;
-            }
-
-            if ki.public_key_material.is_none() {
-                return false;
-            }
-
-            true
-        }
-        KeyPurpose::Authentication => {
-            if let Some(AlgorithmAttributes::Ecc(attr)) = &ki.algorithm {
-                if attr.curve() != &algorithm::Curve::Ed25519 {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-
-            if ki.public_key_material.is_none() {
-                return false;
-            }
-
-            true
-        }
-        KeyPurpose::Encryption => {
-            if let Some(AlgorithmAttributes::Ecc(attr)) = &ki.algorithm {
-                if attr.curve() != &algorithm::Curve::Curve25519 {
-                    return false;
-                }
-            } else {
-                return false;
-            }
-
-            if ki.public_key_material.is_none() {
-                return false;
-            }
-
-            true
-        }
-        KeyPurpose::Unknown => false,
-    }
-}
-*/
-
 /// Prints a hardware token key details to the console
 pub fn print_key_info(ki: &KeySlotInfo) {
     if let Some(KeyStatus::NotPresent) = &ki.status {
@@ -485,10 +425,10 @@ pub fn factory_reset(term: &Term, card: &mut Card<Open>) -> Result<()> {
 pub fn set_signing_touch_policy(
     term: &Term,
     card: &mut Card<Open>,
-    admin_pin: &SecretString,
+    admin_pin: &mut AdminPin,
 ) -> Result<()> {
     let mut open_card = card.transaction()?;
-    open_card.verify_admin_pin(admin_pin.clone())?;
+    open_card.verify_admin_pin(admin_pin.get_pin().clone())?;
     let mut card = open_card.to_admin_card(None)?;
 
     print!(
@@ -510,11 +450,11 @@ pub fn set_signing_touch_policy(
 pub fn set_cardholder_name(
     term: &Term,
     card: &mut Card<Open>,
-    admin_pin: &SecretString,
+    admin_pin: &mut AdminPin,
     name: &str,
 ) -> Result<()> {
     let mut open_card = card.transaction()?;
-    open_card.verify_admin_pin(admin_pin.clone())?;
+    open_card.verify_admin_pin(admin_pin.get_pin().clone())?;
     let mut card = open_card.to_admin_card(None)?;
 
     print!(
