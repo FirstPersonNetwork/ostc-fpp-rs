@@ -24,6 +24,10 @@ const CLI_RED: u8 = 9; // Use for Error messages
 const CLI_ORANGE: u8 = 214; // Use for cautionary data
 const CLI_PURPLE: u8 = 165; // Use for Example data
 
+// Primary Linux Kernel Mediator DID
+const LF_PUBLIC_MEDIATOR_DID: &str =
+    "did:webvh:QmetnhxzJXTJ9pyXR1BbZ2h6DomY6SB1ZbzFPrjYyaEq9V:fpp.storm.ws:public-mediator";
+
 fn cli() -> Command {
     Command::new("lkmv")
         .about("Linux Kernel Maintainer Verification")

@@ -6,6 +6,7 @@ use crate::{
     config::{Config, KeySourceMaterial, public_config::PublicConfig},
     setup::{
         bip32_bip39::{generate_bip39_mnemonic, get_bip32_root, mnemonic_from_recovery_phrase},
+        did::did_setup,
         pgp_import::{PGPKeys, terminal_input_pgp_key},
     },
 };
@@ -31,8 +32,9 @@ use sha2::Digest;
 use std::{collections::HashMap, fmt};
 
 mod bip32_bip39;
+mod did;
 #[cfg(feature = "openpgp-card")]
-pub mod openpgp_card;
+mod openpgp_card;
 mod pgp_import;
 
 /// Tags what the key is used for
@@ -85,7 +87,7 @@ pub struct KeyInfo {
 pub struct CommunityDIDKeys {
     pub signing: KeyInfo,
     pub authentication: KeyInfo,
-    pub encryption: KeyInfo,
+    pub decryption: KeyInfo,
 }
 
 /// Sets up the CLI tool
@@ -144,8 +146,8 @@ pub fn cli_setup(term: &Term) -> Result<()> {
         c_did_keys.authentication.source.clone(),
     );
     key_path.insert(
-        c_did_keys.encryption.secret.id.clone(),
-        c_did_keys.encryption.source.clone(),
+        c_did_keys.decryption.secret.id.clone(),
+        c_did_keys.decryption.source.clone(),
     );
 
     // If hardware token is not being used, then ask for an unlock code
@@ -157,13 +159,18 @@ pub fn cli_setup(term: &Term) -> Result<()> {
         None
     };
 
+    // Create a DID
+    let c_did = did_setup(
+        get_bip32_root(mnemonic.to_entropy().as_slice())?,
+        &c_did_keys,
+    )?;
+
     let config = Config {
         bip32_root: get_bip32_root(mnemonic.to_entropy().as_slice())?,
         bip32_seed: SecretString::new(BASE64_URL_SAFE_NO_PAD.encode(mnemonic.to_entropy())),
         public: PublicConfig {
             token_id,
-            // TODO: Replace this with correct DID
-            community_did: "TODO".to_string(),
+            community_did: c_did.did,
             unlock_code: unlock_code.is_some(),
         },
         keys_path: key_path,
@@ -181,7 +188,7 @@ pub fn cli_setup(term: &Term) -> Result<()> {
 /// Creates the Secret Key Material required
 /// Returns the created Secrets and their source material
 fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<CommunityDIDKeys> {
-    let bip32_master = get_bip32_root(mnemonic.to_entropy().as_slice())?;
+    let bip32_root = get_bip32_root(mnemonic.to_entropy().as_slice())?;
 
     println!(
         "{}",
@@ -196,7 +203,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
         // use imported key
         signing.clone()
     } else {
-        let sign_key = bip32_master
+        let sign_key = bip32_root
             .derive(&"m/0'/0'/0'".parse::<DerivationPath>().unwrap())
             .context("Failed to create Ed25519 signing key")?;
         let mut sign_secret =
@@ -225,7 +232,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
         // use imported key
         authentication.clone()
     } else {
-        let auth_key = bip32_master
+        let auth_key = bip32_root
             .derive(&"m/0'/0'/1'".parse::<DerivationPath>().unwrap())
             .context("Failed to create Ed25519 authentication key")?;
         let mut auth_secret =
@@ -254,7 +261,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
         // use imported key
         encryption.clone()
     } else {
-        let enc_key = bip32_master
+        let enc_key = bip32_root
             .derive(&"m/0'/0'/2'".parse::<DerivationPath>().unwrap())
             .context("Failed to create X25519 encryption key")?;
 
@@ -288,7 +295,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
     Ok(CommunityDIDKeys {
         signing,
         authentication,
-        encryption,
+        decryption: encryption,
     })
 }
 

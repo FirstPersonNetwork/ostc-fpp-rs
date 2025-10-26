@@ -58,7 +58,7 @@ pub fn write_keys_to_card(
     print!("{}", style("Writing Encryption key...").color256(CLI_BLUE));
     term.flush()?;
     term.hide_cursor()?;
-    let uk = create_pgp_secret_packet(&keys.encryption, KeyPurpose::Encryption)?;
+    let uk = create_pgp_secret_packet(&keys.decryption, KeyPurpose::Encryption)?;
     card.import_key(Box::new(uk), KeyType::Decryption)?;
     term.show_cursor()?;
     println!(" {}", style("Success").color256(CLI_GREEN));
