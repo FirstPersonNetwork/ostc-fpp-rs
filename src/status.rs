@@ -2,12 +2,12 @@
 *
 */
 
-use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_RED};
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_RED, config::Config};
 use anyhow::Result;
-use console::style;
+use console::{Term, style};
 
 /// Prints diagnostic status to STDOUT
-pub fn print_status() {
+pub fn print_status(term: &Term) {
     println!(
         "{} {}",
         style("lkmv version:").color256(CLI_BLUE),
@@ -16,6 +16,7 @@ pub fn print_status() {
 
     feature_flags();
 
+    // Show any openpgp-cards and corresponding status
     if let Err(error) = openpgp_cards_status() {
         println!(
             "{} {}",
@@ -23,6 +24,36 @@ pub fn print_status() {
             style(error.to_string()).color256(CLI_ORANGE)
         );
     }
+
+    // Check if we can load config
+    println!();
+    let config = match Config::load(term) {
+        Ok(cfg) => {
+            println!(
+                "{} {}",
+                style("lkmv configuration:").color256(CLI_BLUE),
+                style("successfully loaded").color256(CLI_GREEN)
+            );
+            cfg
+        }
+        Err(e) => {
+            println!(
+                "{}{}",
+                style("ERROR: Couldn't load configuration: ").color256(CLI_RED),
+                style(e).color256(CLI_ORANGE)
+            );
+            return;
+        }
+    };
+
+    // Check DID Resolution status
+    /*
+        match did_status(&config.public.community_did) {
+            Ok(doc) => {
+                println!("{}\n{}", style("Community DID Resolved"))
+            }
+        }
+    */
 }
 
 // Rust Feature Flags enabled for this build

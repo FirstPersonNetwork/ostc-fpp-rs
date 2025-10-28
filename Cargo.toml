@@ -35,6 +35,7 @@ didwebvh-rs = "0.1"
 ed25519-dalek-bip32 = "0.3"
 hex = "0.4"
 keyring = "3.6"
+multibase = "0.9"
 pgp = "0.17"
 # This is locked 0.8 due to *-dalek crates not udpated to rand 0.9
 rand = "0.8"

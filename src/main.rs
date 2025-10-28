@@ -57,7 +57,7 @@ fn main() {
 
     match cli().get_matches().subcommand() {
         Some(("status", _)) => {
-            print_status();
+            print_status(&term);
         }
         Some(("setup", _)) => match cli_setup(&term) {
             Ok(_) => {

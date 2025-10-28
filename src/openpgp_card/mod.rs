@@ -6,6 +6,7 @@ use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, openpgp_card::ui::AdminPin,
     setup::KeyPurpose,
 };
+use affinidi_tdk::secrets_resolver::multicodec::{ED25519_PUB, MultiEncodedBuf, X25519_PUB};
 use anyhow::Result;
 use card_backend_pcsc::PcscBackend;
 use chrono::{DateTime, Utc};
@@ -262,7 +263,7 @@ pub fn print_key_info(ki: &KeySlotInfo) {
         return;
     }
 
-    match (&ki.purpose, &ki.algorithm) {
+    let algo = match (&ki.purpose, &ki.algorithm) {
         (KeyPurpose::Signing, Some(algo)) | (KeyPurpose::Authentication, Some(algo)) => {
             if let AlgorithmAttributes::Ecc(attr) = algo {
                 if attr.curve() == &algorithm::Curve::Ed25519 {
@@ -274,6 +275,7 @@ pub fn print_key_info(ki: &KeySlotInfo) {
                         style("Ed25519").color256(CLI_GREEN),
                         style(")").color256(CLI_BLUE),
                     );
+                    ED25519_PUB
                 } else {
                     println!(
                         "  {}{}{}{}",
@@ -308,6 +310,7 @@ pub fn print_key_info(ki: &KeySlotInfo) {
                         style("X25519").color256(CLI_GREEN),
                         style(")").color256(CLI_BLUE),
                     );
+                    X25519_PUB
                 } else {
                     println!(
                         "  {}{}{}{}",
@@ -335,7 +338,7 @@ pub fn print_key_info(ki: &KeySlotInfo) {
             println!("{ki:#?}");
             return;
         }
-    }
+    };
 
     if let Some(fp) = &ki.fingerprint {
         print!(
@@ -407,7 +410,20 @@ pub fn print_key_info(ki: &KeySlotInfo) {
         );
     }
 
-    println!();
+    //show the public key info as base58 multi-encoded
+    if let Some(pk) = &ki.public_key_material {
+        let pk_mb = multibase::encode(
+            multibase::Base::Base58Btc,
+            MultiEncodedBuf::encode_bytes(algo, pk.as_slice()).into_bytes(),
+        );
+        println!(
+            "\n  {} {}",
+            style("Public Key Multibase Encoded:").color256(CLI_BLUE),
+            style(pk_mb).color256(CLI_GREEN),
+        );
+    } else {
+        println!();
+    }
 }
 
 /// Performs a factory reset on the card, erasing all keys and data
