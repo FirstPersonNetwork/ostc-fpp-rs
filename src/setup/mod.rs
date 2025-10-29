@@ -7,6 +7,7 @@ use crate::{
     setup::{
         bip32_bip39::{generate_bip39_mnemonic, get_bip32_root, mnemonic_from_recovery_phrase},
         did::did_setup,
+        pgp_export::ask_export_community_did_keys,
         pgp_import::{PGPKeys, terminal_input_pgp_key},
     },
 };
@@ -35,6 +36,7 @@ mod bip32_bip39;
 mod did;
 #[cfg(feature = "openpgp-card")]
 mod openpgp_card;
+mod pgp_export;
 mod pgp_import;
 
 /// Tags what the key is used for
@@ -125,6 +127,9 @@ pub fn cli_setup(term: &Term) -> Result<()> {
 
     // Creating new Secrets for the Community DID
     let c_did_keys = create_keys(&mnemonic, &imported_keys)?;
+
+    // Export this as an armored PGP Keyfile?
+    ask_export_community_did_keys(term, &c_did_keys);
 
     // Use hardware token?
     #[cfg(feature = "openpgp-card")]

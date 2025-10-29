@@ -4,6 +4,10 @@
 *   So need to handle primary and subkeys separately
 */
 
+use crate::{
+    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
+    setup::{KeyInfo, KeyPurpose},
+};
 use affinidi_tdk::secrets_resolver::secrets::Secret;
 use anyhow::{Context, Result, bail};
 use chrono::{DateTime, MappedLocalTime, TimeDelta, TimeZone, Utc};
@@ -17,11 +21,6 @@ use pgp::{
 };
 use regex::Regex;
 use zeroize::Zeroize;
-
-use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
-    setup::{KeyInfo, KeyPurpose},
-};
 
 /// Holds imported PGP Keys
 #[derive(Default)]
@@ -270,6 +269,7 @@ pub fn terminal_input_pgp_key() -> Result<PGPKeys> {
 pub fn check_pgp_keys(raw_key: &str) -> Result<PGPKeys> {
     let (mut keys, _) = SignedSecretKey::from_string(raw_key)?;
 
+    println!("TIMTAM: {:#?}", keys);
     // Try unlocking the key
     let mut password: String = Password::with_theme(&ColorfulTheme::default())
         .with_prompt("Enter PGP Key Passphrase (if no passphrase, leave blank)")

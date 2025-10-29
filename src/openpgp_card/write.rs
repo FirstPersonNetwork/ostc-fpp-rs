@@ -70,7 +70,7 @@ pub fn write_keys_to_card(
 fn create_pgp_secret_packet(key: &KeyInfo, kp: KeyPurpose) -> Result<UploadableKey> {
     let (pk, sp) = match kp {
         KeyPurpose::Signing => {
-            // Packet Lenth is 51 octets for EdDSA Legacy Keys (which is what is most supported)
+            // Packet Length is 51 octets for EdDSA Legacy Keys (which is what is most supported)
             let packet_header = PacketHeader::new_fixed(Tag::PublicKey, 51);
 
             let pk = PublicKey::new_with_header(
