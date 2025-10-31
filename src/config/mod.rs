@@ -11,10 +11,14 @@
 #[cfg(feature = "openpgp-card")]
 use crate::openpgp_card::ui::{AdminPin, UserPin};
 use crate::{
-    config::{public_config::PublicConfig, secured_config::SecuredConfig},
+    config::{
+        public_config::PublicConfig,
+        secured_config::{KeySourceMaterial, SecuredConfig},
+    },
     get_unlock_code,
+    setup::CommunityDIDKeys,
 };
-use affinidi_tdk::did_common::Document;
+use affinidi_tdk::{TDK, did_common::Document};
 use anyhow::{Context, Result};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use console::Term;
@@ -45,6 +49,10 @@ pub struct Config {
     /// Where did the key values come from? Derived or Imported?
     pub keys_path: HashMap<String, KeySourceMaterial>,
 
+    /// Community DID Secrets
+    /// This is derived from SecuredConfig information
+    pub community_did: CommunityDID,
+
     // *********************************************
     // Temporary Config values
     //
@@ -65,16 +73,10 @@ pub struct CommunityDID {
 
     /// Resolved DID Document for this DID
     pub document: Document,
-}
-/// Where did the source for the Key Material come from?
-#[derive(Clone, Serialize, Deserialize, Debug)]
-pub enum KeySourceMaterial {
-    /// Sourced from BIP32 derivative, Path for this key
-    Derived { path: String },
 
-    /// Sourced from an external Key Import
-    /// Key Material will be stored in the OS Secure Store
-    Imported { key_id: String },
+    /// Keys that represent the Community DID
+    #[serde(skip)]
+    pub keys: Option<CommunityDIDKeys>,
 }
 
 impl Config {
@@ -89,7 +91,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn load(term: &Term) -> Result<Self> {
+    pub async fn load(term: &Term, tdk: &mut TDK) -> Result<Self> {
         let pc = PublicConfig::load().context("Couldn't load Public Configuration")?;
 
         let unlock_code = if pc.token_id.is_none() && pc.unlock_code {
@@ -108,6 +110,14 @@ impl Config {
             unlock_code.as_ref(),
         )?;
 
+        // All config info has been loaded, load DID Document and regenerate keys
+        let rr = tdk
+            .did_resolver()
+            .resolve(&pc.community_did)
+            .await
+            .context("Couldn't resolve Community DID")?;
+        let c_keys = Config::regenerate_community_keys(&sc, &pc, &rr.doc)?;
+
         Ok(Config {
             bip32_root: ExtendedSigningKey::from_seed(
                 BASE64_URL_SAFE_NO_PAD
@@ -115,6 +125,11 @@ impl Config {
                     .context("Couldn't base64 decode BIP32 seed")?
                     .as_slice(),
             )?,
+            community_did: CommunityDID {
+                id: pc.community_did.clone(),
+                document: rr.doc,
+                keys: Some(c_keys),
+            },
             bip32_seed: SecretString::new(sc.bip32_seed),
             public: pc,
             keys_path: sc.keys_path,
@@ -123,5 +138,14 @@ impl Config {
             #[cfg(feature = "openpgp-card")]
             token_user_pin,
         })
+    }
+
+    /// Private function that regenerates the Community DID keys from secured config
+    fn regenerate_community_keys(
+        sc: &SecuredConfig,
+        pc: &PublicConfig,
+        doc: &Document,
+    ) -> Result<CommunityDIDKeys> {
+        todo!("Regenerate Community DID Keys");
     }
 }

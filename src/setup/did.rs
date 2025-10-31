@@ -24,12 +24,12 @@ use url::Url;
 pub struct DIDConfig {
     /// DID identifier
     pub did: String,
-    /// URL of where the DID is published
-    pub publish_url: String,
+    /// DID Document
+    pub document: Document,
 }
 
 /// Creates an initial DID representing the Community DID
-pub fn did_setup(bip32_root: ExtendedSigningKey, keys: &CommunityDIDKeys) -> Result<DIDConfig> {
+pub fn did_setup(bip32_root: ExtendedSigningKey, keys: &mut CommunityDIDKeys) -> Result<DIDConfig> {
     println!();
     println!("{}", style("DID Setup").color256(CLI_BLUE));
     println!("{}", style("=========").color256(CLI_BLUE));
@@ -140,7 +140,14 @@ pub fn did_setup(bip32_root: ExtendedSigningKey, keys: &CommunityDIDKeys) -> Res
     let update_key = bip32_root
         .derive(&"m/0'/1'/0'".parse::<DerivationPath>().unwrap())
         .context("Failed to create Ed25519 signing key")?;
-    let update_secret = Secret::generate_ed25519(None, Some(update_key.signing_key.as_bytes()));
+    let mut update_secret = Secret::generate_ed25519(None, Some(update_key.signing_key.as_bytes()));
+    update_secret.id = [
+        "did:key:",
+        &update_secret.get_public_keymultibase()?,
+        "#",
+        &update_secret.get_public_keymultibase()?,
+    ]
+    .concat();
 
     let next_update_key = bip32_root
         .derive(&"m/0'/1'/1'".parse::<DerivationPath>().unwrap())
@@ -177,6 +184,13 @@ pub fn did_setup(bip32_root: ExtendedSigningKey, keys: &CommunityDIDKeys) -> Res
         style("did.jsonl").color256(CLI_GREEN)
     );
 
+    let did_id = log_entry.get_state().get("id").unwrap().as_str().unwrap();
+
+    // Change the key ID's to match the DID VM ID's
+    keys.signing.secret.id = [did_id, "#key-1"].concat();
+    keys.authentication.secret.id = [did_id, "#key-2"].concat();
+    keys.decryption.secret.id = [did_id, "#key-3"].concat();
+
     println!();
     println!(
         "{} {} {}{}{}",
@@ -188,13 +202,12 @@ pub fn did_setup(bip32_root: ExtendedSigningKey, keys: &CommunityDIDKeys) -> Res
     );
 
     Ok(DIDConfig {
-        did: log_entry
-            .get_state()
-            .get("id")
-            .unwrap()
-            .as_str()
-            .unwrap()
-            .to_string(),
-        publish_url: raw_url,
+        did: did_id.to_string(),
+        document: serde_json::from_value(
+            log_entry
+                .get_did_document()
+                .context("Couldn't get initial DID Document state")?,
+        )
+        .context("Serializing initial DID Document state failed")?,
     })
 }

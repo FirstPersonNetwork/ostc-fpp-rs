@@ -6,10 +6,12 @@
 
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
+    config::secured_config::KeySourceMaterial,
     setup::{KeyInfo, KeyPurpose},
 };
 use affinidi_tdk::secrets_resolver::secrets::Secret;
 use anyhow::{Context, Result, bail};
+use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use chrono::{DateTime, MappedLocalTime, TimeDelta, TimeZone, Utc};
 use console::{StyledObject, style};
 use dialoguer::{Confirm, Editor, Input, Password, theme::ColorfulTheme};
@@ -130,10 +132,10 @@ impl PGPKeys {
         };
 
         let ki = KeyInfo {
-            secret,
-            source: crate::config::KeySourceMaterial::Imported {
-                key_id: key.key.key_id().to_string(),
+            source: KeySourceMaterial::Imported {
+                seed: BASE64_URL_SAFE_NO_PAD.encode(secret.get_private_bytes()),
             },
+            secret,
             expiry: signature.key_expiration_time().map(|e| e.to_owned()),
             created,
         };
@@ -369,10 +371,10 @@ fn extract_primary_key_details(primary_key: &SignedSecretKey) -> Result<(KeyFlag
     Ok((
         signature.key_flags(),
         KeyInfo {
-            secret,
-            source: crate::config::KeySourceMaterial::Imported {
-                key_id: primary_key.key_id().to_string(),
+            source: KeySourceMaterial::Imported {
+                seed: BASE64_URL_SAFE_NO_PAD.encode(secret.get_private_bytes()),
             },
+            secret,
             expiry: signature.key_expiration_time().map(|e| e.to_owned()),
             created,
         },

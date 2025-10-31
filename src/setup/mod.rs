@@ -3,9 +3,13 @@
 
 use crate::{
     CLI_BLUE, CLI_GREEN,
-    config::{Config, KeySourceMaterial, public_config::PublicConfig},
+    config::{
+        CommunityDID, Config, public_config::PublicConfig, secured_config::KeySourceMaterial,
+    },
     setup::{
-        bip32_bip39::{generate_bip39_mnemonic, get_bip32_root, mnemonic_from_recovery_phrase},
+        bip32_bip39::{
+            Bip32Extension, generate_bip39_mnemonic, get_bip32_root, mnemonic_from_recovery_phrase,
+        },
         did::did_setup,
         pgp_export::ask_export_community_did_keys,
         pgp_import::{PGPKeys, terminal_input_pgp_key},
@@ -18,16 +22,13 @@ use crate::{
 };
 #[cfg(feature = "openpgp-card")]
 use ::openpgp_card::ocard::KeyType;
-use affinidi_tdk::secrets_resolver::{
-    crypto::ed25519::ed25519_private_to_x25519_private_key, secrets::Secret,
-};
-use anyhow::{Context, Result};
+use affinidi_tdk::secrets_resolver::secrets::Secret;
+use anyhow::Result;
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use bip39::Mnemonic;
 use chrono::{DateTime, TimeDelta, Utc};
 use console::{Term, style};
 use dialoguer::{Confirm, theme::ColorfulTheme};
-use ed25519_dalek_bip32::DerivationPath;
 use secrecy::SecretString;
 use sha2::Digest;
 use std::{collections::HashMap, fmt};
@@ -36,7 +37,7 @@ mod bip32_bip39;
 mod did;
 #[cfg(feature = "openpgp-card")]
 mod openpgp_card;
-mod pgp_export;
+pub mod pgp_export;
 mod pgp_import;
 
 /// Tags what the key is used for
@@ -86,6 +87,7 @@ pub struct KeyInfo {
 }
 
 /// Secrets for the Community DID
+#[derive(Debug)]
 pub struct CommunityDIDKeys {
     pub signing: KeyInfo,
     pub authentication: KeyInfo,
@@ -126,10 +128,10 @@ pub fn cli_setup(term: &Term) -> Result<()> {
     };
 
     // Creating new Secrets for the Community DID
-    let c_did_keys = create_keys(&mnemonic, &imported_keys)?;
+    let mut c_did_keys = create_keys(&mnemonic, &imported_keys)?;
 
     // Export this as an armored PGP Keyfile?
-    ask_export_community_did_keys(term, &c_did_keys);
+    ask_export_community_did_keys(term, &c_did_keys, None, None, true);
 
     // Use hardware token?
     #[cfg(feature = "openpgp-card")]
@@ -164,10 +166,10 @@ pub fn cli_setup(term: &Term) -> Result<()> {
         None
     };
 
-    // Create a DID
+    // Create a DID - will also rename the C-DID Keys with the right key-IDS
     let c_did = did_setup(
         get_bip32_root(mnemonic.to_entropy().as_slice())?,
-        &c_did_keys,
+        &mut c_did_keys,
     )?;
 
     let config = Config {
@@ -175,8 +177,13 @@ pub fn cli_setup(term: &Term) -> Result<()> {
         bip32_seed: SecretString::new(BASE64_URL_SAFE_NO_PAD.encode(mnemonic.to_entropy())),
         public: PublicConfig {
             token_id,
-            community_did: c_did.did,
+            community_did: c_did.did.clone(),
             unlock_code: unlock_code.is_some(),
+        },
+        community_did: CommunityDID {
+            id: c_did.did.clone(),
+            document: c_did.document,
+            keys: Some(c_did_keys),
         },
         keys_path: key_path,
         #[cfg(feature = "openpgp-card")]
@@ -208,11 +215,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
         // use imported key
         signing.clone()
     } else {
-        let sign_key = bip32_root
-            .derive(&"m/0'/0'/0'".parse::<DerivationPath>().unwrap())
-            .context("Failed to create Ed25519 signing key")?;
-        let mut sign_secret =
-            Secret::generate_ed25519(Some("sign"), Some(sign_key.signing_key.as_bytes()));
+        let mut sign_secret = bip32_root.get_secret_from_path("m/0'/0'/0'", KeyPurpose::Signing)?;
 
         sign_secret.id = sign_secret.get_public_keymultibase()?;
 
@@ -237,11 +240,8 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
         // use imported key
         authentication.clone()
     } else {
-        let auth_key = bip32_root
-            .derive(&"m/0'/0'/1'".parse::<DerivationPath>().unwrap())
-            .context("Failed to create Ed25519 authentication key")?;
         let mut auth_secret =
-            Secret::generate_ed25519(Some("auth"), Some(auth_key.signing_key.as_bytes()));
+            bip32_root.get_secret_from_path("m/0'/0'/1'", KeyPurpose::Authentication)?;
 
         auth_secret.id = auth_secret.get_public_keymultibase()?;
 
@@ -266,15 +266,8 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
         // use imported key
         encryption.clone()
     } else {
-        let enc_key = bip32_root
-            .derive(&"m/0'/0'/2'".parse::<DerivationPath>().unwrap())
-            .context("Failed to create X25519 encryption key")?;
-
-        // Convert the Ed25519 seed to an X25519 Seed
-        let x25519_seed = ed25519_private_to_x25519_private_key(enc_key.signing_key.as_bytes());
-
-        // Generate the X25519 Secret and Public Key
-        let mut enc_secret = Secret::generate_x25519(Some("enc"), Some(&x25519_seed))?;
+        let mut enc_secret =
+            bip32_root.get_secret_from_path("m/0'/0'/2'", KeyPurpose::Encryption)?;
 
         enc_secret.id = enc_secret.get_public_keymultibase()?;
 

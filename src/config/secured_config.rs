@@ -10,10 +10,7 @@
 
 #[cfg(feature = "openpgp-card")]
 use crate::openpgp_card::ui::UserPin;
-use crate::{
-    CLI_ORANGE, CLI_RED,
-    config::{Config, KeySourceMaterial},
-};
+use crate::{CLI_ORANGE, CLI_RED, config::Config};
 use aes_gcm::{AeadCore, Aes256Gcm, KeyInit, aead::Aead};
 use anyhow::{Context, Result, bail};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
@@ -246,38 +243,18 @@ impl SecuredConfig {
             unlock,
         )
     }
+}
 
-    /*
-    pub fn save_key() -> Result<()> {}
+/// Where did the source for the Key Material come from?
+#[derive(Clone, Serialize, Deserialize, Debug, Zeroize)]
+pub enum KeySourceMaterial {
+    /// Sourced from BIP32 derivative, Path for this key
+    Derived { path: String },
 
-        let mut sc = match SecuredConfig::load(token, unlock) {
-            Ok(sc) => sc,
-            Err(e) => {
-                match e.downcast_ref::<keyring::error::Error>() {
-                    Some(keyring::error::Error::NoEntry) => {
-                        // No existing entry, create a new one
-                        SecuredConfig {
-                            bip32_seed: String::new(),
-                            keys: HashMap::new(),
-                            keys_path: HashMap::new(),
-                        }
-                    }
-                    _ => {
-                        println!(
-                            "{}{}",
-                            style("ERROR: There is an error with the OS Secure Store: ")
-                                .color256(CLI_RED),
-                            style(&e).color256(CLI_ORANGE)
-                        );
-                        bail!(e);
-                    }
-                }
-            }
-        };
-
-
-    pub fn save_keys_path() -> Result<()> {}
-    */
+    /// Sourced from an external Key Import
+    /// BASE64 encoded secret/private seed bytes
+    /// Key Material will be stored in the OS Secure Store
+    Imported { seed: String },
 }
 
 /// Creates an AES-256 key from the hash of the unlock code and attempts to encrypt using it

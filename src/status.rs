@@ -3,11 +3,12 @@
 */
 
 use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_RED, config::Config};
+use affinidi_tdk::TDK;
 use anyhow::Result;
 use console::{Term, style};
 
 /// Prints diagnostic status to STDOUT
-pub fn print_status(term: &Term) {
+pub async fn print_status(term: &Term, tdk: &mut TDK) {
     println!(
         "{} {}",
         style("lkmv version:").color256(CLI_BLUE),
@@ -27,7 +28,7 @@ pub fn print_status(term: &Term) {
 
     // Check if we can load config
     println!();
-    let config = match Config::load(term) {
+    let config = match Config::load(term, tdk).await {
         Ok(cfg) => {
             println!(
                 "{} {}",

@@ -2,9 +2,16 @@
 *
 */
 
-use crate::{config::Config, setup::cli_setup};
+use crate::{
+    config::Config,
+    setup::{cli_setup, pgp_export::ask_export_community_did_keys},
+};
+use affinidi_tdk::{
+    TDK,
+    common::config::{TDKConfig, TDKConfigBuilder},
+};
 use anyhow::Result;
-use clap::Command;
+use clap::{Arg, Command};
 use console::{Term, style};
 use dialoguer::{Password, theme::ColorfulTheme};
 use sha2::Digest;
@@ -36,7 +43,23 @@ fn cli() -> Command {
         .allow_external_subcommands(true)
         .subcommand(Command::new("status").about("Displays status of the lkmv tool"))
         .subcommand(Command::new("setup").about("Initial configuration of the lkmv tool"))
-        .subcommand(Command::new("test").about("Test loading secrets"))
+        .subcommand(
+            Command::new("export")
+                .about("Export settings and other information")
+                .subcommand(
+                    Command::new("pgp-keys").args([
+                        Arg::new("passphrase")
+                            .short('p')
+                            .long("passphrase")
+                            .help("Passphrase to lock the exported PGP Secrets with"),
+                        Arg::new("user-id")
+                            .short('u')
+                            .long("user-id")
+                            .help("PGP User Id 'name <email_address>' format")
+                            .value_name("first_name last_name <email@domain>"),
+                    ]),
+                ),
+        )
 }
 
 // Handles initial setup and configuration of the CLI tool
@@ -50,14 +73,22 @@ fn initialize(term: &Term) {
     term.set_title("lkmv");
 }
 
-fn main() {
+#[tokio::main]
+async fn main() -> Result<()> {
     let term = Term::stdout();
 
     initialize(&term);
 
     match cli().get_matches().subcommand() {
         Some(("status", _)) => {
-            print_status(&term);
+            let mut tdk = TDK::new(
+                TDKConfigBuilder::new()
+                    .with_load_environment(false)
+                    .build()?,
+                None,
+            )
+            .await?;
+            print_status(&term, &mut tdk).await;
         }
         Some(("setup", _)) => match cli_setup(&term) {
             Ok(_) => {
@@ -70,27 +101,37 @@ fn main() {
                 eprintln!("Setup failed: {e}");
             }
         },
-        Some(("test", _)) => match Config::load(&term) {
-            Ok(cfg) => {
-                println!("{}", style("SUCCESS").color256(CLI_GREEN));
-                println!();
-                println!(
-                    "{}",
-                    style(format!("Config: {:#?}", cfg)).color256(CLI_PURPLE)
-                );
-            }
-            Err(e) => {
-                println!(
-                    "{}{}",
-                    style("ERROR: ").color256(CLI_RED),
-                    style(e).color256(CLI_ORANGE)
-                );
-            }
-        },
+        Some(("export", args)) => {
+            // Instantiate the TDK
+            let mut tdk = TDK::new(
+                TDKConfigBuilder::new()
+                    .with_load_environment(false)
+                    .build()?,
+                None,
+            )
+            .await?;
+
+            let config = match Config::load(&term, &mut tdk).await {
+                Ok(cfg) => cfg,
+                Err(e) => {
+                    println!(
+                        "{}{}",
+                        style("ERROR: ").color256(CLI_RED),
+                        style(e).color256(CLI_ORANGE)
+                    );
+                    panic!("Exiting...");
+                }
+            };
+
+            let user_id = args.get_one::<String>("user-id");
+            // ask_export_community_did_keys(&term, &config.comm);
+        }
         _ => {
             eprintln!("No valid subcommand was used. Use --help for more information.");
         }
     }
+
+    Ok(())
 }
 
 /// Prompts user for their unlock code when not using a hardware token

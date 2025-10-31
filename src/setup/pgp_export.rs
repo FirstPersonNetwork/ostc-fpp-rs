@@ -25,52 +25,76 @@ use secrecy::{ExposeSecret, SecretString};
 use x25519_dalek::StaticSecret;
 
 /// Prompts the user if they want to export their community DID keys for PGP Use
-pub fn ask_export_community_did_keys(term: &Term, keys: &CommunityDIDKeys) {
-    println!();
-    println!("{}", style("You can export your community DID Keys to be used in PGP compatible applications. You can export these keys at any point in the future.").color256(CLI_BLUE));
+/// term: Terminal Console to help with formatting
+/// keys: Community DID Keys struct
+/// user_id: Optional PGP User ID String (name <email address>)
+///            - if not provided, then user is promoted for it
+/// passphrase: Optional passphrase to unlock PGP Armor export
+///            - if not provided, then user is promoted for it
+/// wizard: True if this is called from the setup wizard (shows extra help)
+pub fn ask_export_community_did_keys(
+    term: &Term,
+    keys: &CommunityDIDKeys,
+    user_id: Option<&str>,
+    passphrase: Option<SecretString>,
+    wizard: bool,
+) {
+    if wizard {
+        println!();
+        println!("{}", style("You can export your community DID Keys to be used in PGP compatible applications. You can export these keys at any point in the future.").color256(CLI_BLUE));
 
-    if Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Export private key info for PGP use?")
-        .default(false)
-        .interact()
-        .unwrap()
-    {
+        if !Confirm::with_theme(&ColorfulTheme::default())
+            .with_prompt("Export private key info for PGP use?")
+            .default(false)
+            .interact()
+            .unwrap()
+        {
+            return;
+        }
+    }
+
+    let passphrase = if let Some(passphrase) = passphrase {
+        passphrase
+    } else {
         let passphrase: String = Password::with_theme(&ColorfulTheme::default())
             .with_prompt("Enter a passphrase to protect your exported keys")
             .with_confirmation("Confirm passphrase", "Passphrases do not match")
             .interact()
             .unwrap();
+        SecretString::new(passphrase)
+    };
 
-        println!(
-            "{} {}",
-            style(
-                "You must specify a PGP User ID that these keys are attached to. Format should be:"
-            )
+    let user_id =
+        if let Some(user_id) = user_id {
+            user_id.to_string()
+        } else {
+            println!(
+        "{} {}",
+        style("You must specify a PGP User ID that these keys are attached to. Format should be:")
             .color256(CLI_BLUE),
-            style("first last <email@domain>").color256(CLI_PURPLE)
-        );
-        let user_id: String = Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("PGP User ID")
-            .interact()
-            .unwrap();
+        style("first last <email@domain>").color256(CLI_PURPLE)
+    );
+            Input::with_theme(&ColorfulTheme::default())
+                .with_prompt("PGP User ID")
+                .interact()
+                .unwrap()
+        };
 
-        let passphrase = SecretString::new(passphrase);
-        // Export the keys
-        match export_community_did_keys(term, keys, &user_id, passphrase) {
-            Ok(ssk) => {
-                // Display to screen
-                let ssk_str = ssk.to_armored_string(ArmorOptions::default()).unwrap();
-                println!("\n{}", style(ssk_str).color256(CLI_GREEN));
-                println!();
-            }
-            Err(e) => {
-                println!(
-                    "{} {}",
-                    style("ERROR: Couldn't create PGP export of Community DID keys. Reason:")
-                        .color256(CLI_RED),
-                    style(e).color256(CLI_ORANGE)
-                );
-            }
+    // Export the keys
+    match export_community_did_keys(term, keys, &user_id, passphrase) {
+        Ok(ssk) => {
+            // Display to screen
+            let ssk_str = ssk.to_armored_string(ArmorOptions::default()).unwrap();
+            println!("\n{}", style(ssk_str).color256(CLI_GREEN));
+            println!();
+        }
+        Err(e) => {
+            println!(
+                "{} {}",
+                style("ERROR: Couldn't create PGP export of Community DID keys. Reason:")
+                    .color256(CLI_RED),
+                style(e).color256(CLI_ORANGE)
+            );
         }
     }
 }

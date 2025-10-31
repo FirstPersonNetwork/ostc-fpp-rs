@@ -2,12 +2,15 @@
 *  implementations live here
 */
 
-use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_RED};
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_RED, setup::KeyPurpose};
+use affinidi_tdk::secrets_resolver::{
+    crypto::ed25519::ed25519_private_to_x25519_private_key, secrets::Secret,
+};
 use anyhow::{Context, Result, bail};
 use bip39::Mnemonic;
 use console::style;
 use dialoguer::{Confirm, Input, theme::ColorfulTheme};
-use ed25519_dalek_bip32::ExtendedSigningKey;
+use ed25519_dalek_bip32::{DerivationPath, ExtendedSigningKey};
 use rand::RngCore;
 use zeroize::Zeroize;
 
@@ -18,6 +21,42 @@ use zeroize::Zeroize;
 /// Returns a BIP32 Master Key
 pub fn get_bip32_root(seed: &[u8]) -> Result<ExtendedSigningKey> {
     ExtendedSigningKey::from_seed(seed).context("Couldn't create BIP32 Master Key from seed")
+}
+
+pub trait Bip32Extension {
+    fn get_secret_from_path(&self, path: &str, kp: KeyPurpose) -> Result<Secret>;
+}
+
+impl Bip32Extension for ExtendedSigningKey {
+    /// Generates an SSI Secret from a BIP32 root
+    /// path: BIP32 derivation path
+    /// kp: KeyPurpose (SIGN, ENC, AUTH)
+    fn get_secret_from_path(&self, path: &str, kp: KeyPurpose) -> Result<Secret> {
+        let key = self
+            .derive(
+                &path
+                    .parse::<DerivationPath>()
+                    .context(format!("Invalid path ({}) for BIP32 key deriviation", path))?,
+            )
+            .context("Failed to create ed25519 key material from BIP32")?;
+
+        let secret = match kp {
+            KeyPurpose::Signing | KeyPurpose::Authentication => {
+                Secret::generate_ed25519(None, Some(key.signing_key.as_bytes()))
+            }
+            KeyPurpose::Encryption => {
+                let x25519_seed = ed25519_private_to_x25519_private_key(key.signing_key.as_bytes());
+                Secret::generate_x25519(None, Some(&x25519_seed))
+                    .context("Failed to create derived encryption key")?
+            }
+            _ => bail!(format!(
+                "Invalid key purpose used to generate key material ({})",
+                kp
+            )),
+        };
+
+        Ok(secret)
+    }
 }
 
 // ****************************************************************************
