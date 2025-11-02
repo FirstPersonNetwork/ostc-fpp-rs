@@ -131,7 +131,9 @@ pub fn cli_setup(term: &Term) -> Result<()> {
     let mut c_did_keys = create_keys(&mnemonic, &imported_keys)?;
 
     // Export this as an armored PGP Keyfile?
-    ask_export_community_did_keys(term, &c_did_keys, None, None, true);
+    if imported_keys.is_empty() {
+        ask_export_community_did_keys(term, &c_did_keys, None, None, true);
+    }
 
     // Use hardware token?
     #[cfg(feature = "openpgp-card")]
