@@ -2,7 +2,7 @@
 */
 
 use crate::{
-    CLI_BLUE, CLI_GREEN,
+    CLI_BLUE, CLI_GREEN, CLI_PURPLE, LF_PUBLIC_MEDIATOR_DID,
     config::{
         CommunityDID, Config,
         public_config::PublicConfig,
@@ -30,7 +30,7 @@ use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use bip39::Mnemonic;
 use chrono::{DateTime, TimeDelta, Utc};
 use console::{Term, style};
-use dialoguer::{Confirm, theme::ColorfulTheme};
+use dialoguer::{Confirm, Input, theme::ColorfulTheme};
 use secrecy::SecretString;
 use sha2::Digest;
 use std::{collections::HashMap, fmt};
@@ -155,10 +155,14 @@ pub fn cli_setup(term: &Term) -> Result<()> {
         None
     };
 
+    // Use a different Mediator?
+    let mediator_did = change_mediator();
+
     // Create a DID - will also rename the C-DID Keys with the right key-IDS
     let c_did = did_setup(
         get_bip32_root(mnemonic.to_entropy().as_slice())?,
         &mut c_did_keys,
+        &mediator_did,
     )?;
 
     // Create Configuration
@@ -192,6 +196,7 @@ pub fn cli_setup(term: &Term) -> Result<()> {
             token_id,
             community_did: c_did.did.clone(),
             unlock_code: unlock_code.is_some(),
+            mediator_did,
         },
         community_did: CommunityDID {
             id: c_did.did.clone(),
@@ -309,6 +314,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
     })
 }
 
+/// Generates a sha256 hash of an unlock code if required
 fn create_unlock_code() -> Option<[u8; 32]> {
     println!("{}", style("NOTE: You are not using any hardware token. While secret information will be stored in your OS secure store where possible, it is best practice to protect this data with an unlock code.").color256(CLI_BLUE));
     println!("  {}", style("This unlock code is asked on application start so it can unlock secret configuration data required.").color256(CLI_BLUE));
@@ -330,5 +336,30 @@ fn create_unlock_code() -> Option<[u8; 32]> {
         Some(sha2::Sha256::digest(unlock_code.as_bytes()).into())
     } else {
         None
+    }
+}
+
+/// Do you want to use an alternative mediator?
+fn change_mediator() -> String {
+    println!();
+    println!("{}", style("lkmv utilizes DIDComm protocol to communicate. lkmv requires the use of a DIDComm Mediator to store and forward messages between parties privately and securely").color256(CLI_BLUE));
+    println!(
+        "{} {}",
+        style("Default Mediator:").color256(CLI_BLUE),
+        style(LF_PUBLIC_MEDIATOR_DID).color256(CLI_PURPLE),
+    );
+
+    if Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt("Do you want to use an alternative DIDComm Mediator?")
+        .default(false)
+        .interact()
+        .unwrap()
+    {
+        Input::with_theme(&ColorfulTheme::default())
+            .with_prompt("DIDComm Mediator DID:")
+            .interact()
+            .unwrap()
+    } else {
+        LF_PUBLIC_MEDIATOR_DID.to_string()
     }
 }

@@ -2,7 +2,7 @@
 *   DID Setup methods
 */
 
-use crate::{CLI_BLUE, CLI_GREEN, CLI_PURPLE, LF_PUBLIC_MEDIATOR_DID, setup::CommunityDIDKeys};
+use crate::{CLI_BLUE, CLI_GREEN, CLI_PURPLE, setup::CommunityDIDKeys};
 use affinidi_tdk::{
     did_common::{
         Document,
@@ -29,7 +29,11 @@ pub struct DIDConfig {
 }
 
 /// Creates an initial DID representing the Community DID
-pub fn did_setup(bip32_root: ExtendedSigningKey, keys: &mut CommunityDIDKeys) -> Result<DIDConfig> {
+pub fn did_setup(
+    bip32_root: ExtendedSigningKey,
+    keys: &mut CommunityDIDKeys,
+    mediator_did: &str,
+) -> Result<DIDConfig> {
     println!();
     println!("{}", style("DID Setup").color256(CLI_BLUE));
     println!("{}", style("=========").color256(CLI_BLUE));
@@ -125,8 +129,7 @@ pub fn did_setup(bip32_root: ExtendedSigningKey, keys: &mut CommunityDIDKeys) ->
     // Add a service endpoint for this community
     // NOTE: This will use the public mediator
 
-    let endpoint =
-        Endpoint::Map(json!([{"accept": ["didcomm/v2"], "uri": LF_PUBLIC_MEDIATOR_DID}]));
+    let endpoint = Endpoint::Map(json!([{"accept": ["didcomm/v2"], "uri": mediator_did}]));
     did_document.service.push(Service {
         id: Some(Url::parse(
             &[did_url.to_string(), "#public-didcomm".to_string()].concat(),

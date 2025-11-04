@@ -81,8 +81,7 @@ async fn main() -> Result<()> {
     initialize(&term);
 
     match cli().get_matches().subcommand() {
-        Some(("status", args)) => {
-            println!("args: {:#?}", args);
+        Some(("status", _)) => {
             let mut tdk = TDK::new(
                 TDKConfigBuilder::new()
                     .with_load_environment(false)

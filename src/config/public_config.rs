@@ -20,6 +20,9 @@ pub struct PublicConfig {
 
     /// Community DID
     pub community_did: String,
+
+    /// Mediator DID
+    pub mediator_did: String,
 }
 
 impl From<&Config> for PublicConfig {

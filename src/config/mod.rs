@@ -101,12 +101,10 @@ impl Config {
 
         let unlock_code = if let Some(unlock_code) = unlock_code {
             Some(sha2::Sha256::digest(unlock_code.as_bytes()).into())
+        } else if pc.token_id.is_none() && pc.unlock_code {
+            Some(get_unlock_code()?)
         } else {
-            if pc.token_id.is_none() && pc.unlock_code {
-                Some(get_unlock_code()?)
-            } else {
-                None
-            }
+            None
         };
 
         #[cfg(feature = "openpgp-card")]
