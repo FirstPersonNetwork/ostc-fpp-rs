@@ -4,7 +4,9 @@
 use crate::{
     CLI_BLUE, CLI_GREEN,
     config::{
-        CommunityDID, Config, public_config::PublicConfig, secured_config::KeySourceMaterial,
+        CommunityDID, Config,
+        public_config::PublicConfig,
+        secured_config::{KeyInfoConfig, KeySourceMaterial},
     },
     setup::{
         bip32_bip39::{
@@ -160,18 +162,27 @@ pub fn cli_setup(term: &Term) -> Result<()> {
     )?;
 
     // Create Configuration
-    let mut key_path = HashMap::new();
-    key_path.insert(
+    let mut key_info = HashMap::new();
+    key_info.insert(
         c_did_keys.signing.secret.id.clone(),
-        c_did_keys.signing.source.clone(),
+        KeyInfoConfig {
+            path: c_did_keys.signing.source.clone(),
+            create_time: c_did_keys.signing.created,
+        },
     );
-    key_path.insert(
+    key_info.insert(
         c_did_keys.authentication.secret.id.clone(),
-        c_did_keys.authentication.source.clone(),
+        KeyInfoConfig {
+            path: c_did_keys.authentication.source.clone(),
+            create_time: c_did_keys.authentication.created,
+        },
     );
-    key_path.insert(
+    key_info.insert(
         c_did_keys.decryption.secret.id.clone(),
-        c_did_keys.decryption.source.clone(),
+        KeyInfoConfig {
+            path: c_did_keys.decryption.source.clone(),
+            create_time: c_did_keys.decryption.created,
+        },
     );
 
     let config = Config {
@@ -186,7 +197,7 @@ pub fn cli_setup(term: &Term) -> Result<()> {
             id: c_did.did.clone(),
             document: c_did.document,
         },
-        keys_path: key_path,
+        key_info,
         #[cfg(feature = "openpgp-card")]
         token_admin_pin: AdminPin::default(),
         #[cfg(feature = "openpgp-card")]

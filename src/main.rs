@@ -11,6 +11,7 @@ use anyhow::{Result, bail};
 use clap::{Arg, Command};
 use console::{Term, style};
 use dialoguer::{Password, theme::ColorfulTheme};
+use secrecy::SecretString;
 use sha2::Digest;
 use status::print_status;
 use tracing_subscriber::EnvFilter;
@@ -38,6 +39,8 @@ fn cli() -> Command {
         .subcommand_required(true)
         .arg_required_else_help(true)
         .allow_external_subcommands(true)
+        .subcommand_required(true)
+        .arg(Arg::new("unlock-code").short('u').long("unlock-code").help("If using unlock codes, can specify it here"))
         .subcommand(Command::new("status").about("Displays status of the lkmv tool"))
         .subcommand(Command::new("setup").about("Initial configuration of the lkmv tool"))
         .subcommand(
@@ -78,7 +81,8 @@ async fn main() -> Result<()> {
     initialize(&term);
 
     match cli().get_matches().subcommand() {
-        Some(("status", _)) => {
+        Some(("status", args)) => {
+            println!("args: {:#?}", args);
             let mut tdk = TDK::new(
                 TDKConfigBuilder::new()
                     .with_load_environment(false)
@@ -86,7 +90,15 @@ async fn main() -> Result<()> {
                 None,
             )
             .await?;
-            print_status(&term, &mut tdk).await;
+            print_status(
+                &term,
+                &mut tdk,
+                cli()
+                    .get_matches()
+                    .get_one::<String>("unlock-code")
+                    .map(|s| s.as_str()),
+            )
+            .await;
         }
         Some(("setup", _)) => match cli_setup(&term) {
             Ok(_) => {
@@ -109,7 +121,16 @@ async fn main() -> Result<()> {
             )
             .await?;
 
-            let config = match Config::load(&term, &mut tdk).await {
+            let config = match Config::load(
+                &term,
+                &mut tdk,
+                cli()
+                    .get_matches()
+                    .get_one::<String>("unlock-code")
+                    .map(|s| s.as_str()),
+            )
+            .await
+            {
                 Ok(cfg) => cfg,
                 Err(e) => {
                     println!(
@@ -125,7 +146,15 @@ async fn main() -> Result<()> {
                 Some(("pgp-keys", sub_args)) => {
                     // Export PGP Keys
                     let user_id = sub_args.get_one::<String>("user-id");
-                    //ask_export_community_did_keys(&term, &config, user_id);
+                    let passphrase = sub_args.get_one::<String>("passphrase");
+
+                    ask_export_community_did_keys(
+                        &term,
+                        &config.get_community_keys(&tdk).await?,
+                        user_id.map(|s| s.as_str()),
+                        passphrase.map(|s| SecretString::new(s.to_string())),
+                        false, // Not running in wizard mode
+                    );
                 }
                 _ => {
                     println!(

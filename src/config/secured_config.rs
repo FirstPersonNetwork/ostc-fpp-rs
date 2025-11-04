@@ -14,13 +14,14 @@ use crate::{CLI_ORANGE, CLI_RED, config::Config};
 use aes_gcm::{AeadCore, Aes256Gcm, KeyInit, aead::Aead};
 use anyhow::{Context, Result, bail};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
+use chrono::{DateTime, Utc};
 use console::{Term, style};
 use keyring::Entry;
 use rand::{SeedableRng, rngs::StdRng};
 use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use zeroize::Zeroize;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Constants for storing secure info in the OS Secure Store
 const SERVICE: &str = "lkmv";
@@ -127,16 +128,13 @@ impl SecuredConfigFormat {
 
 /// Secured Configuration information for lkmv tool
 /// Try to keep this as small as possible for ease of secure storage
-#[derive(Serialize, Deserialize, Debug, Zeroize)]
+#[derive(Serialize, Deserialize, Debug, Zeroize, ZeroizeOnDrop)]
 pub struct SecuredConfig {
     // base64 encoded BIP32 private seed
     pub bip32_seed: String,
 
-    /// Where did the keys being used come from?
-    /// key: #key-id
-    /// value: Derived Path (BIP32 or Imported)
-    #[zeroize(skip)]
-    pub keys_path: HashMap<String, KeySourceMaterial>,
+    #[zeroize(skip)] // chrono doesn't support zeroize
+    pub key_info: HashMap<String, KeyInfoConfig>,
 }
 
 impl From<&Config> for SecuredConfig {
@@ -144,7 +142,7 @@ impl From<&Config> for SecuredConfig {
     fn from(cfg: &Config) -> Self {
         SecuredConfig {
             bip32_seed: cfg.bip32_seed.expose_secret().to_owned(),
-            keys_path: cfg.keys_path.clone(),
+            key_info: cfg.key_info.clone(),
         }
     }
 }
@@ -245,8 +243,20 @@ impl SecuredConfig {
     }
 }
 
+/// Information that is required for each key stored
+#[derive(Clone, Serialize, Deserialize, Debug, Zeroize, ZeroizeOnDrop)]
+pub struct KeyInfoConfig {
+    /// Where did the keys being used come from?
+    /// key: #key-id
+    /// value: Derived Path (BIP32 or Imported)
+    pub path: KeySourceMaterial,
+
+    /// When wss this key first created?
+    #[zeroize(skip)] // chrono doesn't support zeroize
+    pub create_time: DateTime<Utc>,
+}
 /// Where did the source for the Key Material come from?
-#[derive(Clone, Serialize, Deserialize, Debug, Zeroize)]
+#[derive(Clone, Serialize, Deserialize, Debug, Zeroize, ZeroizeOnDrop)]
 pub enum KeySourceMaterial {
     /// Sourced from BIP32 derivative, Path for this key
     Derived { path: String },

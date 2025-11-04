@@ -81,7 +81,7 @@ pub fn ask_export_community_did_keys(
         };
 
     // Export the keys
-    match export_community_did_keys(term, keys, &user_id, passphrase) {
+    match export_community_did_keys(term, keys, &user_id, passphrase, wizard) {
         Ok(ssk) => {
             // Display to screen
             let ssk_str = ssk.to_armored_string(ArmorOptions::default()).unwrap();
@@ -101,18 +101,26 @@ pub fn ask_export_community_did_keys(
 
 /// Exports the community DID keys in a PGP Armored ASCII payload
 /// Signing Key is the primary key
+/// Inputs:
+/// - term: Console Terminal manipulation
+/// - keys: Keys that will be exported
+/// - user_id: PGP User ID string (name <email address>)
+/// - wizard: If true, will print status to STDIO
 pub fn export_community_did_keys(
     term: &Term,
     keys: &CommunityDIDKeys,
     user_id: &str,
     passphrase: SecretString,
+    wizard: bool,
 ) -> Result<SignedSecretKey> {
     let password = types::Password::from(passphrase.expose_secret().as_str());
     let mut rng = rand::thread_rng();
 
-    print!("  {}", style("Exporting Signing key...").color256(CLI_BLUE));
-    term.hide_cursor()?;
-    term.flush()?;
+    if wizard {
+        print!("  {}", style("Exporting Signing key...").color256(CLI_BLUE));
+        term.hide_cursor()?;
+        term.flush()?;
+    }
     // Signing key
     let sk_pk = PublicKey::new_with_header(
         PacketHeader::new_fixed(Tag::PublicKey, 51),
@@ -173,18 +181,22 @@ pub fn export_community_did_keys(
     let signed_user = SignedUser::new(user_id, vec![signature]);
     let details = SignedKeyDetails::new(vec![], vec![], vec![signed_user], vec![]);
 
-    term.show_cursor()?;
-    println!(" {}", style("Success").color256(CLI_GREEN));
+    if wizard {
+        term.show_cursor()?;
+        println!(" {}", style("Success").color256(CLI_GREEN));
+    }
 
     // Create subkeys
 
     // Authentication
-    print!(
-        "  {}",
-        style("Exporting Authentiction key...").color256(CLI_BLUE)
-    );
-    term.hide_cursor()?;
-    term.flush()?;
+    if wizard {
+        print!(
+            "  {}",
+            style("Exporting Authentiction key...").color256(CLI_BLUE)
+        );
+        term.hide_cursor()?;
+        term.flush()?;
+    }
     let ak_pk = PublicSubkey::new_with_header(
         PacketHeader::new_fixed(Tag::PublicSubkey, 51),
         KeyVersion::V4,
@@ -224,16 +236,21 @@ pub fn export_community_did_keys(
     auth_key.set_password(rng.clone(), &password)?;
     let auth_ssk = SignedSecretSubKey::new(auth_key, vec![auth_sig]);
 
-    term.show_cursor()?;
-    println!(" {}", style("Success").color256(CLI_GREEN));
+    if wizard {
+        term.show_cursor()?;
+        println!(" {}", style("Success").color256(CLI_GREEN));
+    }
 
     // Decryption
-    print!(
-        "  {}",
-        style("Exporting Decryption key...").color256(CLI_BLUE)
-    );
-    term.hide_cursor()?;
-    term.flush()?;
+    if wizard {
+        print!(
+            "  {}",
+            style("Exporting Decryption key...").color256(CLI_BLUE)
+        );
+        term.hide_cursor()?;
+        term.flush()?;
+    }
+
     let dk_pk = PublicSubkey::new_with_header(
         PacketHeader::new_fixed(Tag::PublicSubkey, 56),
         KeyVersion::V4,
@@ -279,19 +296,25 @@ pub fn export_community_did_keys(
     dec_key.set_password(rng.clone(), &password)?;
     let dec_ssk = SignedSecretSubKey::new(dec_key, vec![dec_sig]);
 
-    term.show_cursor()?;
-    println!(" {}", style("Success").color256(CLI_GREEN));
+    if wizard {
+        term.show_cursor()?;
+        println!(" {}", style("Success").color256(CLI_GREEN));
+    }
 
     // This must be signed last
-    print!(
-        "  {}",
-        style("Securing exported keys...").color256(CLI_BLUE)
-    );
-    term.hide_cursor()?;
-    term.flush()?;
+    if wizard {
+        print!(
+            "  {}",
+            style("Securing exported keys...").color256(CLI_BLUE)
+        );
+        term.hide_cursor()?;
+        term.flush()?;
+    }
     signing_key.set_password(rng.clone(), &password)?;
-    term.show_cursor()?;
-    println!(" {}", style("Success").color256(CLI_GREEN));
+    if wizard {
+        term.show_cursor()?;
+        println!(" {}", style("Success").color256(CLI_GREEN));
+    }
 
     Ok(SignedSecretKey::new(
         signing_key,

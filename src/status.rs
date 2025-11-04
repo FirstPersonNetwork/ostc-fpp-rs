@@ -8,7 +8,7 @@ use anyhow::Result;
 use console::{Term, style};
 
 /// Prints diagnostic status to STDOUT
-pub async fn print_status(term: &Term, tdk: &mut TDK) {
+pub async fn print_status(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>) {
     println!(
         "{} {}",
         style("lkmv version:").color256(CLI_BLUE),
@@ -28,7 +28,7 @@ pub async fn print_status(term: &Term, tdk: &mut TDK) {
 
     // Check if we can load config
     println!();
-    let config = match Config::load(term, tdk).await {
+    let config = match Config::load(term, tdk, unlock_code).await {
         Ok(cfg) => {
             println!(
                 "{} {}",

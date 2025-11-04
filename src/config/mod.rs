@@ -14,10 +14,10 @@ use crate::{
     CLI_ORANGE,
     config::{
         public_config::PublicConfig,
-        secured_config::{KeySourceMaterial, SecuredConfig},
+        secured_config::{KeyInfoConfig, KeySourceMaterial, SecuredConfig},
     },
     get_unlock_code,
-    setup::{CommunityDIDKeys, KeyPurpose, bip32_bip39::Bip32Extension},
+    setup::{CommunityDIDKeys, KeyInfo, KeyPurpose, bip32_bip39::Bip32Extension},
 };
 use affinidi_tdk::{
     TDK,
@@ -30,6 +30,7 @@ use console::{Term, style};
 use ed25519_dalek_bip32::ExtendedSigningKey;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
+use sha2::Digest;
 use std::collections::HashMap;
 
 pub mod public_config;
@@ -52,10 +53,9 @@ pub struct Config {
     pub bip32_seed: SecretString,
 
     /// Where did the key values come from? Derived or Imported?
-    pub keys_path: HashMap<String, KeySourceMaterial>,
+    pub key_info: HashMap<String, KeyInfoConfig>,
 
-    /// Community DID Secrets
-    /// This is derived from SecuredConfig information
+    /// Community DID and Document
     pub community_did: CommunityDID,
 
     // *********************************************
@@ -92,13 +92,21 @@ impl Config {
         Ok(())
     }
 
-    pub async fn load(term: &Term, tdk: &mut TDK) -> Result<Self> {
+    /// Loads Configuration from Public and Secured Configuration
+    /// -term: Console terminal manipulation
+    /// -tdk: Where secrets and config info will be stored
+    /// unlock_code: Optional if passed in from command line
+    pub async fn load(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>) -> Result<Self> {
         let pc = PublicConfig::load().context("Couldn't load Public Configuration")?;
 
-        let unlock_code = if pc.token_id.is_none() && pc.unlock_code {
-            Some(get_unlock_code()?)
+        let unlock_code = if let Some(unlock_code) = unlock_code {
+            Some(sha2::Sha256::digest(unlock_code.as_bytes()).into())
         } else {
-            None
+            if pc.token_id.is_none() && pc.unlock_code {
+                Some(get_unlock_code()?)
+            } else {
+                None
+            }
         };
 
         #[cfg(feature = "openpgp-card")]
@@ -133,13 +141,106 @@ impl Config {
                 id: pc.community_did.clone(),
                 document: rr.doc,
             },
-            bip32_seed: SecretString::new(sc.bip32_seed),
+            bip32_seed: SecretString::new(sc.bip32_seed.clone()),
             public: pc,
-            keys_path: sc.keys_path,
+            key_info: sc.key_info.clone(),
             #[cfg(feature = "openpgp-card")]
             token_admin_pin: AdminPin::default(),
             #[cfg(feature = "openpgp-card")]
             token_user_pin,
+        })
+    }
+
+    /// Returns the first matching set of keys for the community DID
+    /// This will pick the first:
+    /// - Signing Key (assertion method)
+    /// - Authentication (authentication)
+    /// - Encryption (key agreement)
+    ///
+    pub async fn get_community_keys(&self, tdk: &TDK) -> Result<CommunityDIDKeys> {
+        let signing = if let Some(signing) = self.community_did.document.assertion_method.first() {
+            let Some(secret) = tdk
+                .get_shared_state()
+                .secrets_resolver
+                .get_secret(signing.get_id())
+                .await
+            else {
+                bail!("Couldn't find secret in TDK for ({})", signing.get_id());
+            };
+            let Some(ki) = self.key_info.get(signing.get_id()) else {
+                bail!(
+                    "Couldn't find key info in lkmv Config for ({})",
+                    signing.get_id()
+                );
+            };
+            KeyInfo {
+                secret,
+                source: ki.path.clone(),
+                created: ki.create_time,
+                expiry: None,
+            }
+        } else {
+            bail!("DID Document does not contain any assertion methods!");
+        };
+
+        let authentication =
+            if let Some(authentication) = self.community_did.document.authentication.first() {
+                let Some(secret) = tdk
+                    .get_shared_state()
+                    .secrets_resolver
+                    .get_secret(authentication.get_id())
+                    .await
+                else {
+                    bail!(
+                        "Couldn't find secret in TDK for ({})",
+                        authentication.get_id()
+                    );
+                };
+                let Some(ki) = self.key_info.get(authentication.get_id()) else {
+                    bail!(
+                        "Couldn't find key info in lkmv Config for ({})",
+                        authentication.get_id()
+                    );
+                };
+                KeyInfo {
+                    secret,
+                    source: ki.path.clone(),
+                    created: ki.create_time,
+                    expiry: None,
+                }
+            } else {
+                bail!("DID Document does not contain any authentication methods!");
+            };
+
+        let decryption = if let Some(decryption) = self.community_did.document.key_agreement.first()
+        {
+            let Some(secret) = tdk
+                .get_shared_state()
+                .secrets_resolver
+                .get_secret(decryption.get_id())
+                .await
+            else {
+                bail!("Couldn't find secret in TDK for ({})", decryption.get_id());
+            };
+            let Some(ki) = self.key_info.get(decryption.get_id()) else {
+                bail!(
+                    "Couldn't find key info in lkmv Config for ({})",
+                    decryption.get_id()
+                );
+            };
+            KeyInfo {
+                secret,
+                source: ki.path.clone(),
+                created: ki.create_time,
+                expiry: None,
+            }
+        } else {
+            bail!("DID Document does not contain any key agreements!");
+        };
+        Ok(CommunityDIDKeys {
+            signing,
+            authentication,
+            decryption,
         })
     }
 
@@ -152,7 +253,7 @@ impl Config {
     ) -> Result<()> {
         // Rehydrate DID keys referenced by Verification Methods in the DID Document
         for vm in &doc.verification_method {
-            let Some(kp) = sc.keys_path.get(vm.id.as_str()) else {
+            let Some(kp) = sc.key_info.get(vm.id.as_str()) else {
                 bail!(
                     "Couldn't find DID Verification method key path ({}) in config.",
                     vm.id
@@ -174,7 +275,7 @@ impl Config {
                 continue;
             };
 
-            let mut secret = match kp {
+            let mut secret = match &kp.path {
                 KeySourceMaterial::Derived { path } => {
                     bip32_root.get_secret_from_path(path, k_purpose)?
                 }

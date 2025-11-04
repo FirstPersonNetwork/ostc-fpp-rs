@@ -11,7 +11,6 @@ use crate::{
 };
 use affinidi_tdk::secrets_resolver::secrets::Secret;
 use anyhow::{Context, Result, bail};
-use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use chrono::{DateTime, MappedLocalTime, TimeDelta, TimeZone, Utc};
 use console::{StyledObject, style};
 use dialoguer::{Confirm, Editor, Input, Password, theme::ColorfulTheme};
