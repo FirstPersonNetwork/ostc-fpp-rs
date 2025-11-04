@@ -133,7 +133,7 @@ impl PGPKeys {
 
         let ki = KeyInfo {
             source: KeySourceMaterial::Imported {
-                seed: BASE64_URL_SAFE_NO_PAD.encode(secret.get_private_bytes()),
+                seed: secret.get_private_keymultibase().unwrap(),
             },
             secret,
             expiry: signature.key_expiration_time().map(|e| e.to_owned()),
@@ -372,7 +372,7 @@ fn extract_primary_key_details(primary_key: &SignedSecretKey) -> Result<(KeyFlag
         signature.key_flags(),
         KeyInfo {
             source: KeySourceMaterial::Imported {
-                seed: BASE64_URL_SAFE_NO_PAD.encode(secret.get_private_bytes()),
+                seed: secret.get_private_keymultibase().unwrap(),
             },
             secret,
             expiry: signature.key_expiration_time().map(|e| e.to_owned()),

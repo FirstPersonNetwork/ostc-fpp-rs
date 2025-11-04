@@ -252,7 +252,7 @@ pub enum KeySourceMaterial {
     Derived { path: String },
 
     /// Sourced from an external Key Import
-    /// BASE64 encoded secret/private seed bytes
+    /// multiencoded private key
     /// Key Material will be stored in the OS Secure Store
     Imported { seed: String },
 }

@@ -74,9 +74,9 @@ dependencies = [
 
 [[package]]
 name = "affinidi-data-integrity"
-version = "0.2.3"
+version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f049fcd05d6e9db03a60513419f01071c53f6e0d92c9383547f4027f94211e03"
+checksum = "445b6319a2a2bef6173376e62bc155a77a2495f94997f85e243316146a676041"
 dependencies = [
  "affinidi-secrets-resolver",
  "chrono",
@@ -92,9 +92,9 @@ dependencies = [
 
 [[package]]
 name = "affinidi-did-authentication"
-version = "0.2.1"
+version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f738cfdb5b562a02b32e3576e836b8d336d1002bba0fa660cc2576cf8e49bdf1"
+checksum = "d5bdfc93574a71cc3ed427eea22f20c2b6a0adfb018a75536d56df95d8326bf2"
 dependencies = [
  "affinidi-did-common",
  "affinidi-did-resolver-cache-sdk",
@@ -113,9 +113,9 @@ dependencies = [
 
 [[package]]
 name = "affinidi-did-common"
-version = "0.1.2"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "618780fb813a610e92ecab76403e2a43af7e2095eeae18baf6295252f47e626d"
+checksum = "f7789476f702fe4011ac652bdfd81e8fc38e52c4e60eecb795dd4548c7f093f3"
 dependencies = [
  "serde",
  "serde_json",
@@ -125,9 +125,9 @@ dependencies = [
 
 [[package]]
 name = "affinidi-did-key"
-version = "0.1.3"
+version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5897198bc13b1d372b16197cc3deefd786d0745a1b14b113b41f832482ecfcfd"
+checksum = "52356661dd445ca0c2ca4d6f66edb62c73485f710cd5e752871320dadd274846"
 dependencies = [
  "affinidi-did-common",
  "affinidi-secrets-resolver",
@@ -139,9 +139,9 @@ dependencies = [
 
 [[package]]
 name = "affinidi-did-resolver-cache-sdk"
-version = "0.6.2"
+version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2e348c3d37640a4985f142a54f93287225a1c85fe15aab275fa04f95ae6e9c82"
+checksum = "6f34f50c771be558cd3c5465d6b6cba59f5eda03c76ac9528f87e03f740a779d"
 dependencies = [
  "affinidi-did-common",
  "affinidi-did-key",
@@ -176,9 +176,9 @@ dependencies = [
 
 [[package]]
 name = "affinidi-meeting-place"
-version = "0.2.0"
+version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8614b2b82814447414d6b0af404f9d23c0ba60d8fc837c9cb099ac6b232a9055"
+checksum = "a1350ce106e74f1b1d1bc55f8fe424a7ae64e61ad31b8be37ed79d6013aeaf3f"
 dependencies = [
  "affinidi-did-authentication",
  "affinidi-did-common",
@@ -197,9 +197,9 @@ dependencies = [
 
 [[package]]
 name = "affinidi-messaging-didcomm"
-version = "0.11.3"
+version = "0.11.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ee22f9c628630da44f943c695992009a8a5907c801ecbcc69497af51ec2e712"
+checksum = "fea128008eb2c5aa9cfc991600bf77fa120e3a785d8babd39b16cce1b43b14ab"
 dependencies = [
  "affinidi-did-common",
  "affinidi-did-resolver-cache-sdk",
@@ -249,9 +249,9 @@ dependencies = [
 
 [[package]]
 name = "affinidi-secrets-resolver"
-version = "0.3.5"
+version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f32941d155adcdb85ac8008b4e1248ece1f91b0486bccda51972743b93079640"
+checksum = "fd4eaaf4eb5c5d03845f451218e5bb76e64a1e554fbf5c742918919d833ad682"
 dependencies = [
  "ahash 0.8.12",
  "base58",
@@ -277,9 +277,9 @@ dependencies = [
 
 [[package]]
 name = "affinidi-tdk"
-version = "0.2.5"
+version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e7384940c8348de2dd9c4f75512e8b1f071b59190d744833f12264f63579428"
+checksum = "42efb0e21232e7d624d8f4f9cccb9cc0ef5a71f27de8b82fa1e1f9e582816cac"
 dependencies = [
  "affinidi-did-authentication",
  "affinidi-did-common",
@@ -301,9 +301,9 @@ dependencies = [
 
 [[package]]
 name = "affinidi-tdk-common"
-version = "0.2.2"
+version = "0.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "79ffc4503c242940c94c46c08394b00e56618702c63b2687d14c1be82209788e"
+checksum = "0e16f716222052fdd5beb3e68526cc7fbfbcfc7c9f20cfc59bff176b31de4cbf"
 dependencies = [
  "affinidi-did-authentication",
  "affinidi-did-resolver-cache-sdk",
@@ -820,9 +820,9 @@ dependencies = [
 
 [[package]]
 name = "buffer-redux"
-version = "1.0.2"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e8acf87c5b9f5897cd3ebb9a327f420e0cae9dd4e5c1d2e36f2c84c571a58f1"
+checksum = "431a9cc8d7efa49bc326729264537f5e60affce816c66edf434350778c9f4f54"
 dependencies = [
  "memchr",
 ]
@@ -1720,9 +1720,9 @@ dependencies = [
 
 [[package]]
 name = "did-peer"
-version = "0.7.4"
+version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "936ce5bf1a4410ba136546953cd900fa7d364356ccc55693843ead8fec0fde73"
+checksum = "49524c2507c31ab45928e180b82f479b9f001ca00354781cda719c0dd6190bbd"
 dependencies = [
  "affinidi-did-common",
  "affinidi-did-key",
@@ -1772,9 +1772,9 @@ dependencies = [
 
 [[package]]
 name = "didwebvh-rs"
-version = "0.1.9"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cad0b54c82c0f9c06a38dd7610e7ee8a3eaa31c9cf412aadb779f1cf16d01a32"
+checksum = "0c3d39779071897aab8657763b9c10ad5ae2b3688a8702029659bffa16507f99"
 dependencies = [
  "affinidi-data-integrity",
  "affinidi-secrets-resolver",

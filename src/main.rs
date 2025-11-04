@@ -6,11 +6,8 @@ use crate::{
     config::Config,
     setup::{cli_setup, pgp_export::ask_export_community_did_keys},
 };
-use affinidi_tdk::{
-    TDK,
-    common::config::{TDKConfig, TDKConfigBuilder},
-};
-use anyhow::Result;
+use affinidi_tdk::{TDK, common::config::TDKConfigBuilder};
+use anyhow::{Result, bail};
 use clap::{Arg, Command};
 use console::{Term, style};
 use dialoguer::{Password, theme::ColorfulTheme};
@@ -56,9 +53,10 @@ fn cli() -> Command {
                             .short('u')
                             .long("user-id")
                             .help("PGP User Id 'name <email_address>' format")
-                            .value_name("first_name last_name <email@domain>"),
-                    ]),
-                ),
+                            .value_name("first_name last_name <email@domain>")
+                    ]).about("Exports first set of keys used in your Community DID for Signing, Authentication and Decryption"),
+                )
+                .arg_required_else_help(true),
         )
 }
 
@@ -123,8 +121,24 @@ async fn main() -> Result<()> {
                 }
             };
 
-            let user_id = args.get_one::<String>("user-id");
-            // ask_export_community_did_keys(&term, &config.comm);
+            match args.subcommand() {
+                Some(("pgp-keys", sub_args)) => {
+                    // Export PGP Keys
+                    let user_id = sub_args.get_one::<String>("user-id");
+                    //ask_export_community_did_keys(&term, &config, user_id);
+                }
+                _ => {
+                    println!(
+                        "{} {}",
+                        style("ERROR:").color256(CLI_RED),
+                        style(
+                            "No valid export subcommand was used. Use --help for more information."
+                        )
+                        .color256(CLI_ORANGE)
+                    );
+                    bail!("Bad CLI arguments");
+                }
+            }
         }
         _ => {
             eprintln!("No valid subcommand was used. Use --help for more information.");

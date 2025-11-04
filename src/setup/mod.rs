@@ -33,7 +33,7 @@ use secrecy::SecretString;
 use sha2::Digest;
 use std::{collections::HashMap, fmt};
 
-mod bip32_bip39;
+pub mod bip32_bip39;
 mod did;
 #[cfg(feature = "openpgp-card")]
 mod openpgp_card;
@@ -144,21 +144,6 @@ pub fn cli_setup(term: &Term) -> Result<()> {
     #[cfg(not(feature = "openpgp-card"))]
     let token_id = None;
 
-    // Create Configuration
-    let mut key_path = HashMap::new();
-    key_path.insert(
-        c_did_keys.signing.secret.id.clone(),
-        c_did_keys.signing.source.clone(),
-    );
-    key_path.insert(
-        c_did_keys.authentication.secret.id.clone(),
-        c_did_keys.authentication.source.clone(),
-    );
-    key_path.insert(
-        c_did_keys.decryption.secret.id.clone(),
-        c_did_keys.decryption.source.clone(),
-    );
-
     // If hardware token is not being used, then ask for an unlock code
     let unlock_code = if token_id.is_none() {
         // Check if an unlock code is desired?
@@ -174,6 +159,21 @@ pub fn cli_setup(term: &Term) -> Result<()> {
         &mut c_did_keys,
     )?;
 
+    // Create Configuration
+    let mut key_path = HashMap::new();
+    key_path.insert(
+        c_did_keys.signing.secret.id.clone(),
+        c_did_keys.signing.source.clone(),
+    );
+    key_path.insert(
+        c_did_keys.authentication.secret.id.clone(),
+        c_did_keys.authentication.source.clone(),
+    );
+    key_path.insert(
+        c_did_keys.decryption.secret.id.clone(),
+        c_did_keys.decryption.source.clone(),
+    );
+
     let config = Config {
         bip32_root: get_bip32_root(mnemonic.to_entropy().as_slice())?,
         bip32_seed: SecretString::new(BASE64_URL_SAFE_NO_PAD.encode(mnemonic.to_entropy())),
@@ -185,7 +185,6 @@ pub fn cli_setup(term: &Term) -> Result<()> {
         community_did: CommunityDID {
             id: c_did.did.clone(),
             document: c_did.document,
-            keys: Some(c_did_keys),
         },
         keys_path: key_path,
         #[cfg(feature = "openpgp-card")]
