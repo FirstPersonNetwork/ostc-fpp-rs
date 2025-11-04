@@ -178,6 +178,12 @@ pub fn did_setup(
         "{}",
         style("WebVH Log Entry successfully created").color256(CLI_BLUE)
     );
+    let did_id = log_entry.get_state().get("id").unwrap().as_str().unwrap();
+    println!(
+        "{} {}",
+        style("WebVH Final DID:").color256(CLI_BLUE),
+        style(did_id).color256(CLI_PURPLE)
+    );
 
     // save to disk
     log_entry.log_entry.save_to_file("did.jsonl")?;
@@ -187,8 +193,6 @@ pub fn did_setup(
         style("did.jsonl").color256(CLI_GREEN)
     );
 
-    let did_id = log_entry.get_state().get("id").unwrap().as_str().unwrap();
-
     // Change the key ID's to match the DID VM ID's
     keys.signing.secret.id = [did_id, "#key-1"].concat();
     keys.authentication.secret.id = [did_id, "#key-2"].concat();
@@ -197,7 +201,7 @@ pub fn did_setup(
     println!();
     println!(
         "{} {} {}{}{}",
-        style("You will need to publish the").color256(CLI_BLUE),
+        style("You will need to publish").color256(CLI_BLUE),
         style("did.jsonl").color256(CLI_PURPLE),
         style("to the URL (").color256(CLI_BLUE),
         style(&did_url.get_http_url(None)?).color256(CLI_PURPLE),

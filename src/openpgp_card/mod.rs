@@ -152,11 +152,13 @@ pub fn format_cardholder_name(card_holder: &str) -> Option<String> {
 }
 
 pub fn print_cards(cards: &mut [Card<Open>]) -> Result<()> {
-    println!(
-        "{} {}",
-        style("Cards found:").color256(CLI_BLUE),
-        style(cards.len()).color256(CLI_GREEN)
-    );
+    print!("{}", style("Cards found:").color256(CLI_BLUE),);
+    if cards.is_empty() {
+        println!(" {}", style(cards.len()).color256(CLI_ORANGE));
+    } else {
+        println!(" {}", style(cards.len()).color256(CLI_GREEN));
+    }
+
     for card in cards.iter_mut() {
         let mut open_card = card.transaction()?;
         let app_identifier = open_card.application_identifier()?;

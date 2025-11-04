@@ -2,8 +2,9 @@
 *  Public [crate::config::Config] information that is stored in plaintext on disk
 */
 
-use crate::config::Config;
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, LF_PUBLIC_MEDIATOR_DID, config::Config};
 use anyhow::{Context, Result, bail};
+use console::style;
 use serde::{Deserialize, Serialize};
 use std::{env, fs, path::Path};
 
@@ -78,5 +79,52 @@ impl PublicConfig {
         ))?;
 
         Ok(serde_json::from_reader(file)?)
+    }
+
+    /// Prints information relating to the Public configuration to console
+    pub fn status(&self) {
+        println!();
+        println!("{}", style("Configuration information").color256(CLI_BLUE));
+        println!("{}", style("=========================").color256(CLI_BLUE));
+        if let Some(token_id) = &self.token_id {
+            println!(
+                "{} {}",
+                style("Hardware Token:").color256(CLI_BLUE),
+                style(token_id).color256(CLI_PURPLE)
+            );
+            println!(
+                "{} {}",
+                style("Using unlock code?").color256(CLI_BLUE),
+                style("NOT-REQUIRED").color256(CLI_PURPLE)
+            );
+        } else {
+            println!(
+                "{} {}",
+                style("Hardware Token:").color256(CLI_BLUE),
+                style("No hardware token configured").color256(CLI_ORANGE)
+            );
+            print!("{} ", style("Using unlock code?").color256(CLI_BLUE));
+            if self.unlock_code {
+                println!("{}", style("YES").color256(CLI_GREEN));
+            } else {
+                println!("{}", style("NO").color256(CLI_ORANGE));
+            }
+        }
+
+        println!(
+            "{} {}",
+            style("Community DID:").color256(CLI_BLUE),
+            style(&self.community_did).color256(CLI_PURPLE)
+        );
+        print!("{} ", style("Mediator DID:").color256(CLI_BLUE));
+        if self.mediator_did == LF_PUBLIC_MEDIATOR_DID {
+            println!("{}", style(LF_PUBLIC_MEDIATOR_DID).color256(CLI_GREEN));
+        } else {
+            println!(
+                "{} {}",
+                style(&self.mediator_did).color256(CLI_ORANGE),
+                style("Mediator is customised (not an issue if deliberate)").color256(CLI_BLUE)
+            );
+        }
     }
 }

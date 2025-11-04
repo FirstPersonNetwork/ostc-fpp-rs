@@ -2,13 +2,42 @@
 *
 */
 
-use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_RED, config::Config};
+use crate::{
+    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
+    config::{Config, public_config::PublicConfig},
+};
 use affinidi_tdk::TDK;
 use anyhow::Result;
 use console::{Term, style};
 
 /// Prints diagnostic status to STDOUT
 pub async fn print_status(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>) {
+    println!(
+        "{}",
+        style("Linux Kernel Maintainer Validation (LKMV) tool").color256(CLI_BLUE)
+    );
+    println!(
+        "{}",
+        style("==============================================").color256(CLI_BLUE)
+    );
+    println!(
+        "{}",
+        style("  BLUE : Informational text").color256(CLI_BLUE),
+    );
+    println!("{}", style(" GREEN : KNOWN GOOD value").color256(CLI_GREEN));
+    println!(
+        "{}",
+        style("PURPLE : Unconfirmed OK value").color256(CLI_PURPLE),
+    );
+    println!(
+        "{}",
+        style("ORANGE : Different to expected value (may not be an issue)").color256(CLI_ORANGE),
+    );
+    println!(
+        "{}",
+        style("   RED : Incorrect value (is an ISSUE!)").color256(CLI_RED),
+    );
+    println!();
     println!(
         "{} {}",
         style("lkmv version:").color256(CLI_BLUE),
@@ -26,13 +55,77 @@ pub async fn print_status(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>)
         );
     }
 
-    // Check if we can load config
+    // Load public config first to run some pre-checks
+    let pub_config = match PublicConfig::load() {
+        Ok(pc) => pc,
+        Err(e) => {
+            println!(
+                "{} {}",
+                style("Couldn't load public configuration information. Reason:").color256(CLI_RED),
+                style(e).color256(CLI_ORANGE)
+            );
+            return;
+        }
+    };
+
+    pub_config.status();
+
+    // Check Community DID Resolution status
     println!();
+    print!(
+        "{}{}{}",
+        style("Resolving Community DID (").color256(CLI_BLUE),
+        style(&pub_config.community_did).color256(CLI_PURPLE),
+        style(")...").color256(CLI_BLUE)
+    );
+    let _ = term.hide_cursor();
+    let _ = term.flush();
+
+    match tdk.did_resolver().resolve(&pub_config.community_did).await {
+        Ok(result) => {
+            let _ = term.show_cursor();
+            println!(
+                " {}",
+                style("✅ Success in resolving DID").color256(CLI_GREEN)
+            );
+
+            // Check that DID ID's match as expected
+            if result.doc.id.as_str() == pub_config.community_did.as_str() {
+                println!(
+                    "{} {}",
+                    style("Resolved DID matches ID in config?").color256(CLI_BLUE),
+                    style("Matches!").color256(CLI_GREEN)
+                );
+            } else {
+                println!(
+                    "{} {}",
+                    style("ERROR: Resolved DID ID does not match!").color256(CLI_RED),
+                    style(format!("Expected ({})", &pub_config.community_did)).color256(CLI_ORANGE)
+                );
+                println!(
+                    "{}",
+                    style(format!("Instead resolved ({})", result.doc.id.as_str()))
+                        .color256(CLI_ORANGE)
+                );
+                return;
+            }
+        }
+        Err(e) => {
+            println!(
+                "{} {}",
+                style("ERROR: Couldn't resolve DID! Reason:").color256(CLI_RED),
+                style(e).color256(CLI_ORANGE)
+            );
+            return;
+        }
+    }
+
+    // load config
     let config = match Config::load(term, tdk, unlock_code).await {
         Ok(cfg) => {
             println!(
                 "{} {}",
-                style("lkmv configuration:").color256(CLI_BLUE),
+                style("lkmv secured configuration:").color256(CLI_BLUE),
                 style("successfully loaded").color256(CLI_GREEN)
             );
             cfg
@@ -47,14 +140,9 @@ pub async fn print_status(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>)
         }
     };
 
+    config.status();
+
     // Check DID Resolution status
-    /*
-        match did_status(&config.public.community_did) {
-            Ok(doc) => {
-                println!("{}\n{}", style("Community DID Resolved"))
-            }
-        }
-    */
 }
 
 // Rust Feature Flags enabled for this build

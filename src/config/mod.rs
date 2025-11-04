@@ -11,7 +11,7 @@
 #[cfg(feature = "openpgp-card")]
 use crate::openpgp_card::ui::{AdminPin, UserPin};
 use crate::{
-    CLI_ORANGE,
+    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, LF_PUBLIC_MEDIATOR_DID,
     config::{
         public_config::PublicConfig,
         secured_config::{KeyInfoConfig, KeySourceMaterial, SecuredConfig},
@@ -287,5 +287,19 @@ impl Config {
             tdk.get_shared_state().secrets_resolver.insert(secret).await;
         }
         Ok(())
+    }
+
+    /// Prints information relating to the configuration to console
+    pub fn status(&self) {
+        println!("{}", style("Configured Keys:").color256(CLI_BLUE));
+        for (k, v) in &self.key_info {
+            println!(
+                "  {} {} {} {}",
+                style("Key #id:").color256(CLI_BLUE),
+                style(k).color256(CLI_GREEN),
+                style("Created:").color256(CLI_BLUE),
+                style(v.create_time).color256(CLI_GREEN)
+            );
+        }
     }
 }
