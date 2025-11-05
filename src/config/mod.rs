@@ -11,7 +11,7 @@
 #[cfg(feature = "openpgp-card")]
 use crate::openpgp_card::ui::{AdminPin, UserPin};
 use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, LF_PUBLIC_MEDIATOR_DID,
+    CLI_BLUE, CLI_GREEN, CLI_ORANGE,
     config::{
         public_config::PublicConfig,
         secured_config::{KeyInfoConfig, KeySourceMaterial, SecuredConfig},
@@ -21,7 +21,9 @@ use crate::{
 };
 use affinidi_tdk::{
     TDK,
+    common::profiles::TDKProfile,
     did_common::{Document, document::DocumentExt},
+    messaging::profiles::ATMProfile,
     secrets_resolver::{SecretsResolver, secrets::Secret},
 };
 use anyhow::{Context, Result, bail};
@@ -29,9 +31,8 @@ use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use console::{Term, style};
 use ed25519_dalek_bip32::ExtendedSigningKey;
 use secrecy::SecretString;
-use serde::{Deserialize, Serialize};
 use sha2::Digest;
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
 
 pub mod public_config;
 pub mod secured_config;
@@ -71,13 +72,16 @@ pub struct Config {
 }
 
 /// Our public Community DID used to identify ourselves within the Linux Foundation ecosystem
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Debug)]
 pub struct CommunityDID {
     /// DID Identifier String
     pub id: String,
 
     /// Resolved DID Document for this DID
     pub document: Document,
+
+    /// Messaging Profile representing this DID within the TDK
+    pub profile: Arc<ATMProfile>,
 }
 
 impl Config {
@@ -133,11 +137,25 @@ impl Config {
         // Create keys from DID Document
         Config::regenerate_community_keys(tdk, &sc, &bip32_root, &rr.doc).await?;
 
+        let community_profile = ATMProfile::new(
+            tdk.atm.as_ref().unwrap(),
+            Some("Community DID".to_string()),
+            pc.community_did.clone(),
+            Some(pc.mediator_did.clone()),
+        )
+        .await?;
+
+        // Add the community profile to the TDK ATM Service
+        // This allows it to send/receive messages directly to the Community DID
+        let atm = tdk.atm.clone().unwrap();
+        let community_profile = atm.profile_add(&community_profile, true).await?;
+
         Ok(Config {
             bip32_root,
             community_did: CommunityDID {
                 id: pc.community_did.clone(),
                 document: rr.doc,
+                profile: community_profile,
             },
             bip32_seed: SecretString::new(sc.bip32_seed.clone()),
             public: pc,

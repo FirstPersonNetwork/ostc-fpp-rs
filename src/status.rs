@@ -2,12 +2,16 @@
 *
 */
 
+use std::time::SystemTime;
+
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
     config::{Config, public_config::PublicConfig},
+    messaging::ping_mediator,
 };
 use affinidi_tdk::TDK;
 use anyhow::Result;
+use chrono::Utc;
 use console::{Term, style};
 
 /// Prints diagnostic status to STDOUT
@@ -126,7 +130,7 @@ pub async fn print_status(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>)
             println!(
                 "{} {}",
                 style("lkmv secured configuration:").color256(CLI_BLUE),
-                style("successfully loaded").color256(CLI_GREEN)
+                style("✅ successfully loaded").color256(CLI_GREEN)
             );
             cfg
         }
@@ -142,7 +146,44 @@ pub async fn print_status(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>)
 
     config.status();
 
-    // Check DID Resolution status
+    // Are the DIDComm mediators working?
+    println!();
+    println!("{}", style("DIDComm Messaging").color256(CLI_BLUE));
+    println!("{}", style("=================").color256(CLI_BLUE));
+    println!(
+        "{} {}",
+        style("Public Mediator DID:").color256(CLI_BLUE),
+        style(&config.public.mediator_did).color256(CLI_PURPLE)
+    );
+
+    print!(
+        "{}",
+        style("Sending trust-ping to public-mediator...").color256(CLI_BLUE)
+    );
+    let _ = term.hide_cursor();
+    let _ = term.flush();
+    let start = SystemTime::now();
+    match ping_mediator(tdk, &config).await {
+        Ok(_) => {
+            let end = SystemTime::now();
+            let _ = term.show_cursor();
+            println!(
+                " {}{}{}",
+                style("✅ Successfull ping/pong. Latency: ").color256(CLI_GREEN),
+                style(end.duration_since(start).unwrap().as_millis()).color256(CLI_GREEN),
+                style("ms").color256(CLI_GREEN)
+            );
+        }
+        Err(e) => {
+            let _ = term.show_cursor();
+            println!(
+                "{} {}",
+                style("ERROR: Couldn't ping public-mediator. Reason:").color256(CLI_RED),
+                style(e).color256(CLI_ORANGE)
+            );
+            return;
+        }
+    }
 }
 
 // Rust Feature Flags enabled for this build

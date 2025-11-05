@@ -17,6 +17,7 @@ use status::print_status;
 use tracing_subscriber::EnvFilter;
 
 mod config;
+mod messaging;
 #[cfg(feature = "openpgp-card")]
 mod openpgp_card;
 mod setup;
@@ -99,7 +100,7 @@ async fn main() -> Result<()> {
             )
             .await;
         }
-        Some(("setup", _)) => match cli_setup(&term) {
+        Some(("setup", _)) => match cli_setup(&term).await {
             Ok(_) => {
                 println!(
                     "\n{}",

@@ -24,7 +24,12 @@ use crate::{
 };
 #[cfg(feature = "openpgp-card")]
 use ::openpgp_card::ocard::KeyType;
-use affinidi_tdk::secrets_resolver::secrets::Secret;
+use affinidi_tdk::{
+    TDK,
+    common::config::TDKConfig,
+    messaging::{ATM, config::ATMConfig, profiles::ATMProfile},
+    secrets_resolver::secrets::Secret,
+};
 use anyhow::Result;
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use bip39::Mnemonic;
@@ -33,7 +38,7 @@ use console::{Term, style};
 use dialoguer::{Confirm, Input, theme::ColorfulTheme};
 use secrecy::SecretString;
 use sha2::Digest;
-use std::{collections::HashMap, fmt};
+use std::{collections::HashMap, fmt, sync::Arc};
 
 pub mod bip32_bip39;
 mod did;
@@ -97,7 +102,7 @@ pub struct CommunityDIDKeys {
 }
 
 /// Sets up the CLI tool
-pub fn cli_setup(term: &Term) -> Result<()> {
+pub async fn cli_setup(term: &Term) -> Result<()> {
     println!(
         "{}",
         style("Initial setup of the lkmv tool").color256(CLI_GREEN)
@@ -189,6 +194,13 @@ pub fn cli_setup(term: &Term) -> Result<()> {
         },
     );
 
+    // Instantiate TDK
+    let tdk = TDK::new(
+        TDKConfig::builder().with_load_environment(false).build()?,
+        None,
+    )
+    .await?;
+
     let config = Config {
         bip32_root: get_bip32_root(mnemonic.to_entropy().as_slice())?,
         bip32_seed: SecretString::new(BASE64_URL_SAFE_NO_PAD.encode(mnemonic.to_entropy())),
@@ -196,11 +208,20 @@ pub fn cli_setup(term: &Term) -> Result<()> {
             token_id,
             community_did: c_did.did.clone(),
             unlock_code: unlock_code.is_some(),
-            mediator_did,
+            mediator_did: mediator_did.clone(),
         },
         community_did: CommunityDID {
             id: c_did.did.clone(),
             document: c_did.document,
+            profile: Arc::new(
+                ATMProfile::new(
+                    tdk.atm.as_ref().unwrap(),
+                    Some("Community DID".to_string()),
+                    c_did.did.clone(),
+                    Some(mediator_did.clone()),
+                )
+                .await?,
+            ),
         },
         key_info,
         #[cfg(feature = "openpgp-card")]
@@ -222,7 +243,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
     println!(
         "{}",
         style(
-            "BIP32 Master Key sucessfully loaded. All necessary keys will be derived from this Key"
+            "BIP32 Master Key successfully loaded. All necessary keys will be derived from this Key"
         )
         .color256(CLI_BLUE)
     );
