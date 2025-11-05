@@ -25,9 +25,7 @@ use crate::{
 #[cfg(feature = "openpgp-card")]
 use ::openpgp_card::ocard::KeyType;
 use affinidi_tdk::{
-    TDK,
-    common::config::TDKConfig,
-    messaging::{ATM, config::ATMConfig, profiles::ATMProfile},
+    TDK, common::config::TDKConfig, messaging::profiles::ATMProfile,
     secrets_resolver::secrets::Secret,
 };
 use anyhow::Result;
@@ -211,7 +209,6 @@ pub async fn cli_setup(term: &Term) -> Result<()> {
             mediator_did: mediator_did.clone(),
         },
         community_did: CommunityDID {
-            id: c_did.did.clone(),
             document: c_did.document,
             profile: Arc::new(
                 ATMProfile::new(

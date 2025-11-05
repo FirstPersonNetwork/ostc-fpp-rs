@@ -184,6 +184,12 @@ pub async fn print_status(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>)
             return;
         }
     }
+
+    println!();
+    println!(
+        "{}",
+        style("👍 Everything looks to be ok!").color256(CLI_GREEN)
+    )
 }
 
 // Rust Feature Flags enabled for this build

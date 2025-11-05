@@ -21,7 +21,6 @@ use crate::{
 };
 use affinidi_tdk::{
     TDK,
-    common::profiles::TDKProfile,
     did_common::{Document, document::DocumentExt},
     messaging::profiles::ATMProfile,
     secrets_resolver::{SecretsResolver, secrets::Secret},
@@ -74,9 +73,6 @@ pub struct Config {
 /// Our public Community DID used to identify ourselves within the Linux Foundation ecosystem
 #[derive(Debug)]
 pub struct CommunityDID {
-    /// DID Identifier String
-    pub id: String,
-
     /// Resolved DID Document for this DID
     pub document: Document,
 
@@ -153,7 +149,6 @@ impl Config {
         Ok(Config {
             bip32_root,
             community_did: CommunityDID {
-                id: pc.community_did.clone(),
                 document: rr.doc,
                 profile: community_profile,
             },
