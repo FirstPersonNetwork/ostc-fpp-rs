@@ -11,7 +11,6 @@ use crate::{
 };
 use affinidi_tdk::TDK;
 use anyhow::Result;
-use chrono::Utc;
 use console::{Term, style};
 
 /// Prints diagnostic status to STDOUT

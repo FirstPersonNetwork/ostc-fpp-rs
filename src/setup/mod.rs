@@ -8,6 +8,7 @@ use crate::{
         public_config::PublicConfig,
         secured_config::{KeyInfoConfig, KeySourceMaterial},
     },
+    contacts::Contacts,
     setup::{
         bip32_bip39::{
             Bip32Extension, generate_bip39_mnemonic, get_bip32_root, mnemonic_from_recovery_phrase,
@@ -199,6 +200,7 @@ pub async fn cli_setup(term: &Term) -> Result<()> {
     )
     .await?;
 
+    // Initial Configuration state
     let config = Config {
         bip32_root: get_bip32_root(mnemonic.to_entropy().as_slice())?,
         bip32_seed: SecretString::new(BASE64_URL_SAFE_NO_PAD.encode(mnemonic.to_entropy())),
@@ -225,6 +227,7 @@ pub async fn cli_setup(term: &Term) -> Result<()> {
         token_admin_pin: AdminPin::default(),
         #[cfg(feature = "openpgp-card")]
         token_user_pin: UserPin::default(),
+        contacts: Contacts::default(),
     };
 
     config.save(unlock_code.as_ref())?;

@@ -16,6 +16,7 @@ use crate::{
         public_config::PublicConfig,
         secured_config::{KeyInfoConfig, KeySourceMaterial, SecuredConfig},
     },
+    contacts::Contacts,
     get_unlock_code,
     setup::{CommunityDIDKeys, KeyInfo, KeyPurpose, bip32_bip39::Bip32Extension},
 };
@@ -68,6 +69,9 @@ pub struct Config {
     #[cfg(feature = "openpgp-card")]
     /// Hardware token User PIN
     pub token_user_pin: UserPin,
+
+    /// Known contacts
+    pub contacts: Contacts,
 }
 
 /// Our public Community DID used to identify ourselves within the Linux Foundation ecosystem
@@ -159,6 +163,7 @@ impl Config {
             token_admin_pin: AdminPin::default(),
             #[cfg(feature = "openpgp-card")]
             token_user_pin,
+            contacts: sc.contacts.clone(),
         })
     }
 
