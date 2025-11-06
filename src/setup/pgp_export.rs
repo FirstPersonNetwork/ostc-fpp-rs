@@ -41,7 +41,8 @@ pub fn ask_export_community_did_keys(
 ) {
     if wizard {
         println!();
-        println!("{}", style("You can export your community DID Keys to be used in PGP compatible applications. You can export these keys at any point in the future.").color256(CLI_BLUE));
+        println!("{}", style("You can export your Community DID keys for use in PGP-compatible applications.").color256(CLI_BLUE));
+        println!("{}\n", style("NOTE: You can export these keys at any point in the future.").color256(CLI_BLUE));
 
         if !Confirm::with_theme(&ColorfulTheme::default())
             .with_prompt("Export private key info for PGP use?")
@@ -57,8 +58,8 @@ pub fn ask_export_community_did_keys(
         passphrase
     } else {
         let passphrase: String = Password::with_theme(&ColorfulTheme::default())
-            .with_prompt("Enter a passphrase to protect your exported keys")
-            .with_confirmation("Confirm passphrase", "Passphrases do not match")
+            .with_prompt("Enter a passphrase to protect your exported keys:")
+            .with_confirmation("Confirm your passphrase:", "The passphrases do not match.\n")
             .interact()
             .unwrap();
         SecretString::new(passphrase)
@@ -69,13 +70,13 @@ pub fn ask_export_community_did_keys(
             user_id.to_string()
         } else {
             println!(
-        "{} {}",
-        style("You must specify a PGP User ID that these keys are attached to. Format should be:")
-            .color256(CLI_BLUE),
-        style("first last <email@domain>").color256(CLI_PURPLE)
-    );
+                "\n{} {}\n",
+                style("You must specify a PGP User ID to which these keys are attached.\nRecommended Format: ")
+                    .color256(CLI_BLUE),
+                style("FirstName LastName <email@domain>").color256(CLI_PURPLE)
+            );
             Input::with_theme(&ColorfulTheme::default())
-                .with_prompt("PGP User ID")
+                .with_prompt("Enter your PGP User ID: ")
                 .interact()
                 .unwrap()
         };
@@ -91,7 +92,7 @@ pub fn ask_export_community_did_keys(
         Err(e) => {
             println!(
                 "{} {}",
-                style("ERROR: Couldn't create PGP export of Community DID keys. Reason:")
+                style("ERROR: Unable to create PGP export of Community DID keys. Reason:")
                     .color256(CLI_RED),
                 style(e).color256(CLI_ORANGE)
             );
