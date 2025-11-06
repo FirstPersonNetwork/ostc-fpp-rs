@@ -10,7 +10,7 @@
 
 #[cfg(feature = "openpgp-card")]
 use crate::openpgp_card::ui::UserPin;
-use crate::{CLI_ORANGE, CLI_RED, config::Config};
+use crate::{CLI_ORANGE, CLI_RED, config::Config, contacts::Contacts};
 use aes_gcm::{AeadCore, Aes256Gcm, KeyInit, aead::Aead};
 use anyhow::{Context, Result, bail};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
@@ -135,6 +135,10 @@ pub struct SecuredConfig {
 
     #[zeroize(skip)] // chrono doesn't support zeroize
     pub key_info: HashMap<String, KeyInfoConfig>,
+
+    /// Known contacts and associated information
+    #[zeroize(skip)]
+    pub contacts: Contacts,
 }
 
 impl From<&Config> for SecuredConfig {
@@ -143,6 +147,7 @@ impl From<&Config> for SecuredConfig {
         SecuredConfig {
             bip32_seed: cfg.bip32_seed.expose_secret().to_owned(),
             key_info: cfg.key_info.clone(),
+            contacts: cfg.contacts.clone(),
         }
     }
 }

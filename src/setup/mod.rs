@@ -2,12 +2,13 @@
 */
 
 use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_PURPLE, CLI_RED, LF_PUBLIC_MEDIATOR_DID,
+    CLI_BLUE, CLI_GREEN, CLI_PURPLE, LF_PUBLIC_MEDIATOR_DID,
     config::{
         CommunityDID, Config,
         public_config::PublicConfig,
         secured_config::{KeyInfoConfig, KeySourceMaterial},
     },
+    contacts::Contacts,
     setup::{
         bip32_bip39::{
             Bip32Extension, generate_bip39_mnemonic, get_bip32_root, mnemonic_from_recovery_phrase,
@@ -199,6 +200,7 @@ pub async fn cli_setup(term: &Term) -> Result<()> {
     )
     .await?;
 
+    // Initial Configuration state
     let config = Config {
         bip32_root: get_bip32_root(mnemonic.to_entropy().as_slice())?,
         bip32_seed: SecretString::new(BASE64_URL_SAFE_NO_PAD.encode(mnemonic.to_entropy())),
@@ -225,6 +227,7 @@ pub async fn cli_setup(term: &Term) -> Result<()> {
         token_admin_pin: AdminPin::default(),
         #[cfg(feature = "openpgp-card")]
         token_user_pin: UserPin::default(),
+        contacts: Contacts::default(),
     };
 
     config.save(unlock_code.as_ref())?;
@@ -238,9 +241,9 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
     let bip32_root = get_bip32_root(mnemonic.to_entropy().as_slice())?;
 
     println!(
-        "\n{}\n",
+        "{}",
         style(
-            "BIP32 Master Key successfully created. All the necessary keys will be derived from this key."
+            "BIP32 Master Key successfully loaded. All necessary keys will be derived from this Key"
         )
         .color256(CLI_BLUE)
     );
@@ -334,16 +337,8 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
 
 /// Generates a sha256 hash of an unlock code if required
 fn create_unlock_code() -> Option<[u8; 32]> {
-    println!("{}", style("NOTE: You are not using a hardware token.").color256(CLI_BLUE));
-    println!("      {}", style("Sensitive information will be stored in your operating system's secure storage where possible.").color256(CLI_BLUE));
-    println!(
-                "\n      {} {} {}\n",
-                style("However, it is").color256(CLI_BLUE),
-                style("strongly recommended").color256(CLI_RED),
-                style("to protect this data with an unlock code.").color256(CLI_BLUE)
-            );
-    println!("      {}", style("This unlock code will be required each time the application starts, in order to decrypt").color256(CLI_BLUE));
-    println!("      {}\n", style("the encrypted session key (ESK) and access the secure configuration data.").color256(CLI_BLUE));
+    println!("{}", style("NOTE: You are not using any hardware token. While secret information will be stored in your OS secure store where possible, it is best practice to protect this data with an unlock code.").color256(CLI_BLUE));
+    println!("  {}", style("This unlock code is asked on application start so it can unlock secret configuration data required.").color256(CLI_BLUE));
 
     if Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Would you like to set an unlock code to protect your secrets?")
@@ -353,8 +348,8 @@ fn create_unlock_code() -> Option<[u8; 32]> {
     {
         // Get unlock code from terminal
         let unlock_code: String = dialoguer::Password::with_theme(&ColorfulTheme::default())
-            .with_prompt("🔐 Enter your unlock code:")
-            .with_confirmation("🔐 Confirm your unlock code:", "The unlock codes do not match. Please try again.\n")
+            .with_prompt("Enter Unlock Code")
+            .with_confirmation("Confirm Unlock Code", "Unlock Codes do not match")
             .interact()
             .unwrap();
 
@@ -368,24 +363,21 @@ fn create_unlock_code() -> Option<[u8; 32]> {
 /// Do you want to use an alternative mediator?
 fn change_mediator() -> String {
     println!();
-    println!("{}\n", style("The lkmv utilises the DIDComm protocol to enable secure and private communication between parties.").color256(CLI_BLUE));
-    println!("{}", style("To facilitate message delivery, the lkmv requires a DIDComm Mediator, which acts as a trusted").color256(CLI_BLUE));
-    println!("{}\n", style("intermediary to store and forward messages when direct peer-to-peer communication is not possible.").color256(CLI_BLUE));
-    
+    println!("{}", style("lkmv utilizes DIDComm protocol to communicate. lkmv requires the use of a DIDComm Mediator to store and forward messages between parties privately and securely").color256(CLI_BLUE));
     println!(
-        "{} {}\n",
-        style("Default DIDComm Mediator DID:").color256(CLI_BLUE),
+        "{} {}",
+        style("Default Mediator:").color256(CLI_BLUE),
         style(LF_PUBLIC_MEDIATOR_DID).color256(CLI_PURPLE),
     );
 
     if Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Would you like to use an alternative DIDComm Mediator?")
+        .with_prompt("Do you want to use an alternative DIDComm Mediator?")
         .default(false)
         .interact()
         .unwrap()
     {
         Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("Enter DIDComm Mediator DID:")
+            .with_prompt("DIDComm Mediator DID:")
             .interact()
             .unwrap()
     } else {
