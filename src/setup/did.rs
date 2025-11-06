@@ -35,24 +35,36 @@ pub fn did_setup(
     mediator_did: &str,
 ) -> Result<DIDConfig> {
     println!();
-    println!("{}", style("DID Setup").color256(CLI_BLUE));
-    println!("{}", style("=========").color256(CLI_BLUE));
+    println!("{}", style("Community DID Setup").color256(CLI_BLUE));
+    println!("{}", style("========================").color256(CLI_BLUE));
 
     println!(
-        "{}",
-        style("A WebVH method DID will be created to represent your Community DID")
+        "{}\n",
+        style("A WebVH DID method will be created to represent your Community DID.")
+            .color256(CLI_BLUE)
+    );
+    println!(
+        "{}\n{}\n",
+        style("The WebVH method (`did:webvh`) extends `did:web` by adding verifiable history and")
+            .color256(CLI_BLUE),
+        style("stronger security - without relying on blockchain.")
+            .color256(CLI_BLUE)
+    );
+    println!(
+        "{}\n{}\n",
+        style("Your DID document must be publicly hosted.")
+            .color256(CLI_BLUE),
+        style("GitHub pages or a similar platform is a simple place to start.")
             .color256(CLI_BLUE)
     );
 
-    println!("{}", style("Your DID needs to be publicly hosted somewhere, github or similar is an easy place to start!").color256(CLI_BLUE));
-
     let raw_url: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Enter URL of where your DID will be hosted")
+        .with_prompt("Enter the URL that will host your DID document (e.g., https://<your-domain>.com)")
         .validate_with(|url: &String| {
             if Url::parse(url).is_ok() {
                 Ok(())
             } else {
-                Err("Please enter a valid URL")
+                Err("The URL provided is invalid. Please try again.\n")
             }
         })
         .interact()
@@ -61,8 +73,13 @@ pub fn did_setup(
     let did_url = WebVHURL::parse_url(&Url::parse(&raw_url)?)?;
 
     println!(
+        "\n{}\n",
+        style("Creating WebVH DID method for your Community DID...")
+            .color256(CLI_BLUE)
+    );
+    println!(
         "{} {}",
-        style("WebVH Starting DID:").color256(CLI_BLUE),
+        style("WebVH starting DID:").color256(CLI_BLUE),
         style(&did_url).color256(CLI_GREEN)
     );
 
@@ -142,7 +159,7 @@ pub fn did_setup(
     // Create the WebVH Parameters
     let update_key = bip32_root
         .derive(&"m/0'/1'/0'".parse::<DerivationPath>().unwrap())
-        .context("Failed to create Ed25519 signing key")?;
+        .context("Failed to create an Ed25519 signing key.")?;
     let mut update_secret = Secret::generate_ed25519(None, Some(update_key.signing_key.as_bytes()));
     update_secret.id = [
         "did:key:",
@@ -154,7 +171,7 @@ pub fn did_setup(
 
     let next_update_key = bip32_root
         .derive(&"m/0'/1'/1'".parse::<DerivationPath>().unwrap())
-        .context("Failed to create Ed25519 signing key")?;
+        .context("Failed to create an Ed25519 signing key.")?;
     let next_update_secret =
         Secret::generate_ed25519(None, Some(next_update_key.signing_key.as_bytes()));
 
@@ -176,12 +193,12 @@ pub fn did_setup(
 
     println!(
         "{}",
-        style("WebVH Log Entry successfully created").color256(CLI_BLUE)
+        style("WebVH Log Entry successfully created.").color256(CLI_BLUE)
     );
     let did_id = log_entry.get_state().get("id").unwrap().as_str().unwrap();
     println!(
         "{} {}",
-        style("WebVH Final DID:").color256(CLI_BLUE),
+        style("WebVH final DID:").color256(CLI_BLUE),
         style(did_id).color256(CLI_PURPLE)
     );
 
@@ -189,7 +206,7 @@ pub fn did_setup(
     log_entry.log_entry.save_to_file("did.jsonl")?;
     println!(
         "{} {}",
-        style("DID Saved:").color256(CLI_BLUE),
+        style("DID document saved:").color256(CLI_BLUE),
         style("did.jsonl").color256(CLI_GREEN)
     );
 
@@ -200,12 +217,18 @@ pub fn did_setup(
 
     println!();
     println!(
-        "{} {} {}{}{}",
-        style("You will need to publish").color256(CLI_BLUE),
+        "{} {} {}\n",
+        style("To make your DID publicly resolvable, you'll need to host the").color256(CLI_BLUE),
         style("did.jsonl").color256(CLI_PURPLE),
-        style("to the URL (").color256(CLI_BLUE),
+        style("file at:").color256(CLI_BLUE),
+    );
+    println!(
+        "{}\n",
         style(&did_url.get_http_url(None)?).color256(CLI_PURPLE),
-        style(") before you will be able to resolve your DID publicly").color256(CLI_BLUE),
+    );
+    println!(
+        "{}\n",
+        style("This file must be accessible at the specified URL before your DID can be resolved by others.").color256(CLI_BLUE),
     );
 
     Ok(DIDConfig {
@@ -213,8 +236,8 @@ pub fn did_setup(
         document: serde_json::from_value(
             log_entry
                 .get_did_document()
-                .context("Couldn't get initial DID Document state")?,
+                .context("Couldn't get initial DID document state.")?,
         )
-        .context("Serializing initial DID Document state failed")?,
+        .context("Serializing initial DID document state failed.")?,
     })
 }

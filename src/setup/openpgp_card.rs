@@ -30,10 +30,10 @@ pub fn setup_hardware_token(
     println!();
 
     println!(
-        "{} {}",
-        style("If you want to use hardware tokens, please ensure they are plugged in now!")
+        "{}\n{}",
+        style("If you intend to use a hardware token, please ensure it is plugged in now.")
             .color256(CLI_BLUE),
-        style("(press any key to continue)")
+        style("Press any key to continue...")
             .color256(CLI_PURPLE)
             .blink()
     );
@@ -52,16 +52,16 @@ pub fn setup_hardware_token(
     terminal::disable_raw_mode()?;
 
     println!(
-        "{}",
-        style("Looking for openpgp-card compatible tokens...").color256(CLI_BLUE)
+        "\n{}\n",
+        style("Searching for OpenPGP-compatible hardware tokens...").color256(CLI_BLUE)
     );
 
     // Detect cards and show
     let mut cards = cards()?;
     if cards.is_empty() {
         println!(
-            "{}",
-            style("No hardware tokens were found!").color256(CLI_ORANGE)
+            "{}\n",
+            style("No compatible hardware tokens were found.").color256(CLI_ORANGE)
         );
         return Ok(None);
     } else {
@@ -79,11 +79,11 @@ pub fn setup_hardware_token(
         })
         .collect();
 
-    s_card.push("Do not use Hardware Token".to_string());
+    s_card.push("Do not use a hardware token.".to_string());
 
     println!();
     let selected_option = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Pick which card you want to write your secrets to")
+        .with_prompt("Select the card you would like to use to store your secrets:")
         .default(0)
         .items(&s_card)
         .interact()
@@ -99,12 +99,12 @@ pub fn setup_hardware_token(
 
     let Some(selected_card) = cards.get_mut(selected_option) else {
         println!(
-            "{}{}{}",
-            style("Couldn't find card (").color256(CLI_RED),
+            "\n{}{}{}",
+            style("Unable to find the card (").color256(CLI_RED),
             style(s_card.get(selected_option).unwrap()).color256(CLI_ORANGE),
-            style(")").color256(CLI_RED)
+            style(").").color256(CLI_RED)
         );
-        bail!("Couldn't select card for writing...");
+        bail!("\nUnable to select the card for storing...");
     };
 
     // Ask to factory reset card?
@@ -116,7 +116,7 @@ pub fn setup_hardware_token(
     );
     if Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt(format!(
-            "Do you want to factory reset the card before writing? {}",
+            "\nWould you like to factory reset the card before storing the secrets? {}",
             style("(This will delete all existing keys on the card)").color256(CLI_ORANGE),
         ))
         .default(false)
@@ -131,10 +131,10 @@ pub fn setup_hardware_token(
     write_keys_to_card(term, selected_card, keys, admin_pin.get_pin())?;
 
     // Set Touch on for the Signing Key
-    println!("{}", style("Best practice is to force an interaction with the hardware token for critical operations, such as signing data.").color256(CLI_BLUE));
+    println!("\n{}\n", style("Best practice is to force an interaction with the hardware token for critical operations, such as signing data.").color256(CLI_BLUE));
     if Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt(format!(
-            "Do you want to set the Signing key to require touch? {}",
+            "Would you like to set the Signing key to require touch? {}",
             style(
                 "(This will require you to touch the hardware token every time you sign something)"
             )
@@ -152,20 +152,21 @@ pub fn setup_hardware_token(
     }
 
     // Set cardholder name?
-    println!("{}{}{}", style("You can set the cardholder name, must be less than 39 characters in length. Should be in the format ").color256(CLI_BLUE),
+    println!("{}{}\n{}\n", 
+        style("You can set a cardholder name (max 39 characters).\nRecommended Format: ").color256(CLI_BLUE),
         style("LAST_NAME<<FIRST_NAME<OTHER<OTHER").color256(CLI_PURPLE),
-        style(" but it is up to you what you put here. No encoding is done on this.").color256(CLI_BLUE));
+        style("NOTE: You are free to enter any name in the cardholder name. No encoding is applied.").color256(CLI_BLUE));
 
     if Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Do you want to set the Cardholder Name?")
+        .with_prompt("Would you like to set the Cardholder Name?")
         .default(true)
         .interact()?
     {
         let cardholder_name: String = dialoguer::Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("Cardholder Name")
+            .with_prompt("Cardholder Name: ")
             .validate_with(|input: &String| {
                 if input.len() > 39 {
-                    Err("Cardholder name must be less than 39 characters")
+                    Err("Cardholder name must be 39 characters or less.\n")
                 } else {
                     Ok(())
                 }

@@ -97,7 +97,7 @@ impl Config {
     /// -tdk: Where secrets and config info will be stored
     /// unlock_code: Optional if passed in from command line
     pub async fn load(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>) -> Result<Self> {
-        let pc = PublicConfig::load().context("Couldn't load Public Configuration")?;
+        let pc = PublicConfig::load().context("Unable to load Public Configuration.")?;
 
         let unlock_code = if let Some(unlock_code) = unlock_code {
             Some(sha2::Sha256::digest(unlock_code.as_bytes()).into())
@@ -122,12 +122,12 @@ impl Config {
             .did_resolver()
             .resolve(&pc.community_did)
             .await
-            .context("Couldn't resolve Community DID")?;
+            .context("Unable to resolve Community DID.")?;
 
         let bip32_root = ExtendedSigningKey::from_seed(
             BASE64_URL_SAFE_NO_PAD
                 .decode(&sc.bip32_seed)
-                .context("Couldn't base64 decode BIP32 seed")?
+                .context("Unable to base64 decode BIP32 seed.")?
                 .as_slice(),
         )?;
         // Create keys from DID Document
@@ -176,11 +176,11 @@ impl Config {
                 .get_secret(signing.get_id())
                 .await
             else {
-                bail!("Couldn't find secret in TDK for ({})", signing.get_id());
+                bail!("Unable to find secret in TDK for ({}).", signing.get_id());
             };
             let Some(ki) = self.key_info.get(signing.get_id()) else {
                 bail!(
-                    "Couldn't find key info in lkmv Config for ({})",
+                    "Unable to find key info in lkmv config for ({}).",
                     signing.get_id()
                 );
             };
@@ -191,7 +191,7 @@ impl Config {
                 expiry: None,
             }
         } else {
-            bail!("DID Document does not contain any assertion methods!");
+            bail!("DID Document does not contain any assertion methods.");
         };
 
         let authentication =
@@ -203,13 +203,13 @@ impl Config {
                     .await
                 else {
                     bail!(
-                        "Couldn't find secret in TDK for ({})",
+                        "Unable to find secret in TDK for ({}).",
                         authentication.get_id()
                     );
                 };
                 let Some(ki) = self.key_info.get(authentication.get_id()) else {
                     bail!(
-                        "Couldn't find key info in lkmv Config for ({})",
+                        "Unable to find key info in lkmv Config for ({}).",
                         authentication.get_id()
                     );
                 };
@@ -220,7 +220,7 @@ impl Config {
                     expiry: None,
                 }
             } else {
-                bail!("DID Document does not contain any authentication methods!");
+                bail!("DID Document does not contain any authentication methods.");
             };
 
         let decryption = if let Some(decryption) = self.community_did.document.key_agreement.first()
@@ -231,11 +231,11 @@ impl Config {
                 .get_secret(decryption.get_id())
                 .await
             else {
-                bail!("Couldn't find secret in TDK for ({})", decryption.get_id());
+                bail!("Unable to find secret in TDK for ({}).", decryption.get_id());
             };
             let Some(ki) = self.key_info.get(decryption.get_id()) else {
                 bail!(
-                    "Couldn't find key info in lkmv Config for ({})",
+                    "Unable to find key info in lkmv Config for ({}).",
                     decryption.get_id()
                 );
             };
@@ -246,7 +246,7 @@ impl Config {
                 expiry: None,
             }
         } else {
-            bail!("DID Document does not contain any key agreements!");
+            bail!("DID Document does not contain any key agreements.");
         };
         Ok(CommunityDIDKeys {
             signing,
@@ -266,7 +266,7 @@ impl Config {
         for vm in &doc.verification_method {
             let Some(kp) = sc.key_info.get(vm.id.as_str()) else {
                 bail!(
-                    "Couldn't find DID Verification method key path ({}) in config.",
+                    "Unable to find DID verification method key path ({}) in config.",
                     vm.id
                 );
             };
@@ -281,7 +281,7 @@ impl Config {
             } else {
                 println!(
                     "{}",
-                    style("WARN: Unknown DID VM found").color256(CLI_ORANGE)
+                    style("WARN: Unknown DID verification method found.").color256(CLI_ORANGE)
                 );
                 continue;
             };
