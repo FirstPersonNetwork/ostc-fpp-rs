@@ -27,6 +27,26 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 const SERVICE: &str = "lkmv";
 const USER: &str = "lkmv-secrets";
 
+/// Methods of protecting [SecuredConfig]
+#[derive(Clone, Debug, Default)]
+pub enum ProtectionMethod {
+    TokenEncrypted,
+    PasswordEncrypted,
+    PlainText,
+    #[default]
+    Unknown,
+}
+
+impl From<SecuredConfigFormat> for ProtectionMethod {
+    fn from(format: SecuredConfigFormat) -> Self {
+        match format {
+            SecuredConfigFormat::TokenEncrypted { .. } => ProtectionMethod::TokenEncrypted,
+            SecuredConfigFormat::PasswordEncrypted { .. } => ProtectionMethod::PasswordEncrypted,
+            SecuredConfigFormat::PlainText { .. } => ProtectionMethod::PlainText,
+        }
+    }
+}
+
 /// Three possible formats to store [SecuredConfig]
 /// 1. TokenEncrypted - Encrypted using a hardware token
 /// 2. PasswordEncrypted - Encrypted from a derived key from a password/PIN
@@ -139,6 +159,10 @@ pub struct SecuredConfig {
     /// Known contacts and associated information
     #[zeroize(skip)]
     pub contacts: Contacts,
+
+    #[serde(skip, default)]
+    #[zeroize(skip)]
+    pub protection_method: ProtectionMethod,
 }
 
 impl From<&Config> for SecuredConfig {
@@ -148,6 +172,7 @@ impl From<&Config> for SecuredConfig {
             bip32_seed: cfg.bip32_seed.expose_secret().to_owned(),
             key_info: cfg.key_info.clone(),
             contacts: cfg.contacts.clone(),
+            protection_method: cfg.protection_method.clone(),
         }
     }
 }

@@ -6,7 +6,7 @@ use crate::{
     config::{
         CommunityDID, Config,
         public_config::PublicConfig,
-        secured_config::{KeyInfoConfig, KeySourceMaterial},
+        secured_config::{KeyInfoConfig, KeySourceMaterial, ProtectionMethod},
     },
     contacts::Contacts,
     setup::{
@@ -228,9 +228,11 @@ pub async fn cli_setup(term: &Term) -> Result<()> {
         #[cfg(feature = "openpgp-card")]
         token_user_pin: UserPin::default(),
         contacts: Contacts::default(),
+        protection_method: ProtectionMethod::default(),
+        unlock_code,
     };
 
-    config.save(unlock_code.as_ref())?;
+    config.save()?;
 
     Ok(())
 }

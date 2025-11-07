@@ -11,10 +11,12 @@
 #[cfg(feature = "openpgp-card")]
 use crate::openpgp_card::ui::{AdminPin, UserPin};
 use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_ORANGE,
+    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
     config::{
         public_config::PublicConfig,
-        secured_config::{KeyInfoConfig, KeySourceMaterial, SecuredConfig},
+        secured_config::{
+            KeyInfoConfig, KeySourceMaterial, ProtectionMethod, SecuredConfig, unlock_code_encrypt,
+        },
     },
     contacts::Contacts,
     get_unlock_code,
@@ -29,10 +31,12 @@ use affinidi_tdk::{
 use anyhow::{Context, Result, bail};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use console::{Term, style};
+use dialoguer::{Password, theme::ColorfulTheme};
 use ed25519_dalek_bip32::ExtendedSigningKey;
-use secrecy::SecretString;
-use sha2::Digest;
-use std::{collections::HashMap, sync::Arc};
+use secrecy::{ExposeSecret, SecretString};
+use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
+use std::{collections::HashMap, fs, sync::Arc};
 
 pub mod public_config;
 pub mod secured_config;
@@ -61,7 +65,9 @@ pub struct Config {
 
     // *********************************************
     // Temporary Config values
-    //
+    /// What protection method is being used for [SecuredConfig]
+    pub protection_method: ProtectionMethod,
+
     #[cfg(feature = "openpgp-card")]
     /// Hardware token Admin PIN
     pub token_admin_pin: AdminPin,
@@ -72,6 +78,16 @@ pub struct Config {
 
     /// Known contacts
     pub contacts: Contacts,
+
+    /// Unlock code if required
+    pub unlock_code: Option<[u8; 32]>,
+}
+
+/// Exported Configuration structure
+#[derive(Deserialize, Serialize)]
+pub struct ExportedConfig {
+    pub pc: PublicConfig,
+    pub sc: SecuredConfig,
 }
 
 /// Our public Community DID used to identify ourselves within the Linux Foundation ecosystem
@@ -86,12 +102,12 @@ pub struct CommunityDID {
 
 impl Config {
     /// Handles saving
-    pub fn save(&self, unlock_code: Option<&[u8; 32]>) -> Result<()> {
+    pub fn save(&self) -> Result<()> {
         let pc = PublicConfig::from(self);
         pc.save()?;
 
         let sc = SecuredConfig::from(self);
-        sc.save(self.public.token_id.as_ref(), unlock_code)?;
+        sc.save(self.public.token_id.as_ref(), self.unlock_code.as_ref())?;
 
         Ok(())
     }
@@ -164,6 +180,8 @@ impl Config {
             #[cfg(feature = "openpgp-card")]
             token_user_pin,
             contacts: sc.contacts.clone(),
+            protection_method: sc.protection_method.clone(),
+            unlock_code,
         })
     }
 
@@ -318,6 +336,66 @@ impl Config {
                 style("Created:").color256(CLI_BLUE),
                 style(v.create_time).color256(CLI_GREEN)
             );
+        }
+    }
+
+    /// Exports the configuration settings to an encrypted file
+    pub fn export(&self, passphrase: Option<SecretString>, file: &str) {
+        let pc = PublicConfig::from(self);
+        let sc = SecuredConfig::from(self);
+
+        let seed_bytes = if let Some(passphrase) = passphrase {
+            Sha256::digest(passphrase.expose_secret())
+                .first_chunk::<32>()
+                .expect("Couldn't get 32 bytes for passphrase hash")
+                .to_owned()
+        } else {
+            Sha256::digest(
+                Password::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Enter passphrase to encrypt exported configuration")
+                    .with_confirmation("Confirm passphrase", "Passphrases do not match")
+                    .interact()
+                    .expect("Failed to read passphrase"),
+            )
+            .first_chunk::<32>()
+            .expect("Couldn't get 32 bytes for passphrase hash")
+            .to_owned()
+        };
+
+        let secured = match unlock_code_encrypt(
+            &seed_bytes,
+            &serde_json::to_vec(&ExportedConfig { pc, sc })
+                .expect("Couldn't serialize Config settings"),
+        ) {
+            Ok(result) => result,
+            Err(e) => {
+                println!(
+                    "{}{}",
+                    style("ERROR: Couldn't encrypt settings. Reason: ").color256(CLI_RED),
+                    style(e).color256(CLI_ORANGE)
+                );
+                return;
+            }
+        };
+
+        match fs::write(file, BASE64_URL_SAFE_NO_PAD.encode(&secured)) {
+            Ok(_) => {
+                println!(
+                    "{}{}{}",
+                    style("Successfully exported settings to file(").color256(CLI_GREEN),
+                    style(file).color256(CLI_PURPLE),
+                    style(")").color256(CLI_GREEN)
+                );
+            }
+            Err(e) => {
+                println!(
+                    "{}{}{}{}",
+                    style("ERROR: Couldn't write to file (").color256(CLI_RED),
+                    style(file).color256(CLI_PURPLE),
+                    style(". Reason: ").color256(CLI_RED),
+                    style(e).color256(CLI_ORANGE)
+                );
+            }
         }
     }
 }

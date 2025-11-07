@@ -41,7 +41,7 @@ fn cli() -> Command {
     // Handles exporting various settings and information
     let export_subcommand = Command::new("export")
         .about("Export settings and other information")
-        .subcommand(
+        .subcommands([
     Command::new("pgp-keys").args([
                 Arg::new("passphrase")
                     .short('p')
@@ -54,7 +54,14 @@ fn cli() -> Command {
                     .value_name("first_name last_name <email@domain>")
             ])
             .about("Exports first set of keys used in your Community DID for Signing, Authentication and Decryption"),
-        )
+            Command::new("settings").args([
+                Arg::new("passphrase")
+                    .short('p')
+                    .long("passphrase")
+                    .help("Passphrase to lock the exported settings with"),
+                Arg::new("file").short('f').long("file").help("File to save settings to").default_value("export.lkmv"),
+            ]).about("Exports settings which can be imported into another lkmv installation")
+        ])
         .arg_required_else_help(true);
 
     // Contact management
@@ -225,6 +232,17 @@ async fn main() -> Result<()> {
                         false, // Not running in wizard mode
                     );
                 }
+                Some(("settings", sub_args)) => {
+                    // Export settings
+                    let passphrase = sub_args.get_one::<String>("passphrase");
+                    config.export(
+                        passphrase.map(|s| SecretString::new(s.to_string())),
+                        sub_args
+                            .get_one::<String>("file")
+                            .expect("Code error - file should has a default!")
+                            .as_str(),
+                    );
+                }
                 _ => {
                     println!(
                         "{} {}",
@@ -243,7 +261,7 @@ async fn main() -> Result<()> {
 
             if config.contacts.contacts_entry(tdk, args).await? {
                 // Need to save config
-                config.save(None)?;
+                config.save()?;
             }
         }
         _ => {
