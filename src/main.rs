@@ -128,7 +128,23 @@ fn cli() -> Command {
                 .help("If using unlock codes, can specify it here"),
         )
         .subcommand(Command::new("status").about("Displays status of the lkmv tool"))
-        .subcommand(Command::new("setup").about("Initial configuration of the lkmv tool"))
+        .subcommand(
+            Command::new("setup")
+                .about("Initial configuration of the lkmv tool")
+                .subcommand(
+                    Command::new("import").about("Import settings").args([
+                        Arg::new("file")
+                            .short('f')
+                            .long("file")
+                            .default_value("export.lkmv")
+                            .help("File containing exported settings"),
+                        Arg::new("passphrase")
+                            .short('p')
+                            .long("passphrase")
+                            .help("Passphrase to unlock the exported settings with"),
+                    ]),
+                ),
+        )
         .subcommands([export_subcommand, contacts_subcommand])
 }
 
@@ -204,17 +220,28 @@ async fn main() -> Result<()> {
             )
             .await;
         }
-        Some(("setup", _)) => match cli_setup(&term).await {
-            Ok(_) => {
-                println!(
-                    "\n{}",
-                    style("Setup completed successfully.").color256(CLI_GREEN)
+        Some(("setup", args)) => {
+            if let Some(args) = args.subcommand_matches("import") {
+                let passphrase = args.get_one::<String>("passphrase");
+                return Config::import(
+                    passphrase.map(|s| SecretString::new(s.to_string())),
+                    args.get_one::<String>("file")
+                        .expect("No file specified!")
+                        .as_ref(),
                 );
             }
-            Err(e) => {
-                eprintln!("Setup failed: {e}");
+            match cli_setup(&term).await {
+                Ok(_) => {
+                    println!(
+                        "\n{}",
+                        style("Setup completed successfully.").color256(CLI_GREEN)
+                    );
+                }
+                Err(e) => {
+                    eprintln!("Setup failed: {e}");
+                }
             }
-        },
+        }
         Some(("export", args)) => {
             let (tdk, config) = load(&term).await?;
 

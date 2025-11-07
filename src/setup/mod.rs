@@ -338,7 +338,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
 }
 
 /// Generates a sha256 hash of an unlock code if required
-fn create_unlock_code() -> Option<[u8; 32]> {
+pub fn create_unlock_code() -> Option<[u8; 32]> {
     println!("{}", style("NOTE: You are not using any hardware token. While secret information will be stored in your OS secure store where possible, it is best practice to protect this data with an unlock code.").color256(CLI_BLUE));
     println!("  {}", style("This unlock code is asked on application start so it can unlock secret configuration data required.").color256(CLI_BLUE));
 

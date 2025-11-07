@@ -15,12 +15,15 @@ use crate::{
     config::{
         public_config::PublicConfig,
         secured_config::{
-            KeyInfoConfig, KeySourceMaterial, ProtectionMethod, SecuredConfig, unlock_code_encrypt,
+            KeyInfoConfig, KeySourceMaterial, ProtectionMethod, SecuredConfig, unlock_code_decrypt,
+            unlock_code_encrypt,
         },
     },
     contacts::Contacts,
     get_unlock_code,
-    setup::{CommunityDIDKeys, KeyInfo, KeyPurpose, bip32_bip39::Bip32Extension},
+    setup::{
+        CommunityDIDKeys, KeyInfo, KeyPurpose, bip32_bip39::Bip32Extension, create_unlock_code,
+    },
 };
 use affinidi_tdk::{
     TDK,
@@ -397,5 +400,86 @@ impl Config {
                 );
             }
         }
+    }
+
+    /// Import previously exported configuration settings from an encrypted file
+    pub fn import(passphrase: Option<SecretString>, file: &str) -> Result<()> {
+        let content = match fs::read_to_string(file) {
+            Ok(content) => content,
+            Err(e) => {
+                println!(
+                    "{}{}{}{}",
+                    style("ERROR: Couldn't read from file (").color256(CLI_RED),
+                    style(file).color256(CLI_PURPLE),
+                    style(". Reason: ").color256(CLI_RED),
+                    style(e).color256(CLI_ORANGE)
+                );
+                bail!("File read error");
+            }
+        };
+
+        let decoded = match BASE64_URL_SAFE_NO_PAD.decode(content) {
+            Ok(decoded) => decoded,
+            Err(e) => {
+                println!(
+                    "{}{}{}",
+                    style("ERROR: Couldn't base64 decode file content. Reason: ").color256(CLI_RED),
+                    style(e).color256(CLI_ORANGE),
+                    style("")
+                );
+                bail!("base64 decoding error");
+            }
+        };
+
+        let seed_bytes = if let Some(passphrase) = passphrase {
+            Sha256::digest(passphrase.expose_secret())
+                .first_chunk::<32>()
+                .expect("Couldn't get 32 bytes for passphrase hash")
+                .to_owned()
+        } else {
+            Sha256::digest(
+                Password::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Enter passphrase to decrypt imported configuration")
+                    .interact()
+                    .expect("Failed to read passphrase"),
+            )
+            .first_chunk::<32>()
+            .expect("Couldn't get 32 bytes for passphrase hash")
+            .to_owned()
+        };
+
+        let decoded = unlock_code_decrypt(&seed_bytes, &decoded)?;
+
+        let config: ExportedConfig = match serde_json::from_slice(&decoded) {
+            Ok(config) => config,
+            Err(e) => {
+                println!(
+                    "{}{}",
+                    style("ERROR: Couldn't deserialize configuration settings. Reason: ")
+                        .color256(CLI_RED),
+                    style(e).color256(CLI_ORANGE)
+                );
+                bail!("deserialization error");
+            }
+        };
+
+        let passphrase = if config.pc.token_id.is_none() {
+            create_unlock_code()
+        } else {
+            None
+        };
+
+        config.pc.save().expect("Couldn't save Public Config");
+        config
+            .sc
+            .save(config.pc.token_id.as_ref(), passphrase.as_ref())
+            .expect("Couldn't save Public Config");
+
+        println!(
+            "{}",
+            style("Successfully imported lkmv configuration settings").color256(CLI_GREEN)
+        );
+
+        Ok(())
     }
 }
