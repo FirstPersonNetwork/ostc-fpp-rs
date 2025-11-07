@@ -4,12 +4,11 @@
 
 use crate::{
     config::Config,
-    contacts::contacts_entry,
     setup::{cli_setup, pgp_export::ask_export_community_did_keys},
 };
 use affinidi_tdk::{TDK, common::config::TDKConfigBuilder};
 use anyhow::{Result, bail};
-use clap::{Arg, Command};
+use clap::{Arg, ArgAction, Command};
 use console::{Term, style};
 use dialoguer::{Password, theme::ColorfulTheme};
 use secrecy::SecretString;
@@ -73,15 +72,39 @@ fn cli() -> Command {
                         .short('a')
                         .long("alias")
                         .help("Optional alias for the contact"),
+                    Arg::new("skip")
+                        .short('s')
+                        .long("skip")
+                        .default_value("true")
+                        .action(ArgAction::SetFalse)
+                        .help("Skip DID Checks"),
                 ])
-                .about("Add a new DID Contact")
+                .about("Add a new DID Contact (Will replace an existing contact if it exists)")
                 .arg_required_else_help(true),
         )
         .subcommand(
             Command::new("remove")
                 .about("Remove an existing DID Contact")
+                .group(
+                    clap::ArgGroup::new("remove-by")
+                        .args(["did", "alias"])
+                        .required(true)
+                        .multiple(false),
+                )
+                .args([
+                    Arg::new("did")
+                        .short('d')
+                        .long("did")
+                        .help("DID of the contact to remove")
+                        .required(true),
+                    Arg::new("alias")
+                        .short('a')
+                        .long("alias")
+                        .help("alias for the contact to remove"),
+                ])
                 .arg_required_else_help(true),
         )
+        .subcommand(Command::new("list").about("Lists all known contacts"))
         .arg_required_else_help(true);
 
     // Full CLI Set
@@ -218,7 +241,10 @@ async fn main() -> Result<()> {
         Some(("contacts", args)) => {
             let (tdk, mut config) = load(&term).await?;
 
-            contacts_entry(&term, tdk, &mut config, args).await?;
+            if config.contacts.contacts_entry(tdk, args).await? {
+                // Need to save config
+                config.save(None)?;
+            }
         }
         _ => {
             eprintln!("No valid subcommand was used. Use --help for more information.");
