@@ -14,7 +14,7 @@ use anyhow::Result;
 use console::{Term, style};
 
 /// Prints diagnostic status to STDOUT
-pub async fn print_status(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>) {
+pub async fn print_status(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>, profile: &str) {
     println!(
         "{}",
         style("Linux Kernel Maintainer Validation (LKMV) tool").color256(CLI_BLUE)
@@ -59,7 +59,7 @@ pub async fn print_status(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>)
     }
 
     // Load public config first to run some pre-checks
-    let pub_config = match PublicConfig::load() {
+    let pub_config = match PublicConfig::load(profile) {
         Ok(pc) => pc,
         Err(e) => {
             println!(
@@ -124,7 +124,7 @@ pub async fn print_status(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>)
     }
 
     // load config
-    let config = match Config::load(term, tdk, unlock_code).await {
+    let config = match Config::load(term, tdk, profile, unlock_code).await {
         Ok(cfg) => {
             println!(
                 "{} {}",

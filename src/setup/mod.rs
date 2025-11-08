@@ -9,6 +9,7 @@ use crate::{
         secured_config::{KeyInfoConfig, KeySourceMaterial, ProtectionMethod},
     },
     contacts::Contacts,
+    relationships::Relationships,
     setup::{
         bip32_bip39::{
             Bip32Extension, generate_bip39_mnemonic, get_bip32_root, mnemonic_from_recovery_phrase,
@@ -101,7 +102,7 @@ pub struct CommunityDIDKeys {
 }
 
 /// Sets up the CLI tool
-pub async fn cli_setup(term: &Term) -> Result<()> {
+pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
     println!(
         "{}",
         style("Initial setup of the lkmv tool").color256(CLI_GREEN)
@@ -228,11 +229,12 @@ pub async fn cli_setup(term: &Term) -> Result<()> {
         #[cfg(feature = "openpgp-card")]
         token_user_pin: UserPin::default(),
         contacts: Contacts::default(),
+        relationships: Relationships::default(),
         protection_method: ProtectionMethod::default(),
         unlock_code,
     };
 
-    config.save()?;
+    config.save(profile)?;
 
     Ok(())
 }

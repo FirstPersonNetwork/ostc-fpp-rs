@@ -140,13 +140,13 @@ impl Contacts {
     /// contact_did: DID of the contact to add
     /// alias: Optional alias for the contact
     /// check_did: Whether to check if the DID is valid
-    async fn add_contact(
+    pub async fn add_contact(
         &mut self,
         tdk: &TDK,
         contact_did: &str,
         alias: Option<String>,
         check_did: bool,
-    ) -> Result<()> {
+    ) -> Result<Rc<Contact>> {
         if check_did {
             match tdk.did_resolver().resolve(contact_did).await {
                 Ok(_) => {}
@@ -184,10 +184,10 @@ impl Contacts {
             .insert(contact_did.to_string(), contact.clone());
 
         if let Some(alias) = alias {
-            self.aliases.insert(alias, contact);
+            self.aliases.insert(alias, contact.clone());
         }
 
-        Ok(())
+        Ok(contact)
     }
 
     /// Removes a contact (by DID or Alias)
@@ -247,6 +247,16 @@ impl Contacts {
                 style(&contact.did).color256(CLI_PURPLE),
                 style(")").color256(CLI_BLUE),
             );
+        }
+    }
+
+    /// Finds a contact by alias or DID
+    /// will look for alias first, then DID
+    pub fn find_contact(&self, id: &str) -> Option<Rc<Contact>> {
+        if let Some(contact) = self.aliases.get(id) {
+            Some(contact.clone())
+        } else {
+            self.contacts.get(id).cloned()
         }
     }
 }

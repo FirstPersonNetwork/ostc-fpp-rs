@@ -21,6 +21,7 @@ use crate::{
     },
     contacts::Contacts,
     get_unlock_code,
+    relationships::Relationships,
     setup::{
         CommunityDIDKeys, KeyInfo, KeyPurpose, bip32_bip39::Bip32Extension, create_unlock_code,
     },
@@ -82,6 +83,9 @@ pub struct Config {
     /// Known contacts
     pub contacts: Contacts,
 
+    /// Relationships
+    pub relationships: Relationships,
+
     /// Unlock code if required
     pub unlock_code: Option<[u8; 32]>,
 }
@@ -105,22 +109,33 @@ pub struct CommunityDID {
 
 impl Config {
     /// Handles saving
-    pub fn save(&self) -> Result<()> {
+    /// profile: Configuration profile name to use
+    pub fn save(&self, profile: &str) -> Result<()> {
         let pc = PublicConfig::from(self);
-        pc.save()?;
+        pc.save(profile)?;
 
         let sc = SecuredConfig::from(self);
-        sc.save(self.public.token_id.as_ref(), self.unlock_code.as_ref())?;
+        sc.save(
+            profile,
+            self.public.token_id.as_ref(),
+            self.unlock_code.as_ref(),
+        )?;
 
         Ok(())
     }
 
     /// Loads Configuration from Public and Secured Configuration
-    /// -term: Console terminal manipulation
-    /// -tdk: Where secrets and config info will be stored
+    /// term: Console terminal manipulation
+    /// tdk: Where secrets and config info will be stored
+    /// profile: Configuration profile name to use
     /// unlock_code: Optional if passed in from command line
-    pub async fn load(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>) -> Result<Self> {
-        let pc = PublicConfig::load().context("Couldn't load Public Configuration")?;
+    pub async fn load(
+        term: &Term,
+        tdk: &mut TDK,
+        profile: &str,
+        unlock_code: Option<&str>,
+    ) -> Result<Self> {
+        let pc = PublicConfig::load(profile).context("Couldn't load Public Configuration")?;
 
         let unlock_code = if let Some(unlock_code) = unlock_code {
             Some(sha2::Sha256::digest(unlock_code.as_bytes()).into())
@@ -134,6 +149,7 @@ impl Config {
         let mut token_user_pin = UserPin::default();
         let sc = SecuredConfig::load(
             term,
+            profile,
             #[cfg(feature = "openpgp-card")]
             &mut token_user_pin,
             pc.token_id.as_ref(),
@@ -183,6 +199,7 @@ impl Config {
             #[cfg(feature = "openpgp-card")]
             token_user_pin,
             contacts: sc.contacts.clone(),
+            relationships: sc.relationships.clone().into(),
             protection_method: sc.protection_method.clone(),
             unlock_code,
         })
@@ -403,7 +420,7 @@ impl Config {
     }
 
     /// Import previously exported configuration settings from an encrypted file
-    pub fn import(passphrase: Option<SecretString>, file: &str) -> Result<()> {
+    pub fn import(passphrase: Option<SecretString>, file: &str, profile: &str) -> Result<()> {
         let content = match fs::read_to_string(file) {
             Ok(content) => content,
             Err(e) => {
@@ -469,10 +486,13 @@ impl Config {
             None
         };
 
-        config.pc.save().expect("Couldn't save Public Config");
+        config
+            .pc
+            .save(profile)
+            .expect("Couldn't save Public Config");
         config
             .sc
-            .save(config.pc.token_id.as_ref(), passphrase.as_ref())
+            .save(profile, config.pc.token_id.as_ref(), passphrase.as_ref())
             .expect("Couldn't save Public Config");
 
         println!(

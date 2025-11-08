@@ -10,7 +10,9 @@
 
 #[cfg(feature = "openpgp-card")]
 use crate::openpgp_card::ui::UserPin;
-use crate::{CLI_ORANGE, CLI_RED, config::Config, contacts::Contacts};
+use crate::{
+    CLI_ORANGE, CLI_RED, config::Config, contacts::Contacts, relationships::RelationshipsShadow,
+};
 use aes_gcm::{AeadCore, Aes256Gcm, KeyInit, aead::Aead};
 use anyhow::{Context, Result, bail};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
@@ -25,7 +27,6 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Constants for storing secure info in the OS Secure Store
 const SERVICE: &str = "lkmv";
-const USER: &str = "lkmv-secrets";
 
 /// Methods of protecting [SecuredConfig]
 #[derive(Clone, Debug, Default)]
@@ -160,6 +161,11 @@ pub struct SecuredConfig {
     #[zeroize(skip)]
     pub contacts: Contacts,
 
+    /// Relationships information
+    #[zeroize(skip)]
+    #[serde(default)]
+    pub relationships: RelationshipsShadow,
+
     #[serde(skip, default)]
     #[zeroize(skip)]
     pub protection_method: ProtectionMethod,
@@ -173,6 +179,7 @@ impl From<&Config> for SecuredConfig {
             key_info: cfg.key_info.clone(),
             contacts: cfg.contacts.clone(),
             protection_method: cfg.protection_method.clone(),
+            relationships: cfg.relationships.clone().into(),
         }
     }
 }
@@ -181,8 +188,13 @@ impl SecuredConfig {
     /// Internal private function that saves a SecuredConfig to the OS Secure Store
     /// Encrypts the secret info as needed based on token/unlock parameters
     /// Converts to BASE64 then saves to OS Secure Store
-    pub fn save(&self, token: Option<&String>, unlock: Option<&[u8; 32]>) -> Result<()> {
-        let entry = Entry::new(SERVICE, USER)?;
+    pub fn save(
+        &self,
+        profile: &str,
+        token: Option<&String>,
+        unlock: Option<&[u8; 32]>,
+    ) -> Result<()> {
+        let entry = Entry::new(SERVICE, profile)?;
 
         // Serialize SecuredConfig to byte array
         let input =
@@ -233,11 +245,12 @@ impl SecuredConfig {
     /// itself
     pub fn load(
         term: &Term,
+        profile: &str,
         #[cfg(feature = "openpgp-card")] user_pin: &mut UserPin,
         token: Option<&String>,
         unlock: Option<&[u8; 32]>,
     ) -> Result<Self> {
-        let entry = Entry::new(SERVICE, USER)?;
+        let entry = Entry::new(SERVICE, profile)?;
         let raw_secured_config: SecuredConfigFormat =
             match entry.get_secret() {
                 Ok(secret) => match serde_json::from_slice(secret.as_slice()) {

@@ -8,7 +8,7 @@ use console::style;
 use serde::{Deserialize, Serialize};
 use std::{env, fs, path::Path};
 
-/// Primary top-level structure used for storing [crate::config::Config] data that is not sensitive
+/// Primary structure used for storing [crate::config::Config] data that is not sensitive
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PublicConfig {
     /// Identifier for a hardware token if being used
@@ -34,13 +34,19 @@ impl From<&Config> for PublicConfig {
 }
 
 /// Private helper to determine where the config file is located
-fn get_config_path() -> Result<String> {
+fn get_config_path(profile: &str) -> Result<String> {
     if let Ok(config_path) = env::var("LKMV_CONFIG") {
         Ok(config_path)
     } else if let Some(home) = dirs::home_dir()
         && let Some(home_str) = home.to_str()
     {
-        Ok([home_str, "/.config/lkmv/config.json"].concat())
+        let f_name = if profile == "default" {
+            "config.json".to_string()
+        } else {
+            ["config-", profile, ".json"].concat()
+        };
+
+        Ok([home_str, "/.config/lkmv/", &f_name].concat())
     } else {
         bail!("Couldn't determine Home directory");
     }
@@ -49,8 +55,8 @@ fn get_config_path() -> Result<String> {
 impl PublicConfig {
     /// Saves to disk the public configuration information
     /// Uses the default CONFIG_PATH const or ENV Variable LKMV_CONFIG
-    pub fn save(&self) -> Result<()> {
-        let cfg_path = get_config_path()?;
+    pub fn save(&self, profile: &str) -> Result<()> {
+        let cfg_path = get_config_path(profile)?;
         let path = Path::new(&cfg_path);
 
         // Check that directory structure exists
@@ -69,8 +75,8 @@ impl PublicConfig {
 
     /// Loads from disk the public information for LKMV to unlock it's secrets from the OS Secure
     /// Store
-    pub fn load() -> Result<Self> {
-        let cfg_path = get_config_path()?;
+    pub fn load(profile: &str) -> Result<Self> {
+        let cfg_path = get_config_path(profile)?;
         let path = Path::new(&cfg_path);
 
         let file = fs::File::open(path).context(format!(

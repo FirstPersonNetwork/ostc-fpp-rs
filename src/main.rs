@@ -4,6 +4,7 @@
 
 use crate::{
     config::Config,
+    relationships::relationships_entry,
     setup::{cli_setup, pgp_export::ask_export_community_did_keys},
 };
 use affinidi_tdk::{TDK, common::config::TDKConfigBuilder};
@@ -21,6 +22,7 @@ mod contacts;
 mod messaging;
 #[cfg(feature = "openpgp-card")]
 mod openpgp_card;
+mod relationships;
 mod setup;
 mod status;
 
@@ -114,6 +116,37 @@ fn cli() -> Command {
         .subcommand(Command::new("list").about("Lists all known contacts"))
         .arg_required_else_help(true);
 
+    // Relationship management
+    let relationships_subcommand = Command::new("relationships")
+        .about("Manage relationships")
+        .subcommand(
+            Command::new("request")
+                .args([
+                    Arg::new("respondent")
+                        .short('d')
+                        .long("respondent")
+                        .help("Contact alias or DID of the respondent to this relationship request")
+                        .required(true),
+                    Arg::new("alias")
+                        .short('a')
+                        .long("alias")
+                        .help("Optional alias for the respondent DID"),
+                    Arg::new("reason")
+                        .short('r')
+                        .long("reason")
+                        .help("Optional Reason for requesting relationship"),
+                    Arg::new("generate-did")
+                        .short('g')
+                        .long("generate-did")
+                        .help("Generate a new local relationship DID for this relationship request")
+                        .default_value("true")
+                        .action(ArgAction::SetFalse),
+                ])
+                .about("Request a new relationship")
+                .arg_required_else_help(true),
+        )
+        .arg_required_else_help(true);
+
     // Full CLI Set
     Command::new("lkmv")
         .about("Linux Kernel Maintainer Verification")
@@ -121,12 +154,17 @@ fn cli() -> Command {
         .arg_required_else_help(true)
         .allow_external_subcommands(true)
         .subcommand_required(true)
-        .arg(
+        .args([
             Arg::new("unlock-code")
                 .short('u')
                 .long("unlock-code")
                 .help("If using unlock codes, can specify it here"),
-        )
+            Arg::new("profile")
+                .short('p')
+                .long("profile")
+                .help("Config profile to use")
+                .default_value("default"),
+        ])
         .subcommand(Command::new("status").about("Displays status of the lkmv tool"))
         .subcommand(
             Command::new("setup")
@@ -145,7 +183,11 @@ fn cli() -> Command {
                     ]),
                 ),
         )
-        .subcommands([export_subcommand, contacts_subcommand])
+        .subcommands([
+            export_subcommand,
+            contacts_subcommand,
+            relationships_subcommand,
+        ])
 }
 
 // Handles initial setup and configuration of the CLI tool
@@ -161,7 +203,7 @@ fn initialize(term: &Term) {
 
 /// Loads lkmv with Trust Development Kit (TDK) and Config
 /// This does not need to be called for setup!
-async fn load(term: &Term) -> Result<(TDK, Config)> {
+async fn load(term: &Term, profile: &str) -> Result<(TDK, Config)> {
     // Instantiate the TDK
     let mut tdk = TDK::new(
         TDKConfigBuilder::new()
@@ -174,6 +216,7 @@ async fn load(term: &Term) -> Result<(TDK, Config)> {
     let config = match Config::load(
         term,
         &mut tdk,
+        profile,
         cli()
             .get_matches()
             .get_one::<String>("unlock-code")
@@ -199,6 +242,13 @@ async fn load(term: &Term) -> Result<(TDK, Config)> {
 async fn main() -> Result<()> {
     let term = Term::stdout();
 
+    // Which configuration profile to use?
+    let profile = cli()
+        .get_matches()
+        .get_one::<String>("profile")
+        .unwrap_or(&"default".to_string())
+        .to_string();
+
     initialize(&term);
 
     match cli().get_matches().subcommand() {
@@ -217,6 +267,7 @@ async fn main() -> Result<()> {
                     .get_matches()
                     .get_one::<String>("unlock-code")
                     .map(|s| s.as_str()),
+                &profile,
             )
             .await;
         }
@@ -228,9 +279,10 @@ async fn main() -> Result<()> {
                     args.get_one::<String>("file")
                         .expect("No file specified!")
                         .as_ref(),
+                    &profile,
                 );
             }
-            match cli_setup(&term).await {
+            match cli_setup(&term, &profile).await {
                 Ok(_) => {
                     println!(
                         "\n{}",
@@ -243,7 +295,7 @@ async fn main() -> Result<()> {
             }
         }
         Some(("export", args)) => {
-            let (tdk, config) = load(&term).await?;
+            let (tdk, config) = load(&term, &profile).await?;
 
             match args.subcommand() {
                 Some(("pgp-keys", sub_args)) => {
@@ -284,12 +336,17 @@ async fn main() -> Result<()> {
             }
         }
         Some(("contacts", args)) => {
-            let (tdk, mut config) = load(&term).await?;
+            let (tdk, mut config) = load(&term, &profile).await?;
 
             if config.contacts.contacts_entry(tdk, args).await? {
                 // Need to save config
-                config.save()?;
+                config.save(&profile)?;
             }
+        }
+        Some(("relationships", args)) => {
+            let (tdk, mut config) = load(&term, &profile).await?;
+
+            relationships_entry(tdk, &mut config, &profile, args).await?;
         }
         _ => {
             eprintln!("No valid subcommand was used. Use --help for more information.");
