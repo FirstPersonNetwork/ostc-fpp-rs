@@ -48,6 +48,7 @@ sha2 = "0.10"
 tokio = "1.48"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2.5"
+uuid = { version = "1.18", features = ["v4", "fast-rng"] }
 x25519-dalek = { version = "2.0", features = ["static_secrets"] }
 zeroize = "1.8"
 

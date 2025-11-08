@@ -2,11 +2,24 @@
 *    Handles relationship requests
 */
 
-use affinidi_tdk::TDK;
-use anyhow::{Result, bail};
-use console::style;
+use std::time::SystemTime;
 
 use crate::{CLI_RED, config::Config};
+use affinidi_tdk::{TDK, didcomm::Message};
+use anyhow::{Result, bail};
+use console::style;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
+use uuid::Uuid;
+
+// ****************************************************************************
+// Message body format structs
+// ****************************************************************************
+
+#[derive(Serialize, Deserialize)]
+struct RelationshipRequestBody {
+    reason: Option<String>,
+}
 
 /// Creates a new Relationship Request and
 /// tdk: Trust Development Kit instance
@@ -23,10 +36,8 @@ pub async fn create_request(
     reason: Option<&str>,
     generate_did: bool,
 ) -> Result<()> {
-    println!("TIMTAM: {}", respondent);
     // Check if the remote DID exists in contacts
     let contact = if let Some(contact) = config.contacts.find_contact(respondent) {
-        println!("TIMTAM: FOUND",);
         contact
     } else {
         // Create a new contact
@@ -46,7 +57,33 @@ pub async fn create_request(
             bail!("Not a valid DID");
         }
     };
-    println!("TIMTAM: FINAL");
+
+    // Create the Relationship Request Message
+    let msg = create_message_request(&config.public.community_did, &contact.did, reason)?;
+
+    println!("DEBUG: Relationship request\n{:#?}", msg);
 
     Ok(())
+}
+
+fn create_message_request(from: &str, to: &str, reason: Option<&str>) -> Result<Message> {
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    let message = Message::build(
+        Uuid::new_v4().into(),
+        "https://linuxfoundation.org/lkmv/1.0/relationship-request".to_string(),
+        json!(RelationshipRequestBody {
+            reason: reason.map(|r| r.to_string())
+        }),
+    )
+    .from(from.to_string())
+    .to(to.to_string())
+    .created_time(now)
+    .expires_time(60 * 60 * 48) // 48 hours
+    .finalize();
+
+    Ok(message)
 }
