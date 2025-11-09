@@ -10,7 +10,12 @@ use crate::{
     },
     relationships::request::create_request,
 };
-use affinidi_tdk::{TDK, did_peer::DIDPeerKeys, dids::DID, secrets_resolver::secrets::Secret};
+use affinidi_tdk::{
+    TDK,
+    did_peer::DIDPeerKeys,
+    dids::DID,
+    secrets_resolver::{SecretsResolver, secrets::Secret},
+};
 use anyhow::{Result, bail};
 use chrono::{DateTime, Utc};
 use clap::ArgMatches;
@@ -171,7 +176,11 @@ pub async fn relationships_entry(
 
 /// Creates a random did:peer DID representing a relationship DID
 /// Add the keys used to the Configuration (you need to save config elsewhere after this)
-pub fn create_relationship_did(config: &mut Config, mediator: &str) -> Result<String> {
+pub async fn create_relationship_did(
+    tdk: &TDK,
+    config: &mut Config,
+    mediator: &str,
+) -> Result<String> {
     // Derive a key path
     let v_path = [
         "m/1'/1'/1'/",
@@ -231,6 +240,16 @@ pub fn create_relationship_did(config: &mut Config, mediator: &str) -> Result<St
             purpose: KeyTypes::RelationshipEncryption,
         },
     );
+
+    // Add the secrets to the TDK secret resolver
+    tdk.get_shared_state()
+        .secrets_resolver
+        .insert(v_secret)
+        .await;
+    tdk.get_shared_state()
+        .secrets_resolver
+        .insert(e_secret)
+        .await;
 
     Ok(r_did)
 }

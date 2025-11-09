@@ -2,13 +2,20 @@
 *    Handles relationship requests
 */
 
-use std::time::SystemTime;
+use std::{rc::Rc, time::SystemTime};
 
 use crate::{
-    CLI_GREEN, CLI_PURPLE, CLI_RED, config::Config, relationships::create_relationship_did,
+    CLI_GREEN, CLI_PURPLE, CLI_RED,
+    config::Config,
+    relationships::{Relationship, RelationshipState, create_relationship_did},
 };
-use affinidi_tdk::{TDK, didcomm::Message};
+use affinidi_tdk::{
+    TDK,
+    didcomm::{Message, PackEncryptedOptions},
+    messaging::profiles::ATMProfile,
+};
 use anyhow::{Result, bail};
+use chrono::Utc;
 use console::style;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
@@ -23,7 +30,7 @@ struct RelationshipRequestBody {
     reason: Option<String>,
 }
 
-/// Creates a new Relationship Request and
+/// Creates a new Relationship Request and send it to the remote party
 /// tdk: Trust Development Kit instance
 /// config: mutable reference to the configuration
 /// respondent: the remote alias or DID to create a relationship with
@@ -60,10 +67,13 @@ pub async fn create_request(
         }
     };
 
+    // Send the message
+    let atm = tdk.atm.clone().unwrap();
+
     // is a local relationship-did needed?
-    let our_did = if generate_did {
+    let (our_did, our_profile) = if generate_did {
         let mediator = config.public.mediator_did.clone();
-        let r_did = create_relationship_did(config, &mediator)?;
+        let r_did = create_relationship_did(&tdk, config, &mediator).await?;
         println!(
             "{}{}{}{}",
             style("Generated new Relationship DID for contact ").color256(CLI_GREEN),
@@ -71,15 +81,62 @@ pub async fn create_request(
             style(" :: ").color256(CLI_GREEN),
             style(&r_did).color256(CLI_PURPLE)
         );
-        r_did
+        let profile = ATMProfile::new(&atm, None, r_did.clone(), Some(mediator)).await?;
+        (r_did, atm.profile_add(&profile, false).await?)
     } else {
-        config.public.community_did.clone()
+        (
+            config.public.community_did.clone(),
+            config.community_did.profile.clone(),
+        )
     };
 
     // Create the Relationship Request Message
     let msg = create_message_request(&our_did, &contact.did, reason)?;
 
-    println!("DEBUG: Relationship request\n{:#?}", msg);
+    // Pack the message
+    let (msg, _) = msg
+        .pack_encrypted(
+            &contact.did,
+            Some(&our_did),
+            Some(&our_did),
+            tdk.did_resolver(),
+            &tdk.get_shared_state().secrets_resolver,
+            &PackEncryptedOptions {
+                forward: false,
+                ..Default::default()
+            },
+        )
+        .await?;
+
+    atm.forward_and_send_message(
+        &our_profile,
+        false,
+        &msg,
+        None,
+        &contact.did,
+        &config.public.mediator_did,
+        None,
+        None,
+        false,
+    )
+    .await?;
+
+    config.relationships.relationships.insert(
+        contact.did.clone(),
+        Rc::new(Relationship {
+            our_did: Rc::new(our_did.clone()),
+            remote_did: contact.did.clone(),
+            created: Utc::now(),
+            state: RelationshipState::RequestSent,
+        }),
+    );
+
+    println!();
+    println!(
+        "{}{}",
+        style("✅ Succesfully sent Relationship Request to ").color256(CLI_GREEN),
+        style(&contact.did).color256(CLI_PURPLE)
+    );
 
     Ok(())
 }

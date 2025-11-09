@@ -14,7 +14,7 @@ use std::{collections::HashMap, rc::Rc};
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Contact {
     /// DID representing the contact
-    pub did: String,
+    pub did: Rc<String>,
 
     /// Optional alias for the DID
     pub alias: Option<String>,
@@ -30,7 +30,7 @@ pub struct Contact {
 #[serde(from = "ContactsShadow")]
 pub struct Contacts {
     /// Contacts with key being DID
-    pub contacts: HashMap<String, Rc<Contact>>,
+    pub contacts: HashMap<Rc<String>, Rc<Contact>>,
 
     /// Helps with finding a DID by it's alias
     #[serde(skip)]
@@ -162,6 +162,8 @@ impl Contacts {
             }
         }
 
+        let contact_did = Rc::new(contact_did.to_string());
+
         if let Some(alias) = &alias
             && self.aliases.contains_key(alias)
         {
@@ -176,12 +178,11 @@ impl Contacts {
         }
 
         let contact = Rc::new(Contact {
-            did: contact_did.to_string(),
+            did: contact_did.clone(),
             alias: alias.clone(),
         });
 
-        self.contacts
-            .insert(contact_did.to_string(), contact.clone());
+        self.contacts.insert(contact_did, contact.clone());
 
         if let Some(alias) = alias {
             self.aliases.insert(alias, contact.clone());
@@ -256,7 +257,8 @@ impl Contacts {
         if let Some(contact) = self.aliases.get(id) {
             Some(contact.clone())
         } else {
-            self.contacts.get(id).cloned()
+            #[allow(clippy::unnecessary_to_owned)] // Because using RC's
+            self.contacts.get(&(id.to_string())).cloned()
         }
     }
 }
@@ -264,7 +266,7 @@ impl Contacts {
 /// Private Shadow struct to help with deserializing Contacts and recreating the aliases map
 #[derive(Deserialize)]
 struct ContactsShadow {
-    contacts: HashMap<String, Rc<Contact>>,
+    contacts: HashMap<Rc<String>, Rc<Contact>>,
 }
 
 impl From<ContactsShadow> for Contacts {
