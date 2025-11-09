@@ -40,6 +40,9 @@ pub struct Relationships {
 
     /// Mapping relationships by our R-DIDs
     pub r_map: HashMap<Rc<String>, Vec<HashSet<Rc<Relationship>>>>,
+
+    /// latest BIP32 path pointer to use for new keys
+    pub path_pointer: u32,
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -59,8 +62,10 @@ pub struct Relationship {
 
 /// Used to serialize the more complex Relationships structure to SecuredConfig
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
+#[serde(default)]
 pub struct RelationshipsShadow {
     pub relationships: Vec<Rc<Relationship>>,
+    pub path_pointer: u32,
 }
 
 impl From<Relationships> for RelationshipsShadow {
@@ -70,7 +75,10 @@ impl From<Relationships> for RelationshipsShadow {
             .values()
             .cloned()
             .collect::<Vec<Rc<Relationship>>>();
-        RelationshipsShadow { relationships }
+        RelationshipsShadow {
+            relationships,
+            path_pointer: value.path_pointer,
+        }
     }
 }
 
@@ -91,6 +99,7 @@ impl From<RelationshipsShadow> for Relationships {
         Relationships {
             relationships,
             r_map,
+            path_pointer: value.path_pointer,
         }
     }
 }

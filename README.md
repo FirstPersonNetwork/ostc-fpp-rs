@@ -53,3 +53,13 @@ You can check the status/health of your environment with the following command:
 ```bash
 lkmv status
 ```
+
+## LKMV Commands
+
+|    Command    | Description                             |
+| :-----------: | --------------------------------------- |
+|     setup     | Run the setup wizard                    |
+|    status     | Prints LKMV status information          |
+|    export     | Exports various pieces of information   |
+|   contacts    | Known contacts of other entities        |
+| relationships | Managing relationships between contacts |
