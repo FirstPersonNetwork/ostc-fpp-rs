@@ -58,6 +58,8 @@ pub async fn create_request(
         }
     };
 
+    // is a local relationship-did needed?
+
     // Create the Relationship Request Message
     let msg = create_message_request(&config.public.community_did, &contact.did, reason)?;
 

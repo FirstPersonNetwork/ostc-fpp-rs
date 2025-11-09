@@ -277,9 +277,9 @@ dependencies = [
 
 [[package]]
 name = "affinidi-tdk"
-version = "0.2.6"
+version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "42efb0e21232e7d624d8f4f9cccb9cc0ef5a71f27de8b82fa1e1f9e582816cac"
+checksum = "647e30a0665c60bd86c53413799714de0142e740fb8bd8af08751de78f891724"
 dependencies = [
  "affinidi-did-authentication",
  "affinidi-did-common",

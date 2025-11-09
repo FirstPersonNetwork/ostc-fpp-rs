@@ -35,26 +35,30 @@ impl From<&Config> for PublicConfig {
 
 /// Private helper to determine where the config file is located
 fn get_config_path(profile: &str) -> Result<String> {
-    if let Ok(config_path) = env::var("LKMV_CONFIG") {
-        Ok(config_path)
+    let path = if let Ok(config_path) = env::var("LKMV_CONFIG_PATH") {
+        if config_path.ends_with('/') {
+            config_path
+        } else {
+            [&config_path, "/"].concat()
+        }
     } else if let Some(home) = dirs::home_dir()
         && let Some(home_str) = home.to_str()
     {
-        let f_name = if profile == "default" {
-            "config.json".to_string()
-        } else {
-            ["config-", profile, ".json"].concat()
-        };
-
-        Ok([home_str, "/.config/lkmv/", &f_name].concat())
+        [home_str, "/.config/lkmv/"].concat()
     } else {
         bail!("Couldn't determine Home directory");
+    };
+
+    if profile == "default" {
+        Ok([&path, "config.json"].concat())
+    } else {
+        Ok([&path, "config-", profile, ".json"].concat())
     }
 }
 
 impl PublicConfig {
     /// Saves to disk the public configuration information
-    /// Uses the default CONFIG_PATH const or ENV Variable LKMV_CONFIG
+    /// Uses the default CONFIG_PATH const or ENV Variable LKMV_CONFIG_PATH
     pub fn save(&self, profile: &str) -> Result<()> {
         let cfg_path = get_config_path(profile)?;
         let path = Path::new(&cfg_path);

@@ -147,3 +147,15 @@ pub async fn relationships_entry(
 
     Ok(())
 }
+
+// ****************************************************************************
+// Create relationship DID (random DID:PEER)
+// ****************************************************************************
+
+/// Creates a random did:peer DID representing a relationship DID
+/// Add the keys used to the Configuration (you need to save config elsewhere after this)
+pub fn create_relationship_did(config: &mut Config, mediator: &str) -> Result<String> {
+    // Derive a key path
+
+    todo!("Need to finish");
+}

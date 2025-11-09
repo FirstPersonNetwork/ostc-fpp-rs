@@ -2,6 +2,8 @@
 *
 */
 
+use std::env;
+
 use crate::{
     config::Config,
     relationships::relationships_entry,
@@ -243,11 +245,32 @@ async fn main() -> Result<()> {
     let term = Term::stdout();
 
     // Which configuration profile to use?
-    let profile = cli()
-        .get_matches()
-        .get_one::<String>("profile")
-        .unwrap_or(&"default".to_string())
-        .to_string();
+    let profile = if let Ok(profile) = env::var("LKMV_CONFIG_PROFILE") {
+        // ENV Profile will override the CLI Argument
+        if cli()
+            .get_matches()
+            .get_one::<String>("profile")
+            .unwrap_or(&"default".to_string())
+            .to_string()
+            != profile
+        {
+            println!("{}", 
+                style("WARNING: Using both ENV LKMV_CONFIG_PROFILE and CLI profile! These do not match!").color256(CLI_ORANGE)
+            );
+            println!(
+                "{} {}",
+                style("WARNING: Using ENV Profile:").color256(CLI_ORANGE),
+                style(&profile).color256(CLI_PURPLE)
+            );
+        }
+        profile
+    } else {
+        cli()
+            .get_matches()
+            .get_one::<String>("profile")
+            .unwrap_or(&"default".to_string())
+            .to_string()
+    };
 
     initialize(&term);
 

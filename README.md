@@ -7,7 +7,11 @@
 1. Rust version 1.88 or higher (Install [Rust](https://rust-lang.org/learn/get-started/)
    if needed)
 2. Set any environment variables as needed
-   - `LKMV_CONFIG`: Path to lkmv configuration file (default: ~/.config/lkmv/config.json)
+   - `LKMV_CONFIG_PATH`: Path to lkmv configuration files (default:
+     ~/.config/lkmv/\<profile configs\>)
+   - `LKMV_CONFIG_PROFILE`: Set a specific configuration profile (defaults to `default`)
+     - **_NOTE:_** The ENV `LKMV_CONFIG_PROFILE` will override any profile set with
+       the CLI
 
 ## Rust Feature Flags
 
