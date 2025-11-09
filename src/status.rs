@@ -168,7 +168,7 @@ pub async fn print_status(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>,
             let _ = term.show_cursor();
             println!(
                 " {}{}{}",
-                style("✅ Successfull ping/pong. Latency: ").color256(CLI_GREEN),
+                style("✅ Successfull ping/pong. RTT: ").color256(CLI_GREEN),
                 style(end.duration_since(start).unwrap().as_millis()).color256(CLI_GREEN),
                 style("ms").color256(CLI_GREEN)
             );

@@ -4,7 +4,9 @@
 
 use std::time::SystemTime;
 
-use crate::{CLI_RED, config::Config};
+use crate::{
+    CLI_GREEN, CLI_PURPLE, CLI_RED, config::Config, relationships::create_relationship_did,
+};
 use affinidi_tdk::{TDK, didcomm::Message};
 use anyhow::{Result, bail};
 use console::style;
@@ -59,9 +61,23 @@ pub async fn create_request(
     };
 
     // is a local relationship-did needed?
+    let our_did = if generate_did {
+        let mediator = config.public.mediator_did.clone();
+        let r_did = create_relationship_did(config, &mediator)?;
+        println!(
+            "{}{}{}{}",
+            style("Generated new Relationship DID for contact ").color256(CLI_GREEN),
+            style(contact.alias.as_deref().unwrap_or(&contact.did)).color256(CLI_PURPLE),
+            style(" :: ").color256(CLI_GREEN),
+            style(&r_did).color256(CLI_PURPLE)
+        );
+        r_did
+    } else {
+        config.public.community_did.clone()
+    };
 
     // Create the Relationship Request Message
-    let msg = create_message_request(&config.public.community_did, &contact.did, reason)?;
+    let msg = create_message_request(&our_did, &contact.did, reason)?;
 
     println!("DEBUG: Relationship request\n{:#?}", msg);
 

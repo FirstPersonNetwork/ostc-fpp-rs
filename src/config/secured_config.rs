@@ -11,7 +11,10 @@
 #[cfg(feature = "openpgp-card")]
 use crate::openpgp_card::ui::UserPin;
 use crate::{
-    CLI_ORANGE, CLI_RED, config::Config, contacts::Contacts, relationships::RelationshipsShadow,
+    CLI_ORANGE, CLI_RED,
+    config::{Config, KeyTypes},
+    contacts::Contacts,
+    relationships::RelationshipsShadow,
 };
 use aes_gcm::{AeadCore, Aes256Gcm, KeyInit, aead::Aead};
 use anyhow::{Context, Result, bail};
@@ -297,6 +300,10 @@ pub struct KeyInfoConfig {
     /// When wss this key first created?
     #[zeroize(skip)] // chrono doesn't support zeroize
     pub create_time: DateTime<Utc>,
+
+    #[zeroize(skip)]
+    #[serde(default)]
+    pub purpose: KeyTypes,
 }
 /// Where did the source for the Key Material come from?
 #[derive(Clone, Serialize, Deserialize, Debug, Zeroize, ZeroizeOnDrop)]

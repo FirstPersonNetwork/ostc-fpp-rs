@@ -40,7 +40,7 @@ use ed25519_dalek_bip32::ExtendedSigningKey;
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::{collections::HashMap, fs, sync::Arc};
+use std::{collections::HashMap, fmt::Display, fs, sync::Arc};
 
 pub mod public_config;
 pub mod secured_config;
@@ -350,13 +350,22 @@ impl Config {
         println!("{}", style("Configured Keys:").color256(CLI_BLUE));
         for (k, v) in &self.key_info {
             println!(
-                "  {} {} {} {}",
+                "  {} {}\n    {} {} {} {}",
                 style("Key #id:").color256(CLI_BLUE),
-                style(k).color256(CLI_GREEN),
+                style(k).color256(CLI_PURPLE),
+                style("Purpose:").color256(CLI_BLUE),
+                style(&v.purpose).color256(CLI_GREEN),
                 style("Created:").color256(CLI_BLUE),
                 style(v.create_time).color256(CLI_GREEN)
             );
+            println!();
         }
+
+        println!(
+            "{} {}",
+            style("Relationships path pointer: ").color256(CLI_BLUE),
+            style(self.relationships.path_pointer).color256(CLI_GREEN)
+        );
     }
 
     /// Exports the configuration settings to an encrypted file
@@ -501,5 +510,39 @@ impl Config {
         );
 
         Ok(())
+    }
+}
+
+// ****************************************************************************
+// Key Types
+// ****************************************************************************
+
+/// Key Types used within lkmv
+#[derive(Clone, Serialize, Default, Deserialize, Debug)]
+pub enum KeyTypes {
+    CommunitySigning,
+    CommunityAuthentication,
+    CommunityEncryption,
+    CommunityOther,
+    RelationshipVerification,
+    RelationshipEncryption,
+    WebVHManagement,
+    #[default]
+    Unknown,
+}
+
+impl Display for KeyTypes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            KeyTypes::CommunitySigning => "Community Signing Key",
+            KeyTypes::CommunityAuthentication => "Community Authentication Key",
+            KeyTypes::CommunityEncryption => "Community Encryption Key",
+            KeyTypes::CommunityOther => "Community Other Key",
+            KeyTypes::RelationshipVerification => "Relationship Verification Key",
+            KeyTypes::RelationshipEncryption => "Relationship Encryption Key",
+            KeyTypes::WebVHManagement => "Web VH Management Key",
+            KeyTypes::Unknown => "Unknown Key Type",
+        };
+        write!(f, "{}", s)
     }
 }

@@ -2,17 +2,22 @@
 *   Relationship Management
 */
 
-use crate::{CLI_ORANGE, CLI_RED, config::Config, relationships::request::create_request};
-use affinidi_tdk::TDK;
+use crate::{
+    CLI_ORANGE, CLI_RED,
+    config::{
+        Config, KeyTypes,
+        secured_config::{KeyInfoConfig, KeySourceMaterial},
+    },
+    relationships::request::create_request,
+};
+use affinidi_tdk::{TDK, did_peer::DIDPeerKeys, dids::DID, secrets_resolver::secrets::Secret};
 use anyhow::{Result, bail};
 use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use console::style;
+use ed25519_dalek_bip32::DerivationPath;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::{HashMap, HashSet},
-    rc::Rc,
-};
+use std::{collections::HashMap, rc::Rc};
 
 mod request;
 
@@ -38,9 +43,10 @@ pub struct Relationships {
     /// Mapping relationships by the remote R-DID
     pub relationships: HashMap<Rc<String>, Rc<Relationship>>,
 
+    /*
     /// Mapping relationships by our R-DIDs
     pub r_map: HashMap<Rc<String>, Vec<HashSet<Rc<Relationship>>>>,
-
+    */
     /// latest BIP32 path pointer to use for new keys
     pub path_pointer: u32,
 }
@@ -85,20 +91,22 @@ impl From<Relationships> for RelationshipsShadow {
 impl From<RelationshipsShadow> for Relationships {
     fn from(value: RelationshipsShadow) -> Self {
         let mut relationships: HashMap<Rc<String>, Rc<Relationship>> = HashMap::new();
-        let mut r_map: HashMap<Rc<String>, Vec<HashSet<Rc<Relationship>>>> = HashMap::new();
+        //let mut r_map: HashMap<Rc<String>, Vec<HashSet<Rc<Relationship>>>> = HashMap::new();
 
         for relationship in value.relationships {
             relationships.insert(relationship.remote_did.clone(), relationship.clone());
 
-            r_map
-                .entry(relationship.our_did.clone())
-                .or_default()
-                .push(HashSet::from([relationship.clone()]));
+            /*
+                        r_map
+                            .entry(relationship.our_did.clone())
+                            .or_default()
+                            .push(HashSet::from([relationship.clone()]));
+            */
         }
 
         Relationships {
             relationships,
-            r_map,
+            //r_map,
             path_pointer: value.path_pointer,
         }
     }
@@ -165,6 +173,64 @@ pub async fn relationships_entry(
 /// Add the keys used to the Configuration (you need to save config elsewhere after this)
 pub fn create_relationship_did(config: &mut Config, mediator: &str) -> Result<String> {
     // Derive a key path
+    let v_path = [
+        "m/1'/1'/1'/",
+        config.relationships.path_pointer.to_string().as_str(),
+        "'",
+    ]
+    .concat();
+    config.relationships.path_pointer += 1;
+    let e_path = [
+        "m/1'/1'/1'/",
+        config.relationships.path_pointer.to_string().as_str(),
+        "'",
+    ]
+    .concat();
+    config.relationships.path_pointer += 1;
 
-    todo!("Need to finish");
+    let v_key = config
+        .bip32_root
+        .derive(&v_path.parse::<DerivationPath>()?)?;
+    let e_key = config
+        .bip32_root
+        .derive(&e_path.parse::<DerivationPath>()?)?;
+
+    let mut v_secret = Secret::generate_ed25519(None, Some(v_key.signing_key.as_bytes()));
+    let mut e_secret = Secret::generate_x25519(None, Some(e_key.signing_key.as_bytes()))?;
+
+    let mut keys = vec![
+        (DIDPeerKeys::Verification, &mut v_secret),
+        (DIDPeerKeys::Encryption, &mut e_secret),
+    ];
+    let r_did = match DID::generate_did_peer_from_secrets(&mut keys, Some(mediator.to_string())) {
+        Ok(did) => did,
+        Err(e) => {
+            println!(
+                "{} {}",
+                style("ERROR: Failed to create relationship DID:").color256(CLI_RED),
+                style(e.to_string()).color256(CLI_ORANGE)
+            );
+            bail!("Failed to create relationship DID");
+        }
+    };
+
+    // Add the secrets to the config
+    config.key_info.insert(
+        v_secret.id.clone(),
+        KeyInfoConfig {
+            path: KeySourceMaterial::Derived { path: v_path },
+            create_time: Utc::now(),
+            purpose: KeyTypes::RelationshipVerification,
+        },
+    );
+    config.key_info.insert(
+        e_secret.id.clone(),
+        KeyInfoConfig {
+            path: KeySourceMaterial::Derived { path: e_path },
+            create_time: Utc::now(),
+            purpose: KeyTypes::RelationshipEncryption,
+        },
+    );
+
+    Ok(r_did)
 }

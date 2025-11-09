@@ -4,7 +4,7 @@
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_PURPLE, LF_PUBLIC_MEDIATOR_DID,
     config::{
-        CommunityDID, Config,
+        CommunityDID, Config, KeyTypes,
         public_config::PublicConfig,
         secured_config::{KeyInfoConfig, KeySourceMaterial, ProtectionMethod},
     },
@@ -177,6 +177,7 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
         KeyInfoConfig {
             path: c_did_keys.signing.source.clone(),
             create_time: c_did_keys.signing.created,
+            purpose: KeyTypes::CommunitySigning,
         },
     );
     key_info.insert(
@@ -184,6 +185,7 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
         KeyInfoConfig {
             path: c_did_keys.authentication.source.clone(),
             create_time: c_did_keys.authentication.created,
+            purpose: KeyTypes::CommunityAuthentication,
         },
     );
     key_info.insert(
@@ -191,6 +193,7 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
         KeyInfoConfig {
             path: c_did_keys.decryption.source.clone(),
             create_time: c_did_keys.decryption.created,
+            purpose: KeyTypes::CommunityEncryption,
         },
     );
 
