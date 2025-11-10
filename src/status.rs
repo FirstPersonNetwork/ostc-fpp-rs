@@ -147,8 +147,8 @@ pub async fn print_status(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>,
 
     // Are the DIDComm mediators working?
     println!();
-    println!("{}", style("DIDComm Messaging").color256(CLI_BLUE));
-    println!("{}", style("=================").color256(CLI_BLUE));
+    println!("{}", style("DIDComm Messaging").bold().color256(CLI_BLUE));
+    println!("{}", style("=================").bold().color256(CLI_BLUE));
     println!(
         "{} {}",
         style("Public Mediator DID:").color256(CLI_BLUE),

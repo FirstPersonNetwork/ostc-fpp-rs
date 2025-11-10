@@ -125,6 +125,7 @@ pub async fn create_request(
         contact.did.clone(),
         Rc::new(Relationship {
             our_did: Rc::new(our_did.clone()),
+            remote_c_did: contact.did.clone(),
             remote_did: contact.did.clone(),
             created: Utc::now(),
             state: RelationshipState::RequestSent,

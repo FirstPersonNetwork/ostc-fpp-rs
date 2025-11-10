@@ -361,11 +361,7 @@ impl Config {
             println!();
         }
 
-        println!(
-            "{} {}",
-            style("Relationships path pointer: ").color256(CLI_BLUE),
-            style(self.relationships.path_pointer).color256(CLI_GREEN)
-        );
+        self.relationships.status(&self.contacts);
     }
 
     /// Exports the configuration settings to an encrypted file

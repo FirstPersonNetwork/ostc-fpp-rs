@@ -456,7 +456,11 @@ async fn lkmv(term: &Term, profile: &str) -> Result<()> {
         Some(("contacts", args)) => {
             let (tdk, mut config) = load(term, profile).await?;
 
-            if config.contacts.contacts_entry(tdk, args).await? {
+            if config
+                .contacts
+                .contacts_entry(tdk, args, &config.relationships)
+                .await?
+            {
                 // Need to save config
                 config.save(profile)?;
             }

@@ -2,7 +2,10 @@
 *  Managing known contacts is useful and easy to establish relationships with others
 */
 
-use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED};
+use crate::{
+    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
+    relationships::{RelationshipState, Relationships},
+};
 use affinidi_tdk::TDK;
 use anyhow::{Result, bail};
 use clap::{ArgMatches, Id};
@@ -40,7 +43,12 @@ pub struct Contacts {
 impl Contacts {
     /// Primary entry point for all Contact Management related functionality
     /// Returns true if config changed and needs to be saved
-    pub async fn contacts_entry(&mut self, tdk: TDK, args: &ArgMatches) -> Result<bool> {
+    pub async fn contacts_entry(
+        &mut self,
+        tdk: TDK,
+        args: &ArgMatches,
+        relationships: &Relationships,
+    ) -> Result<bool> {
         Ok(match args.subcommand() {
             Some(("add", sub_args)) => {
                 let did = if let Some(did) = sub_args.get_one::<String>("did") {
@@ -114,7 +122,7 @@ impl Contacts {
                 }
             }
             Some(("list", _)) => {
-                self.print_list();
+                self.print_list(relationships);
                 false
             }
             _ => {
@@ -217,7 +225,7 @@ impl Contacts {
     }
 
     // Dumps contct information to the console
-    fn print_list(&self) {
+    fn print_list(&self, relationships: &Relationships) {
         if self.is_empty() {
             println!(
                 "{}",
@@ -242,11 +250,21 @@ impl Contacts {
                     style(")").color256(CLI_BLUE),
                 );
             }
+
+            let relationship_status =
+                if let Some(relationship) = relationships.relationships.get(&contact.did) {
+                    style(&relationship.state).color256(CLI_GREEN)
+                } else {
+                    style(&RelationshipState::None).color256(CLI_ORANGE)
+                };
+
             println!(
-                " {}{}{}",
+                " {}{}{} {}{}",
                 style("contact DID (").color256(CLI_BLUE),
                 style(&contact.did).color256(CLI_PURPLE),
                 style(")").color256(CLI_BLUE),
+                style("Relationship status: ").color256(CLI_BLUE),
+                relationship_status
             );
         }
     }

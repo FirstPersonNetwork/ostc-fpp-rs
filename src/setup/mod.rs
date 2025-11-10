@@ -239,6 +239,19 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
 
     config.save(profile)?;
 
+    println!("{}", style("Next Steps:").color256(CLI_BLUE));
+    println!(
+        "\t{}",
+        style("1. Publish your DID and ensure it is publicly accessible").color256(CLI_BLUE)
+    );
+    println!(
+        "\t{}{}{}",
+        style("2. Run ").color256(CLI_BLUE),
+        style("lkmv status").color256(CLI_GREEN),
+        style(" to ensure everything is ok").color256(CLI_BLUE)
+    );
+    println!("\t{}", style("3. Get verified!").color256(CLI_BLUE));
+
     Ok(())
 }
 

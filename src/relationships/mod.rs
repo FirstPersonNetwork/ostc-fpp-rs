@@ -3,11 +3,12 @@
 */
 
 use crate::{
-    CLI_ORANGE, CLI_RED,
+    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
     config::{
         Config, KeyTypes,
         secured_config::{KeyInfoConfig, KeySourceMaterial},
     },
+    contacts::Contacts,
     relationships::request::create_request,
 };
 use affinidi_tdk::{
@@ -22,7 +23,7 @@ use clap::ArgMatches;
 use console::style;
 use ed25519_dalek_bip32::DerivationPath;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, rc::Rc};
+use std::{collections::HashMap, fmt::Display, rc::Rc};
 
 mod request;
 
@@ -40,6 +41,22 @@ pub enum RelationshipState {
 
     /// Relationship is established
     Established,
+
+    /// There is no relationship
+    None,
+}
+
+impl Display for RelationshipState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let state_str = match self {
+            RelationshipState::RequestSent => "Request Sent",
+            RelationshipState::RequestAccepted => "Request Accepted",
+            RelationshipState::RequestRejected => "Request Rejected",
+            RelationshipState::Established => "Established",
+            RelationshipState::None => "None",
+        };
+        write!(f, "{}", state_str)
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -56,6 +73,63 @@ pub struct Relationships {
     pub path_pointer: u32,
 }
 
+impl Relationships {
+    /// Prints Relationship status to the console
+    pub fn status(&self, contacts: &Contacts) {
+        println!("{}", style("Relationships").bold().color256(CLI_BLUE));
+        println!("{}", style("=============").bold().color256(CLI_BLUE));
+
+        println!(
+            "{} {}",
+            style("Relationships path pointer: ").color256(CLI_BLUE),
+            style(self.path_pointer).color256(CLI_GREEN)
+        );
+
+        if self.relationships.is_empty() {
+            println!(
+                "{}",
+                style("No relationships established yet.").color256(CLI_ORANGE)
+            );
+            return;
+        }
+
+        println!("{}", style("Relationships").color256(CLI_BLUE));
+        for r in self.relationships.values() {
+            let remote_c_did_alias = if let Some(contact) = contacts.find_contact(&r.remote_c_did)
+                && let Some(alias) = &contact.alias
+            {
+                style(alias.to_string()).color256(CLI_GREEN)
+            } else {
+                style("N/A".to_string()).color256(CLI_ORANGE)
+            };
+
+            println!(
+                "  {}{}{}{}",
+                style("Remote DID: Alias: ").color256(CLI_BLUE),
+                remote_c_did_alias,
+                style(" Community DID: ").color256(CLI_BLUE),
+                style(&r.remote_c_did).color256(CLI_GREEN),
+            );
+
+            if r.remote_did != r.remote_c_did {
+                println!(
+                    "    {}{}",
+                    style("Using r-did: ").color256(CLI_BLUE),
+                    style(&r.remote_did).color256(CLI_PURPLE)
+                );
+            }
+            println!(
+                "    {}{}{}{}",
+                style("State: ").color256(CLI_BLUE),
+                style(&r.state).color256(CLI_GREEN),
+                style(" Created: ").color256(CLI_BLUE),
+                style(r.created).color256(CLI_GREEN)
+            );
+            println!();
+        }
+    }
+}
+
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Relationship {
     /// What DID are we using in this relationship?
@@ -63,6 +137,10 @@ pub struct Relationship {
 
     /// What is the DID of the remote party in this relationship?
     pub remote_did: Rc<String>,
+
+    /// What is the remote end community DID?
+    /// NOTE: This may be the same as the remote did itself, or it may be a random r-did
+    pub remote_c_did: Rc<String>,
 
     /// When was this relationship created?
     pub created: DateTime<Utc>,
