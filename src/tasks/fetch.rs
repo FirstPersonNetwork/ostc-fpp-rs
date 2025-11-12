@@ -1,4 +1,4 @@
-use crate::{CLI_BLUE, CLI_GREEN, CLI_RED, config::Config};
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_RED, config::Config, tasks::TaskTypes};
 use affinidi_tdk::{
     TDK,
     messaging::messages::{FetchDeletePolicy, fetch::FetchOptions},
@@ -28,7 +28,18 @@ pub async fn fetch_tasks(tdk: &TDK, config: &Config) -> Result<()> {
 
     for msg in msgs.success {
         if let Some(message) = msg.msg {
-            let (unpacked_msg, unpacked_meta) = atm.unpack(&message).await?;
+            let (unpacked_msg, _) = atm.unpack(&message).await?;
+
+            let task_type_style = if let Ok(task_type) = TaskTypes::try_from(&unpacked_msg) {
+                style(task_type.friendly_name()).color256(CLI_GREEN)
+            } else {
+                style(format!("INVALID Task Type: {}", unpacked_msg.type_)).color256(CLI_ORANGE)
+            };
+            println!(
+                "{}{}",
+                style("Task Type: ").color256(CLI_BLUE),
+                task_type_style
+            );
 
             println!("Task: {unpacked_msg:#?}");
         } else {
