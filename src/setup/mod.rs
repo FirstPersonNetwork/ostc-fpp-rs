@@ -5,11 +5,10 @@ use crate::{
     CLI_BLUE, CLI_GREEN, CLI_PURPLE, LF_PUBLIC_MEDIATOR_DID,
     config::{
         CommunityDID, Config, KeyTypes,
+        private_config::PrivateConfig,
         public_config::PublicConfig,
         secured_config::{KeyInfoConfig, KeySourceMaterial, ProtectionMethod},
     },
-    contacts::Contacts,
-    relationships::Relationships,
     setup::{
         bip32_bip39::{
             Bip32Extension, generate_bip39_mnemonic, get_bip32_root, mnemonic_from_recovery_phrase,
@@ -213,7 +212,9 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
             community_did: c_did.did.clone(),
             unlock_code: unlock_code.is_some(),
             mediator_did: mediator_did.clone(),
+            private: None,
         },
+        private: PrivateConfig::default(),
         community_did: CommunityDID {
             document: c_did.document,
             profile: Arc::new(
@@ -231,8 +232,6 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
         token_admin_pin: AdminPin::default(),
         #[cfg(feature = "openpgp-card")]
         token_user_pin: UserPin::default(),
-        contacts: Contacts::default(),
-        relationships: Relationships::default(),
         protection_method: ProtectionMethod::default(),
         unlock_code,
     };
@@ -273,7 +272,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
         // use imported key
         signing.clone()
     } else {
-        let mut sign_secret = bip32_root.get_secret_from_path("m/0'/0'/0'", KeyPurpose::Signing)?;
+        let mut sign_secret = bip32_root.get_secret_from_path("m/1'/0'/0'", KeyPurpose::Signing)?;
 
         sign_secret.id = sign_secret.get_public_keymultibase()?;
 
@@ -286,7 +285,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
         KeyInfo {
             secret: sign_secret,
             source: KeySourceMaterial::Derived {
-                path: "m/0'/0'/0'".to_string(),
+                path: "m/1'/0'/0'".to_string(),
             },
             expiry: None,
             created: Utc::now(),
@@ -299,7 +298,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
         authentication.clone()
     } else {
         let mut auth_secret =
-            bip32_root.get_secret_from_path("m/0'/0'/1'", KeyPurpose::Authentication)?;
+            bip32_root.get_secret_from_path("m/1'/0'/1'", KeyPurpose::Authentication)?;
 
         auth_secret.id = auth_secret.get_public_keymultibase()?;
 
@@ -312,7 +311,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
         KeyInfo {
             secret: auth_secret,
             source: KeySourceMaterial::Derived {
-                path: "m/0'/0'/1'".to_string(),
+                path: "m/1'/0'/1'".to_string(),
             },
             expiry: None,
             created: Utc::now(),
@@ -325,7 +324,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
         encryption.clone()
     } else {
         let mut enc_secret =
-            bip32_root.get_secret_from_path("m/0'/0'/2'", KeyPurpose::Encryption)?;
+            bip32_root.get_secret_from_path("m/1'/0'/2'", KeyPurpose::Encryption)?;
 
         enc_secret.id = enc_secret.get_public_keymultibase()?;
 
@@ -341,7 +340,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
         KeyInfo {
             secret: enc_secret,
             source: KeySourceMaterial::Derived {
-                path: "m/0'/0'/2'".to_string(),
+                path: "m/1'/0'/2'".to_string(),
             },
             expiry: None,
             created: Utc::now(),

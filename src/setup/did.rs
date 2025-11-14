@@ -47,19 +47,18 @@ pub fn did_setup(
         "{}\n{}\n",
         style("The WebVH method (`did:webvh`) extends `did:web` by adding verifiable history and")
             .color256(CLI_BLUE),
-        style("stronger security - without relying on blockchain.")
-            .color256(CLI_BLUE)
+        style("stronger security - without relying on blockchain.").color256(CLI_BLUE)
     );
     println!(
         "{}\n{}\n",
-        style("Your DID document must be publicly hosted.")
-            .color256(CLI_BLUE),
-        style("GitHub pages or a similar platform is a simple place to start.")
-            .color256(CLI_BLUE)
+        style("Your DID document must be publicly hosted.").color256(CLI_BLUE),
+        style("GitHub pages or a similar platform is a simple place to start.").color256(CLI_BLUE)
     );
 
     let raw_url: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Enter the URL that will host your DID document (e.g., https://<your-domain>.com)")
+        .with_prompt(
+            "Enter the URL that will host your DID document (e.g., https://<your-domain>.com)",
+        )
         .validate_with(|url: &String| {
             if Url::parse(url).is_ok() {
                 Ok(())
@@ -74,8 +73,7 @@ pub fn did_setup(
 
     println!(
         "\n{}\n",
-        style("Creating WebVH DID method for your Community DID...")
-            .color256(CLI_BLUE)
+        style("Creating WebVH DID method for your Community DID...").color256(CLI_BLUE)
     );
     println!(
         "{} {}",
@@ -158,7 +156,7 @@ pub fn did_setup(
 
     // Create the WebVH Parameters
     let update_key = bip32_root
-        .derive(&"m/0'/1'/0'".parse::<DerivationPath>().unwrap())
+        .derive(&"m/2'/1'/0'".parse::<DerivationPath>().unwrap())
         .context("Failed to create an Ed25519 signing key.")?;
     let mut update_secret = Secret::generate_ed25519(None, Some(update_key.signing_key.as_bytes()));
     update_secret.id = [
@@ -170,7 +168,7 @@ pub fn did_setup(
     .concat();
 
     let next_update_key = bip32_root
-        .derive(&"m/0'/1'/1'".parse::<DerivationPath>().unwrap())
+        .derive(&"m/2'/1'/1'".parse::<DerivationPath>().unwrap())
         .context("Failed to create an Ed25519 signing key.")?;
     let next_update_secret =
         Secret::generate_ed25519(None, Some(next_update_key.signing_key.as_bytes()));

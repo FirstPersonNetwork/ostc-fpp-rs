@@ -2,9 +2,13 @@
 *  Public [crate::config::Config] information that is stored in plaintext on disk
 */
 
-use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, LF_PUBLIC_MEDIATOR_DID, config::Config};
+use crate::{
+    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, LF_PUBLIC_MEDIATOR_DID,
+    config::{Config, private_config::PrivateConfig},
+};
 use anyhow::{Context, Result, bail};
 use console::style;
+use secrecy::SecretVec;
 use serde::{Deserialize, Serialize};
 use std::{env, fs, path::Path};
 
@@ -24,6 +28,8 @@ pub struct PublicConfig {
 
     /// Mediator DID
     pub mediator_did: String,
+
+    pub private: Option<String>,
 }
 
 impl From<&Config> for PublicConfig {
@@ -59,7 +65,12 @@ fn get_config_path(profile: &str) -> Result<String> {
 impl PublicConfig {
     /// Saves to disk the public configuration information
     /// Uses the default CONFIG_PATH const or ENV Variable LKMV_CONFIG_PATH
-    pub fn save(&self, profile: &str) -> Result<()> {
+    pub fn save(
+        &self,
+        profile: &str,
+        private: &PrivateConfig,
+        private_seed: &SecretVec<u8>,
+    ) -> Result<()> {
         let cfg_path = get_config_path(profile)?;
         let path = Path::new(&cfg_path);
 
@@ -71,8 +82,12 @@ impl PublicConfig {
             fs::create_dir_all(parent_path)?;
         }
 
+        let public = PublicConfig {
+            private: Some(private.save(private_seed)?),
+            ..self.clone()
+        };
         // Write config to disk
-        fs::write(path, serde_json::to_string_pretty(self)?)?;
+        fs::write(path, serde_json::to_string_pretty(&public)?)?;
 
         Ok(())
     }

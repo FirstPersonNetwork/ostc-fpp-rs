@@ -13,8 +13,6 @@ use crate::openpgp_card::ui::UserPin;
 use crate::{
     CLI_ORANGE, CLI_RED,
     config::{Config, KeyTypes},
-    contacts::Contacts,
-    relationships::RelationshipsShadow,
 };
 use aes_gcm::{AeadCore, Aes256Gcm, KeyInit, aead::Aead};
 use anyhow::{Context, Result, bail};
@@ -160,15 +158,6 @@ pub struct SecuredConfig {
     #[zeroize(skip)] // chrono doesn't support zeroize
     pub key_info: HashMap<String, KeyInfoConfig>,
 
-    /// Known contacts and associated information
-    #[zeroize(skip)]
-    pub contacts: Contacts,
-
-    /// Relationships information
-    #[zeroize(skip)]
-    #[serde(default)]
-    pub relationships: RelationshipsShadow,
-
     #[serde(skip, default)]
     #[zeroize(skip)]
     pub protection_method: ProtectionMethod,
@@ -180,9 +169,7 @@ impl From<&Config> for SecuredConfig {
         SecuredConfig {
             bip32_seed: cfg.bip32_seed.expose_secret().to_owned(),
             key_info: cfg.key_info.clone(),
-            contacts: cfg.contacts.clone(),
             protection_method: cfg.protection_method.clone(),
-            relationships: cfg.relationships.clone().into(),
         }
     }
 }

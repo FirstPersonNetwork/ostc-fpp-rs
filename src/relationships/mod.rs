@@ -59,8 +59,8 @@ impl Display for RelationshipState {
     }
 }
 
-#[derive(Clone, Debug, Default, Deserialize)]
-#[serde(from = "RelationshipsShadow")]
+#[derive(Clone, Debug, Default, Deserialize, Serialize)]
+#[serde(from = "RelationshipsShadow", into = "RelationshipsShadow")]
 pub struct Relationships {
     /// Mapping relationships by the remote R-DID
     pub relationships: HashMap<Rc<String>, Rc<Relationship>>,
@@ -261,19 +261,29 @@ pub async fn create_relationship_did(
 ) -> Result<String> {
     // Derive a key path
     let v_path = [
-        "m/1'/1'/1'/",
-        config.relationships.path_pointer.to_string().as_str(),
+        "m/3'/1'/1'/",
+        config
+            .private
+            .relationships
+            .path_pointer
+            .to_string()
+            .as_str(),
         "'",
     ]
     .concat();
-    config.relationships.path_pointer += 1;
+    config.private.relationships.path_pointer += 1;
     let e_path = [
-        "m/1'/1'/1'/",
-        config.relationships.path_pointer.to_string().as_str(),
+        "m/3'/1'/1'/",
+        config
+            .private
+            .relationships
+            .path_pointer
+            .to_string()
+            .as_str(),
         "'",
     ]
     .concat();
-    config.relationships.path_pointer += 1;
+    config.private.relationships.path_pointer += 1;
 
     let v_key = config
         .bip32_root

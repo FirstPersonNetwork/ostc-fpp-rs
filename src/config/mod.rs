@@ -1,9 +1,10 @@
 /*! Contains the Lkmv CLI Tool Configuration
 *
-* Configuration is spread across three different contexts:
+* Configuration is spread across four different contexts:
 * 1. [Config]: Represents the active in-memory application config
-* 2. [secured_config::SecuredConfig]: Represents [Config] info that is stored securely
+* 2. [secured_config::SecuredConfig]: Represents [Config] info that is stored securely (key info)
 * 3. [public_config::PublicConfig]: Represents [Config] info that is stored in plaintext on disk
+* 4. [private_config::PrivateConfig]: Represents [Config] info that is encryoted and stored on disk
 *
 * NOTE: Secure Config information is saved item by item as needed to the secure storage
 */
@@ -13,15 +14,14 @@ use crate::openpgp_card::ui::{AdminPin, UserPin};
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
     config::{
+        private_config::PrivateConfig,
         public_config::PublicConfig,
         secured_config::{
             KeyInfoConfig, KeySourceMaterial, ProtectionMethod, SecuredConfig, unlock_code_decrypt,
             unlock_code_encrypt,
         },
     },
-    contacts::Contacts,
     get_unlock_code,
-    relationships::Relationships,
     setup::{
         CommunityDIDKeys, KeyInfo, KeyPurpose, bip32_bip39::Bip32Extension, create_unlock_code,
     },
@@ -42,6 +42,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{collections::HashMap, fmt::Display, fs, sync::Arc};
 
+pub mod private_config;
 pub mod public_config;
 pub mod secured_config;
 
@@ -54,6 +55,9 @@ pub mod secured_config;
 pub struct Config {
     /// Public readable config items when saved to disk
     pub public: PublicConfig,
+
+    /// Private sensitive config items which are encrypted on disk
+    pub private: PrivateConfig,
 
     /// Root node of derivative keys
     pub bip32_root: ExtendedSigningKey,
@@ -80,12 +84,6 @@ pub struct Config {
     /// Hardware token User PIN
     pub token_user_pin: UserPin,
 
-    /// Known contacts
-    pub contacts: Contacts,
-
-    /// Relationships
-    pub relationships: Relationships,
-
     /// Unlock code if required
     pub unlock_code: Option<[u8; 32]>,
 }
@@ -111,8 +109,11 @@ impl Config {
     /// Handles saving
     /// profile: Configuration profile name to use
     pub fn save(&self, profile: &str) -> Result<()> {
-        let pc = PublicConfig::from(self);
-        pc.save(profile)?;
+        self.public.save(
+            profile,
+            &self.private,
+            &PrivateConfig::get_seed(&self.bip32_root, "m/0'/0'/0'").unwrap(),
+        )?;
 
         let sc = SecuredConfig::from(self);
         sc.save(
@@ -156,6 +157,23 @@ impl Config {
             unlock_code.as_ref(),
         )?;
 
+        let bip32_root = ExtendedSigningKey::from_seed(
+            BASE64_URL_SAFE_NO_PAD
+                .decode(&sc.bip32_seed)
+                .context("Couldn't base64 decode BIP32 seed")?
+                .as_slice(),
+        )?;
+
+        // Unencrypt the private config data
+        let private_cfg = if let Some(private_cfg_str) = &pc.private {
+            PrivateConfig::load(
+                &PrivateConfig::get_seed(&bip32_root, "m/0'/0'/0'")?,
+                private_cfg_str,
+            )?
+        } else {
+            PrivateConfig::default()
+        };
+
         // All config info has been loaded, load DID Document and regenerate keys
         let rr = tdk
             .did_resolver()
@@ -163,12 +181,6 @@ impl Config {
             .await
             .context("Couldn't resolve Community DID")?;
 
-        let bip32_root = ExtendedSigningKey::from_seed(
-            BASE64_URL_SAFE_NO_PAD
-                .decode(&sc.bip32_seed)
-                .context("Couldn't base64 decode BIP32 seed")?
-                .as_slice(),
-        )?;
         // Create keys from DID Document
         Config::regenerate_community_keys(tdk, &sc, &bip32_root, &rr.doc).await?;
 
@@ -193,13 +205,12 @@ impl Config {
             },
             bip32_seed: SecretString::new(sc.bip32_seed.clone()),
             public: pc,
+            private: private_cfg,
             key_info: sc.key_info.clone(),
             #[cfg(feature = "openpgp-card")]
             token_admin_pin: AdminPin::default(),
             #[cfg(feature = "openpgp-card")]
             token_user_pin,
-            contacts: sc.contacts.clone(),
-            relationships: sc.relationships.clone().into(),
             protection_method: sc.protection_method.clone(),
             unlock_code,
         })
@@ -361,7 +372,7 @@ impl Config {
             println!();
         }
 
-        self.relationships.status(&self.contacts);
+        self.private.relationships.status(&self.private.contacts);
     }
 
     /// Exports the configuration settings to an encrypted file
@@ -491,9 +502,23 @@ impl Config {
             None
         };
 
+        let bip32_root = ExtendedSigningKey::from_seed(
+            BASE64_URL_SAFE_NO_PAD
+                .decode(&config.sc.bip32_seed)
+                .expect("Couldn't base64 decode BIP32 seed")
+                .as_slice(),
+        )?;
+        let private_seed = PrivateConfig::get_seed(&bip32_root, "m/0'/0'/0'")?;
+
+        let private = if let Some(private) = &config.pc.private {
+            PrivateConfig::load(&private_seed, private)?
+        } else {
+            PrivateConfig::default()
+        };
+
         config
             .pc
-            .save(profile)
+            .save(profile, &private, &private_seed)
             .expect("Couldn't save Public Config");
         config
             .sc

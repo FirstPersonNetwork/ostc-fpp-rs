@@ -307,8 +307,9 @@ async fn lkmv(term: &Term, profile: &str) -> Result<()> {
             let (tdk, mut config) = load(term, profile).await?;
 
             if config
+                .private
                 .contacts
-                .contacts_entry(tdk, args, &config.relationships)
+                .contacts_entry(tdk, args, &config.private.relationships)
                 .await?
             {
                 // Need to save config

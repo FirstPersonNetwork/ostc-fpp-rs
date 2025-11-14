@@ -46,12 +46,13 @@ pub async fn create_request(
     generate_did: bool,
 ) -> Result<()> {
     // Check if the remote DID exists in contacts
-    let contact = if let Some(contact) = config.contacts.find_contact(respondent) {
+    let contact = if let Some(contact) = config.private.contacts.find_contact(respondent) {
         contact
     } else {
         // Create a new contact
         if respondent.starts_with("did:") {
             config
+                .private
                 .contacts
                 .add_contact(&tdk, respondent, alias, true)
                 .await?
@@ -121,7 +122,7 @@ pub async fn create_request(
     )
     .await?;
 
-    config.relationships.relationships.insert(
+    config.private.relationships.relationships.insert(
         contact.did.clone(),
         Rc::new(Relationship {
             our_did: Rc::new(our_did.clone()),
