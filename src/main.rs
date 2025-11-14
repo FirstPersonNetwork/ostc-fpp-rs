@@ -178,25 +178,30 @@ async fn main() -> Result<()> {
     let term = Term::stdout();
 
     // Which configuration profile to use?
-    let profile = if let Ok(profile) = env::var("LKMV_CONFIG_PROFILE") {
+    let profile = if let Ok(env_profile) = env::var("LKMV_CONFIG_PROFILE") {
         // ENV Profile will override the CLI Argument
-        if cli()
+        let cli_profile = cli()
             .get_matches()
             .get_one::<String>("profile")
             .unwrap_or(&"default".to_string())
-            .as_str()
-            != profile
-        {
+            .to_string();
+        if cli_profile != "default" && cli_profile != env_profile {
             println!("{}", 
                 style("WARNING: Using both ENV LKMV_CONFIG_PROFILE and CLI profile! These do not match!").color256(CLI_ORANGE)
             );
             println!(
                 "{} {}",
                 style("WARNING: Using ENV Profile:").color256(CLI_ORANGE),
-                style(&profile).color256(CLI_PURPLE)
+                style(&env_profile).color256(CLI_PURPLE)
             );
         }
-        profile
+        println!(
+            "{}{}{}",
+            style("Using profile (").color256(CLI_BLUE),
+            style(&env_profile).color256(CLI_PURPLE),
+            style(") from LKMV_CONFIG_PROFILE ENV variable").color256(CLI_BLUE)
+        );
+        env_profile
     } else {
         cli()
             .get_matches()
