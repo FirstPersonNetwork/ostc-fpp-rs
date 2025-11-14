@@ -2,8 +2,10 @@
 *   DID Setup methods
 */
 
-use crate::{CLI_BLUE, CLI_GREEN, CLI_PURPLE, setup::CommunityDIDKeys};
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, setup::CommunityDIDKeys};
 use affinidi_tdk::{
+    TDK,
+    common::config::TDKConfigBuilder,
     did_common::{
         Document,
         service::{Endpoint, Service},
@@ -13,7 +15,7 @@ use affinidi_tdk::{
 };
 use anyhow::{Context, Result};
 use console::style;
-use dialoguer::{Input, theme::ColorfulTheme};
+use dialoguer::{Confirm, Input, theme::ColorfulTheme};
 use didwebvh_rs::{DIDWebVHState, parameters::Parameters, url::WebVHURL};
 use ed25519_dalek_bip32::{DerivationPath, ExtendedSigningKey};
 use serde_json::{Value, json};
@@ -29,14 +31,87 @@ pub struct DIDConfig {
 }
 
 /// Creates an initial DID representing the Community DID
-pub fn did_setup(
+/// bip32_root: BIP32 root node for derived keys
+/// keys: Community Keys that will be used in the DID (Mutable as key ID's get updated)
+/// mediator_did: What mediator to use for this DID?
+/// imported_keys: True if keys have been imported
+///   - True: Ask if you want to reuse an existing DID
+///   - False: Create a new DID
+pub async fn did_setup(
     bip32_root: ExtendedSigningKey,
     keys: &mut CommunityDIDKeys,
     mediator_did: &str,
+    imported_keys: bool,
 ) -> Result<DIDConfig> {
     println!();
     println!("{}", style("Community DID Setup").color256(CLI_BLUE));
     println!("{}", style("========================").color256(CLI_BLUE));
+
+    if imported_keys {
+        println!(
+            "{}",
+            style("As you have imported keys, would you like to reuse an existing DID?")
+                .color256(CLI_BLUE)
+        );
+        if Confirm::with_theme(&ColorfulTheme::default())
+            .with_prompt("Use pre-existing DID?")
+            .default(true)
+            .interact()
+            .unwrap()
+        {
+            println!(
+                "{}",
+                style("Must be a WebVH DID Method!")
+                    .bold()
+                    .color256(CLI_BLUE)
+            );
+            loop {
+                let did_id: String = Input::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Enter existing DID")
+                    .interact()
+                    .unwrap();
+
+                // Try to resolve the DID
+                let tdk = TDK::new(
+                    TDKConfigBuilder::new()
+                        .with_load_environment(false)
+                        .build()?,
+                    None,
+                )
+                .await?;
+
+                match tdk.did_resolver().resolve(&did_id).await {
+                    Ok(response) => {
+                        // Change the key ID's to match the DID VM ID's
+                        keys.signing.secret.id = [&did_id, "#key-1"].concat();
+                        keys.authentication.secret.id = [&did_id, "#key-2"].concat();
+                        keys.decryption.secret.id = [&did_id, "#key-3"].concat();
+                        return Ok(DIDConfig {
+                            did: did_id.to_string(),
+                            document: response.doc,
+                        });
+                    }
+                    Err(e) => {
+                        println!(
+                            "{}{}",
+                            style("ERROR: Couldn't resolve DID. Reason: ").color256(CLI_RED),
+                            style(e).color256(CLI_ORANGE)
+                        );
+                        if Confirm::with_theme(&ColorfulTheme::default())
+                            .with_prompt("Would you like to try a different DID?")
+                            .default(true)
+                            .interact()
+                            .unwrap()
+                        {
+                            continue;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     println!(
         "{}\n",

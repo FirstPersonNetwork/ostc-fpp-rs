@@ -270,7 +270,6 @@ pub fn terminal_input_pgp_key() -> Result<PGPKeys> {
 pub fn check_pgp_keys(raw_key: &str) -> Result<PGPKeys> {
     let (mut keys, _) = SignedSecretKey::from_string(raw_key)?;
 
-    println!("TIMTAM: {:#?}", keys);
     // Try unlocking the key
     let mut password: String = Password::with_theme(&ColorfulTheme::default())
         .with_prompt("Enter PGP Key Passphrase (if no passphrase, leave blank)")

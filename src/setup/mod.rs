@@ -108,6 +108,7 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
     );
     println!();
 
+    let mut imported_bip32 = false;
     // Are we recovering from a Recovery Phrase?
     let mnemonic = if Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Recover Secrets from 24 word recovery phrase?")
@@ -116,6 +117,7 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
         .unwrap()
     {
         // Using Recovery Phrase
+        imported_bip32 = true;
         mnemonic_from_recovery_phrase()?
     } else {
         generate_bip39_mnemonic()
@@ -167,7 +169,9 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
         get_bip32_root(mnemonic.to_entropy().as_slice())?,
         &mut c_did_keys,
         &mediator_did,
-    )?;
+        imported_bip32,
+    )
+    .await?;
 
     // Create Configuration
     let mut key_info = HashMap::new();
@@ -328,10 +332,6 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
 
         enc_secret.id = enc_secret.get_public_keymultibase()?;
 
-        println!(
-            "TIMTAM: Public Hex: {}",
-            hex::encode(enc_secret.get_public_bytes())
-        );
         println!(
             "{} {}",
             style("Encryption Key (X25519) created:").color256(CLI_BLUE),
