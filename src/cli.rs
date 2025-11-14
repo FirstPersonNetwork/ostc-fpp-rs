@@ -35,6 +35,7 @@ pub fn cli() -> Command {
     // Contact management
     let contacts_subcommand = Command::new("contacts")
         .about("Manage known contacts")
+        .subcommand(Command::new("list").about("Lists all known contacts"))
         .subcommand(
             Command::new("add")
                 .args([
@@ -79,12 +80,12 @@ pub fn cli() -> Command {
                 ])
                 .arg_required_else_help(true),
         )
-        .subcommand(Command::new("list").about("Lists all known contacts"))
         .arg_required_else_help(true);
 
     // Relationship management
     let relationships_subcommand = Command::new("relationships")
         .about("Manage relationships")
+        .subcommand(Command::new("list").about("List Relationships"))
         .subcommand(
             Command::new("request")
                 .args([

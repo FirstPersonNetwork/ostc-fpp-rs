@@ -94,38 +94,47 @@ impl Relationships {
         }
 
         println!("{}", style("Relationships").color256(CLI_BLUE));
-        for r in self.relationships.values() {
-            let remote_c_did_alias = if let Some(contact) = contacts.find_contact(&r.remote_c_did)
-                && let Some(alias) = &contact.alias
-            {
-                style(alias.to_string()).color256(CLI_GREEN)
-            } else {
-                style("N/A".to_string()).color256(CLI_ORANGE)
-            };
+        self.print_relationships(contacts);
+    }
 
-            println!(
-                "  {}{}{}{}",
-                style("Remote DID: Alias: ").color256(CLI_BLUE),
-                remote_c_did_alias,
-                style(" Community DID: ").color256(CLI_BLUE),
-                style(&r.remote_c_did).color256(CLI_GREEN),
-            );
+    pub fn print_relationships(&self, contacts: &Contacts) {
+        if self.relationships.is_empty() {
+            println!("{}", style("No relationships exist").color256(CLI_ORANGE));
+        } else {
+            for r in self.relationships.values() {
+                let remote_c_did_alias = if let Some(contact) =
+                    contacts.find_contact(&r.remote_c_did)
+                    && let Some(alias) = &contact.alias
+                {
+                    style(alias.to_string()).color256(CLI_GREEN)
+                } else {
+                    style("N/A".to_string()).color256(CLI_ORANGE)
+                };
 
-            if r.remote_did != r.remote_c_did {
                 println!(
-                    "    {}{}",
-                    style("Using r-did: ").color256(CLI_BLUE),
-                    style(&r.remote_did).color256(CLI_PURPLE)
+                    "  {}{}{}{}",
+                    style("Remote DID: Alias: ").color256(CLI_BLUE),
+                    remote_c_did_alias,
+                    style(" Community DID: ").color256(CLI_BLUE),
+                    style(&r.remote_c_did).color256(CLI_GREEN),
                 );
+
+                if r.remote_did != r.remote_c_did {
+                    println!(
+                        "    {}{}",
+                        style("Using r-did: ").color256(CLI_BLUE),
+                        style(&r.remote_did).color256(CLI_PURPLE)
+                    );
+                }
+                println!(
+                    "    {}{}{}{}",
+                    style("State: ").color256(CLI_BLUE),
+                    style(&r.state).color256(CLI_GREEN),
+                    style(" Created: ").color256(CLI_BLUE),
+                    style(r.created).color256(CLI_GREEN)
+                );
+                println!();
             }
-            println!(
-                "    {}{}{}{}",
-                style("State: ").color256(CLI_BLUE),
-                style(&r.state).color256(CLI_GREEN),
-                style(" Created: ").color256(CLI_BLUE),
-                style(r.created).color256(CLI_GREEN)
-            );
-            println!();
         }
     }
 }
@@ -207,6 +216,12 @@ pub async fn relationships_entry(
     args: &ArgMatches,
 ) -> Result<()> {
     match args.subcommand() {
+        Some(("list", _)) => {
+            config
+                .private
+                .relationships
+                .print_relationships(&config.private.contacts);
+        }
         Some(("request", sub_args)) => {
             let respondent = if let Some(respondent) = sub_args.get_one::<String>("respondent") {
                 respondent.to_string()
