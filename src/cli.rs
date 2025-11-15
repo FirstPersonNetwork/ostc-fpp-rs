@@ -117,7 +117,14 @@ pub fn cli() -> Command {
     // Tasks management
     let tasks_subcommand = Command::new("tasks")
         .about("Manage tasks")
-        .subcommand(Command::new("fetch").about("Fetches tasks that are awaiting attention"))
+        .subcommand(Command::new("list").about("List known tasks"))
+        .subcommand(Command::new("fetch").about("Fetch new tasks"))
+        .subcommand(
+            Command::new("remove")
+                .about("Remove task")
+                .arg(Arg::new("id").short('i').long("id").help("Task ID"))
+                .arg_required_else_help(true),
+        )
         .arg_required_else_help(true);
 
     // Full CLI Set

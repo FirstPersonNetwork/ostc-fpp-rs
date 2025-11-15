@@ -7,6 +7,7 @@ use crate::{
     config::secured_config::{unlock_code_decrypt, unlock_code_encrypt},
     contacts::Contacts,
     relationships::Relationships,
+    tasks::Tasks,
 };
 use anyhow::Result;
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
@@ -25,6 +26,10 @@ pub struct PrivateConfig {
     /// Relationships information
     #[serde(default)]
     pub relationships: Relationships,
+
+    /// Known Tasks
+    #[serde(default)]
+    pub tasks: Tasks,
 }
 
 impl PrivateConfig {

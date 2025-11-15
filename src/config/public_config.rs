@@ -3,7 +3,7 @@
 */
 
 use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, LF_PUBLIC_MEDIATOR_DID,
+    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, LF_PUBLIC_MEDIATOR_DID,
     config::{Config, private_config::PrivateConfig},
 };
 use anyhow::{Context, Result, bail};
@@ -29,6 +29,7 @@ pub struct PublicConfig {
     /// Mediator DID
     pub mediator_did: String,
 
+    #[serde(default)]
     pub private: Option<String>,
 }
 
@@ -103,7 +104,17 @@ impl PublicConfig {
             &cfg_path
         ))?;
 
-        Ok(serde_json::from_reader(file)?)
+        match serde_json::from_reader(file) {
+            Ok(s) => Ok(s),
+            Err(e) => {
+                println!(
+                    "{}{}",
+                    style("ERROR: Couldn't Deserialize PublicConfig. Reason: ").color256(CLI_RED),
+                    style(e).color256(CLI_ORANGE)
+                );
+                bail!("Deserialization error")
+            }
+        }
     }
 
     /// Prints information relating to the Public configuration to console

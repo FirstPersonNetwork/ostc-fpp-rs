@@ -8,6 +8,7 @@ use crate::{
     CLI_GREEN, CLI_PURPLE, CLI_RED,
     config::Config,
     relationships::{Relationship, RelationshipState, create_relationship_did},
+    tasks::TaskType,
 };
 use affinidi_tdk::{
     TDK,
@@ -68,7 +69,6 @@ pub async fn create_request(
         }
     };
 
-    // Send the message
     let atm = tdk.atm.clone().unwrap();
 
     // is a local relationship-did needed?
@@ -93,6 +93,7 @@ pub async fn create_request(
 
     // Create the Relationship Request Message
     let msg = create_message_request(&our_did, &contact.did, reason)?;
+    let msg_id = msg.id.clone();
 
     // Pack the message
     let (msg, _) = msg
@@ -132,6 +133,11 @@ pub async fn create_request(
             state: RelationshipState::RequestSent,
         }),
     );
+
+    config
+        .private
+        .tasks
+        .new_task(&msg_id, TaskType::RelationshipRequestOutbound);
 
     println!();
     println!(
