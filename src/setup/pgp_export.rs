@@ -41,8 +41,15 @@ pub fn ask_export_community_did_keys(
 ) {
     if wizard {
         println!();
-        println!("{}", style("You can export your Community DID keys for use in PGP-compatible applications.").color256(CLI_BLUE));
-        println!("{}\n", style("NOTE: You can export these keys at any point in the future.").color256(CLI_BLUE));
+        println!(
+            "{}",
+            style("You can export your Community DID keys for use in PGP-compatible applications.")
+                .color256(CLI_BLUE)
+        );
+        println!(
+            "{}\n",
+            style("NOTE: You can export these keys at any point in the future.").color256(CLI_BLUE)
+        );
 
         if !Confirm::with_theme(&ColorfulTheme::default())
             .with_prompt("Export private key info for PGP use?")
@@ -59,27 +66,29 @@ pub fn ask_export_community_did_keys(
     } else {
         let passphrase: String = Password::with_theme(&ColorfulTheme::default())
             .with_prompt("Enter a passphrase to protect your exported keys:")
-            .with_confirmation("Confirm your passphrase:", "The passphrases do not match.\n")
+            .with_confirmation(
+                "Confirm your passphrase:",
+                "The passphrases do not match.\n",
+            )
             .interact()
             .unwrap();
         SecretString::new(passphrase)
     };
 
-    let user_id =
-        if let Some(user_id) = user_id {
-            user_id.to_string()
-        } else {
-            println!(
+    let user_id = if let Some(user_id) = user_id {
+        user_id.to_string()
+    } else {
+        println!(
                 "\n{} {}\n",
                 style("You must specify a PGP User ID to which these keys are attached.\nRecommended Format: ")
                     .color256(CLI_BLUE),
                 style("FirstName LastName <email@domain>").color256(CLI_PURPLE)
             );
-            Input::with_theme(&ColorfulTheme::default())
-                .with_prompt("Enter your PGP User ID: ")
-                .interact()
-                .unwrap()
-        };
+        Input::with_theme(&ColorfulTheme::default())
+            .with_prompt("Enter your PGP User ID: ")
+            .interact()
+            .unwrap()
+    };
 
     // Export the keys
     match export_community_did_keys(term, keys, &user_id, passphrase, wizard) {
@@ -269,6 +278,7 @@ pub fn export_community_did_keys(
             ),
             hash: crypto::hash::HashAlgorithm::Sha256,
             alg_sym: crypto::sym::SymmetricKeyAlgorithm::AES256,
+            // ecdh_kdf_type: EcdhKdfType::Native,
         }),
     )?;
 

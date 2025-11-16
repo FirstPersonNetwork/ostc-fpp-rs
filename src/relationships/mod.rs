@@ -9,7 +9,7 @@ use crate::{
         secured_config::{KeyInfoConfig, KeySourceMaterial},
     },
     contacts::Contacts,
-    relationships::request::create_request,
+    relationships::messages::create_request,
 };
 use affinidi_tdk::{
     TDK,
@@ -25,7 +25,8 @@ use ed25519_dalek_bip32::DerivationPath;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fmt::Display, rc::Rc};
 
-mod request;
+pub mod inbound;
+pub mod messages;
 
 #[derive(Debug, Hash, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RelationshipState {
@@ -58,6 +59,20 @@ impl Display for RelationshipState {
         write!(f, "{}", state_str)
     }
 }
+
+// ****************************************************************************
+// Message Body Structure types
+// ****************************************************************************
+
+/// DIDComm message body sent to the remote party when requesting a relationship
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct RelationshipRequestBody {
+    pub reason: Option<String>,
+}
+
+/// DIDComm message body sent to the initiator of a relationship request when the request is
+/// rejected
+pub type RelationshipRejectBody = RelationshipRequestBody;
 
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(from = "RelationshipsShadow", into = "RelationshipsShadow")]
@@ -141,6 +156,9 @@ impl Relationships {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Relationship {
+    /// Task ID that this relationship may be attached to
+    pub task_id: Rc<String>,
+
     /// What DID are we using in this relationship?
     pub our_did: Rc<String>,
 

@@ -23,6 +23,7 @@ use tracing_subscriber::EnvFilter;
 mod cli;
 mod config;
 mod contacts;
+mod log;
 mod messaging;
 #[cfg(feature = "openpgp-card")]
 mod openpgp_card;
@@ -225,6 +226,11 @@ async fn main() -> Result<()> {
 
 async fn lkmv(term: &Term, profile: &str) -> Result<()> {
     match cli().get_matches().subcommand() {
+        Some(("logs", _)) => {
+            let (_, config) = load(term, profile).await?;
+
+            config.public.logs.show_all();
+        }
         Some(("status", _)) => {
             let mut tdk = TDK::new(
                 TDKConfigBuilder::new()
@@ -314,7 +320,12 @@ async fn lkmv(term: &Term, profile: &str) -> Result<()> {
             if config
                 .private
                 .contacts
-                .contacts_entry(tdk, args, &config.private.relationships)
+                .contacts_entry(
+                    tdk,
+                    args,
+                    &config.private.relationships,
+                    &mut config.public.logs,
+                )
                 .await?
             {
                 // Need to save config

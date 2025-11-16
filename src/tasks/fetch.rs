@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
     config::Config,
@@ -40,15 +42,59 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
             // Ensure message is deleted after processing
             delete_list.message_ids.push(msg.msg_id.clone());
 
+            // No anonymous messages are allowed
+            let from_did = if let Some(did) = &unpacked_msg.from {
+                Rc::new(did.to_string())
+            } else {
+                // Ignore this TASK as it is anonymous
+                println!("{}", style("WARN: An anonymous message has been received. These are not allowed as there is no ability to reply/respond to an anonymous message. Ignoring this message").color256(CLI_ORANGE));
+                delete_list.message_ids.push(unpacked_msg.id.clone());
+                continue;
+            };
+
+            let to_did = if let Some(to) = &unpacked_msg.to {
+                if to.contains(&config.public.community_did) {
+                    // Message is addressed to us
+                    config.public.community_did.clone()
+                } else {
+                    // Ignore this TASK as it isn't addressed to us
+                    println!("{}", style("WARN: An incoming message is not addressed to our Community DID. Ignoring this message for safety.").color256(CLI_ORANGE));
+                    println!(
+                        "  {}{}",
+                        style("from: ").color256(CLI_ORANGE),
+                        style(from_did).color256(CLI_PURPLE)
+                    );
+                    delete_list.message_ids.push(unpacked_msg.id.clone());
+                    continue;
+                }
+            } else {
+                // Ignore this TASK as it isn't addressed correctly
+                println!("{}", style("WARN: An incoming message is missing the to: address field. This is going to be ignored for safety.").color256(CLI_ORANGE));
+                println!(
+                    "  {}{}",
+                    style("from: ").color256(CLI_ORANGE),
+                    style(from_did).color256(CLI_PURPLE)
+                );
+                delete_list.message_ids.push(unpacked_msg.id.clone());
+                continue;
+            };
+
             let task_type_style = if let Ok(msg_type) = MessageType::try_from(&unpacked_msg) {
                 match msg_type {
                     MessageType::RelationshipRequest => {
-                        config
-                            .private
-                            .tasks
-                            .new_task(&unpacked_msg.id, TaskType::RelationshipRequestInbound);
+                        config.private.tasks.new_task(
+                            &Rc::new(unpacked_msg.id.clone()),
+                            TaskType::RelationshipRequestInbound {
+                                from: from_did.clone(),
+                                to: to_did,
+                                request: serde_json::from_value(unpacked_msg.body)?,
+                            },
+                        );
                         task_count += 1;
                         style(msg_type.friendly_name()).color256(CLI_GREEN)
+                    }
+                    MessageType::RelationshipRequestRejected => {
+                        todo!("Implement rejected message handling")
                     }
                 }
             } else {

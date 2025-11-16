@@ -187,7 +187,7 @@ impl Config {
         let community_profile = ATMProfile::new(
             tdk.atm.as_ref().unwrap(),
             Some("Community DID".to_string()),
-            pc.community_did.clone(),
+            pc.community_did.to_string(),
             Some(pc.mediator_did.clone()),
         )
         .await?;

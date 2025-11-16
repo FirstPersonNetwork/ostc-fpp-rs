@@ -5,12 +5,13 @@
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, LF_PUBLIC_MEDIATOR_DID,
     config::{Config, private_config::PrivateConfig},
+    log::Logs,
 };
 use anyhow::{Context, Result, bail};
 use console::style;
 use secrecy::SecretVec;
 use serde::{Deserialize, Serialize};
-use std::{env, fs, path::Path};
+use std::{env, fs, path::Path, rc::Rc};
 
 /// Primary structure used for storing [crate::config::Config] data that is not sensitive
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -24,10 +25,13 @@ pub struct PublicConfig {
     pub unlock_code: bool,
 
     /// Community DID
-    pub community_did: String,
+    pub community_did: Rc<String>,
 
     /// Mediator DID
     pub mediator_did: String,
+
+    #[serde(default)]
+    pub logs: Logs,
 
     #[serde(default)]
     pub private: Option<String>,

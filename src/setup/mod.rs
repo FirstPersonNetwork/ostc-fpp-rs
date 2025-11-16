@@ -9,6 +9,7 @@ use crate::{
         public_config::PublicConfig,
         secured_config::{KeyInfoConfig, KeySourceMaterial, ProtectionMethod},
     },
+    log::{LogFamily, LogMessage, Logs},
     setup::{
         bip32_bip39::{
             Bip32Extension, generate_bip39_mnemonic, get_bip32_root, mnemonic_from_recovery_phrase,
@@ -37,7 +38,11 @@ use console::{Term, style};
 use dialoguer::{Confirm, Input, theme::ColorfulTheme};
 use secrecy::SecretString;
 use sha2::Digest;
-use std::{collections::HashMap, fmt, sync::Arc};
+use std::{
+    collections::{HashMap, VecDeque},
+    fmt,
+    sync::Arc,
+};
 
 pub mod bip32_bip39;
 mod did;
@@ -217,6 +222,14 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
             unlock_code: unlock_code.is_some(),
             mediator_did: mediator_did.clone(),
             private: None,
+            logs: Logs {
+                messages: VecDeque::from([LogMessage {
+                    created: Utc::now(),
+                    type_: LogFamily::Config,
+                    message: "Initial lkmv setup completed".to_string(),
+                }]),
+                ..Default::default()
+            },
         },
         private: PrivateConfig::default(),
         community_did: CommunityDID {
@@ -225,7 +238,7 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
                 ATMProfile::new(
                     tdk.atm.as_ref().unwrap(),
                     Some("Community DID".to_string()),
-                    c_did.did.clone(),
+                    c_did.did.to_string(),
                     Some(mediator_did.clone()),
                 )
                 .await?,

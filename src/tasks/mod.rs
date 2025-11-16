@@ -4,7 +4,10 @@
 
 use std::{collections::HashMap, fmt::Display, rc::Rc};
 
-use crate::{CLI_BLUE, CLI_ORANGE, CLI_PURPLE, CLI_RED, config::Config, tasks::fetch::fetch_tasks};
+use crate::{
+    CLI_BLUE, CLI_ORANGE, CLI_PURPLE, CLI_RED, config::Config,
+    relationships::RelationshipRequestBody, tasks::fetch::fetch_tasks,
+};
 use affinidi_tdk::{TDK, didcomm::Message};
 use anyhow::{Result, bail};
 use chrono::{DateTime, Utc};
@@ -14,20 +17,27 @@ use dialoguer::{Select, theme::ColorfulTheme};
 use serde::{Deserialize, Serialize};
 
 pub mod fetch;
+pub mod interact;
 
 /// Defined Task Types for LKMV
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum TaskType {
     RelationshipRequestOutbound,
-    RelationshipRequestInbound,
+    RelationshipRequestInbound {
+        from: Rc<String>,
+        to: Rc<String>,
+        request: RelationshipRequestBody,
+    },
+    RelationshipRequestRejected,
 }
 
 impl Display for TaskType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let friendly_name = match self {
             TaskType::RelationshipRequestOutbound => "Relationship Request (Outbound)",
-            TaskType::RelationshipRequestInbound => "Relationship Request (Inbound)",
+            TaskType::RelationshipRequestInbound { .. } => "Relationship Request (Inbound)",
+            TaskType::RelationshipRequestRejected => "Relationship Request Rejected",
         };
         write!(f, "{}", friendly_name)
     }
@@ -38,12 +48,14 @@ impl Display for TaskType {
 #[non_exhaustive]
 pub enum MessageType {
     RelationshipRequest,
+    RelationshipRequestRejected,
 }
 
 impl MessageType {
     fn friendly_name(&self) -> String {
         match self {
             MessageType::RelationshipRequest => "Relationship Request",
+            MessageType::RelationshipRequestRejected => "Relationship Request Rejected",
         }
         .to_string()
     }
@@ -55,6 +67,9 @@ impl From<MessageType> for String {
         match value {
             MessageType::RelationshipRequest => {
                 "https://linuxfoundation.org/lkmv/1.0/relationship-request".to_string()
+            }
+            MessageType::RelationshipRequestRejected => {
+                "https://linuxfoundation.org/lkmv/1.0/relationship-request-reject".to_string()
             }
         }
     }
@@ -68,6 +83,9 @@ impl TryFrom<&str> for MessageType {
         match value {
             "https://linuxfoundation.org/lkmv/1.0/relationship-request" => {
                 Ok(MessageType::RelationshipRequest)
+            }
+            "https://linuxfoundation.org/lkmv/1.0/relationship-request-reject" => {
+                Ok(MessageType::RelationshipRequestRejected)
             }
             _ => bail!("Invalid Task Type: {}", value),
         }
@@ -107,22 +125,6 @@ pub struct Task {
     pub created: DateTime<Utc>,
 }
 
-impl Task {
-    /// Console interaction for this task
-    pub async fn interact(&self, tdk: &TDK, config: &mut Config) -> Result<bool> {
-        match self.type_ {
-            TaskType::RelationshipRequestInbound => {
-                todo!("implement inbound interaction")
-            }
-            TaskType::RelationshipRequestOutbound => {
-                todo!("Implement outbound interaction")
-            }
-        }
-
-        Ok(true)
-    }
-}
-
 impl Tasks {
     /// Prints known tasks to the console
     pub fn print_tasks(&self) {
@@ -147,8 +149,7 @@ impl Tasks {
     }
 
     /// Creates and adds a new Task to list of tasks
-    pub fn new_task(&mut self, id: &str, type_: TaskType) -> Rc<Task> {
-        let id = Rc::new(id.to_string());
+    pub fn new_task(&mut self, id: &Rc<String>, type_: TaskType) -> Rc<Task> {
         let task = Rc::new(Task {
             id: id.clone(),
             type_,

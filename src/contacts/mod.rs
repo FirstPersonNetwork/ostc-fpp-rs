@@ -4,6 +4,7 @@
 
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
+    log::{LogFamily, Logs},
     relationships::{RelationshipState, Relationships},
 };
 use affinidi_tdk::TDK;
@@ -48,6 +49,7 @@ impl Contacts {
         tdk: TDK,
         args: &ArgMatches,
         relationships: &Relationships,
+        logs: &mut Logs,
     ) -> Result<bool> {
         Ok(match args.subcommand() {
             Some(("add", sub_args)) => {
@@ -63,7 +65,7 @@ impl Contacts {
                 let alias = sub_args.get_one::<String>("alias");
                 let skip = sub_args.get_flag("skip");
 
-                self.add_contact(&tdk, &did, alias.map(|s| s.to_string()), skip)
+                self.add_contact(&tdk, &did, alias.map(|s| s.to_string()), skip, logs)
                     .await?;
 
                 println!(
@@ -94,14 +96,13 @@ impl Contacts {
                 true
             }
             Some(("remove", sub_args)) => {
-                let did = sub_args.get_one::<String>("did").map(|s| s.to_string());
-                let alias = sub_args.get_one::<String>("alias").map(|s| s.to_string());
                 let name = sub_args
                     .get_one::<Id>("remove-by")
                     .expect("No valid contact name to remove")
                     .as_str();
+                let id = sub_args.get_one::<String>(name).unwrap();
 
-                let changed = self.remove_contact(did, alias);
+                let changed = self.remove_contact(logs, id);
 
                 if let Some(changed) = changed {
                     println!(
@@ -115,7 +116,7 @@ impl Contacts {
                     println!(
                         "{}{}{}",
                         style("No contact found that matched (").color256(CLI_ORANGE),
-                        style(name).color256(CLI_PURPLE),
+                        style(id).color256(CLI_PURPLE),
                         style(")").color256(CLI_ORANGE)
                     );
                     false
@@ -154,6 +155,7 @@ impl Contacts {
         contact_did: &str,
         alias: Option<String>,
         check_did: bool,
+        logs: &mut Logs,
     ) -> Result<Rc<Contact>> {
         if check_did {
             match tdk.did_resolver().resolve(contact_did).await {
@@ -190,36 +192,46 @@ impl Contacts {
             alias: alias.clone(),
         });
 
-        self.contacts.insert(contact_did, contact.clone());
+        self.contacts.insert(contact_did.clone(), contact.clone());
 
-        if let Some(alias) = alias {
-            self.aliases.insert(alias, contact.clone());
+        if let Some(alias) = &alias {
+            self.aliases.insert(alias.clone(), contact.clone());
         }
+
+        logs.insert(
+            LogFamily::Contact,
+            &format!(
+                "Added contact ({}) alias({})",
+                contact_did,
+                alias.as_deref().unwrap_or("N/A")
+            ),
+        );
 
         Ok(contact)
     }
 
     /// Removes a contact (by DID or Alias)
     /// Returns Contact if contact was found and removed
-    fn remove_contact(
-        &mut self,
-        contact_did: Option<String>,
-        alias: Option<String>,
-    ) -> Option<Rc<Contact>> {
-        if let Some(contact_did) = contact_did {
-            if let Some(contact) = self.contacts.get(&contact_did)
-                && let Some(alias) = &contact.alias
-            {
+    fn remove_contact(&mut self, logs: &mut Logs, id: &str) -> Option<Rc<Contact>> {
+        if let Some(contact) = self.find_contact(id) {
+            if let Some(alias) = &contact.alias {
                 self.aliases.remove(alias);
             }
 
-            self.contacts.remove(&contact_did)
-        } else if let Some(alias) = alias {
-            self.aliases.remove(&alias).inspect(|contact| {
-                self.contacts.remove(&contact.did);
-            })
+            let result = self.contacts.remove(&contact.did);
+
+            if result.is_some() {
+                logs.insert(
+                    LogFamily::Contact,
+                    &format!(
+                        "Removed contact ({}) alias({})",
+                        contact.did,
+                        contact.alias.as_deref().unwrap_or("N/A")
+                    ),
+                );
+            }
+            result
         } else {
-            println!("{}", style("ERROR: Somehow no did or alias was specified when deleting a contact! This is a code error!").color256(CLI_RED));
             None
         }
     }

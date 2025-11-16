@@ -138,7 +138,6 @@ pub fn cli() -> Command {
         .subcommand_required(true)
         .arg_required_else_help(true)
         .allow_external_subcommands(true)
-        .subcommand_required(true)
         .args([
             Arg::new("unlock-code")
                 .short('u')
@@ -150,6 +149,7 @@ pub fn cli() -> Command {
                 .help("Config profile to use")
                 .default_value("default"),
         ])
+        .subcommand(Command::new("logs").about("Displays log information"))
         .subcommand(Command::new("status").about("Displays status of the lkmv tool"))
         .subcommand(
             Command::new("setup")

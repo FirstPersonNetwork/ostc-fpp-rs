@@ -19,13 +19,13 @@ use dialoguer::{Confirm, Input, theme::ColorfulTheme};
 use didwebvh_rs::{DIDWebVHState, parameters::Parameters, url::WebVHURL};
 use ed25519_dalek_bip32::{DerivationPath, ExtendedSigningKey};
 use serde_json::{Value, json};
-use std::collections::HashMap;
+use std::{collections::HashMap, rc::Rc};
 use url::Url;
 
 /// Contains configuration info relating to the DID Setup
 pub struct DIDConfig {
     /// DID identifier
-    pub did: String,
+    pub did: Rc<String>,
     /// DID Document
     pub document: Document,
 }
@@ -87,7 +87,7 @@ pub async fn did_setup(
                         keys.authentication.secret.id = [&did_id, "#key-2"].concat();
                         keys.decryption.secret.id = [&did_id, "#key-3"].concat();
                         return Ok(DIDConfig {
-                            did: did_id.to_string(),
+                            did: Rc::new(did_id),
                             document: response.doc,
                         });
                     }
@@ -269,6 +269,7 @@ pub async fn did_setup(
         style("WebVH Log Entry successfully created.").color256(CLI_BLUE)
     );
     let did_id = log_entry.get_state().get("id").unwrap().as_str().unwrap();
+
     println!(
         "{} {}",
         style("WebVH final DID:").color256(CLI_BLUE),
@@ -305,7 +306,7 @@ pub async fn did_setup(
     );
 
     Ok(DIDConfig {
-        did: did_id.to_string(),
+        did: Rc::new(did_id.to_string()),
         document: serde_json::from_value(
             log_entry
                 .get_did_document()

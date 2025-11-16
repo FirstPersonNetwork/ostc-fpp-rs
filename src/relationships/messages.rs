@@ -2,12 +2,13 @@
 *    Handles relationship requests
 */
 
-use std::{rc::Rc, time::SystemTime};
-
 use crate::{
     CLI_GREEN, CLI_PURPLE, CLI_RED,
     config::Config,
-    relationships::{Relationship, RelationshipState, create_relationship_did},
+    log::LogFamily,
+    relationships::{
+        Relationship, RelationshipRequestBody, RelationshipState, create_relationship_did,
+    },
     tasks::TaskType,
 };
 use affinidi_tdk::{
@@ -18,18 +19,9 @@ use affinidi_tdk::{
 use anyhow::{Result, bail};
 use chrono::Utc;
 use console::style;
-use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::{rc::Rc, time::SystemTime};
 use uuid::Uuid;
-
-// ****************************************************************************
-// Message body format structs
-// ****************************************************************************
-
-#[derive(Serialize, Deserialize)]
-struct RelationshipRequestBody {
-    reason: Option<String>,
-}
 
 /// Creates a new Relationship Request and send it to the remote party
 /// tdk: Trust Development Kit instance
@@ -55,7 +47,7 @@ pub async fn create_request(
             config
                 .private
                 .contacts
-                .add_contact(&tdk, respondent, alias, true)
+                .add_contact(&tdk, respondent, alias, true, &mut config.public.logs)
                 .await?
         } else {
             println!(
@@ -74,7 +66,7 @@ pub async fn create_request(
     // is a local relationship-did needed?
     let (our_did, our_profile) = if generate_did {
         let mediator = config.public.mediator_did.clone();
-        let r_did = create_relationship_did(&tdk, config, &mediator).await?;
+        let r_did = Rc::new(create_relationship_did(&tdk, config, &mediator).await?);
         println!(
             "{}{}{}{}",
             style("Generated new Relationship DID for contact ").color256(CLI_GREEN),
@@ -82,7 +74,7 @@ pub async fn create_request(
             style(" :: ").color256(CLI_GREEN),
             style(&r_did).color256(CLI_PURPLE)
         );
-        let profile = ATMProfile::new(&atm, None, r_did.clone(), Some(mediator)).await?;
+        let profile = ATMProfile::new(&atm, None, r_did.to_string(), Some(mediator)).await?;
         (r_did, atm.profile_add(&profile, false).await?)
     } else {
         (
@@ -93,7 +85,7 @@ pub async fn create_request(
 
     // Create the Relationship Request Message
     let msg = create_message_request(&our_did, &contact.did, reason)?;
-    let msg_id = msg.id.clone();
+    let msg_id = Rc::new(msg.id.clone());
 
     // Pack the message
     let (msg, _) = msg
@@ -126,7 +118,8 @@ pub async fn create_request(
     config.private.relationships.relationships.insert(
         contact.did.clone(),
         Rc::new(Relationship {
-            our_did: Rc::new(our_did.clone()),
+            task_id: msg_id.clone(),
+            our_did: our_did.clone(),
             remote_c_did: contact.did.clone(),
             remote_did: contact.did.clone(),
             created: Utc::now(),
@@ -146,6 +139,14 @@ pub async fn create_request(
         style(&contact.did).color256(CLI_PURPLE)
     );
 
+    config.public.logs.insert(
+        LogFamily::Relationship,
+        &format!(
+            "Relationship requested: remote DID({}) Task ID({})",
+            &contact.did, &msg_id
+        ),
+    );
+
     Ok(())
 }
 
@@ -158,6 +159,28 @@ fn create_message_request(from: &str, to: &str, reason: Option<&str>) -> Result<
     let message = Message::build(
         Uuid::new_v4().into(),
         "https://linuxfoundation.org/lkmv/1.0/relationship-request".to_string(),
+        json!(RelationshipRequestBody {
+            reason: reason.map(|r| r.to_string())
+        }),
+    )
+    .from(from.to_string())
+    .to(to.to_string())
+    .created_time(now)
+    .expires_time(60 * 60 * 48) // 48 hours
+    .finalize();
+
+    Ok(message)
+}
+
+fn create_message_rejected(from: &str, to: &str, reason: Option<&str>) -> Result<Message> {
+    let now = SystemTime::now()
+        .duration_since(SystemTime::UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+
+    let message = Message::build(
+        Uuid::new_v4().into(),
+        "https://linuxfoundation.org/lkmv/1.0/relationship-request-reject".to_string(),
         json!(RelationshipRequestBody {
             reason: reason.map(|r| r.to_string())
         }),
