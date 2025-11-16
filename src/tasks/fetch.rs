@@ -1,5 +1,5 @@
 use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_RED,
+    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
     config::Config,
     tasks::{MessageType, TaskType},
 };
@@ -56,12 +56,12 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
             };
 
             println!(
-                "{}{}",
-                style("Task Type: ").color256(CLI_BLUE),
-                task_type_style
+                "{}{} {}{}",
+                style("Added Task Id: ").color256(CLI_BLUE),
+                style(&unpacked_msg.id).color256(CLI_PURPLE),
+                style("Type: ").color256(CLI_BLUE),
+                style(task_type_style).color256(CLI_PURPLE),
             );
-
-            println!("Task: {unpacked_msg:#?}");
         } else {
             println!(
                 "{}",

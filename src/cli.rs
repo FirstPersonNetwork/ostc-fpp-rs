@@ -125,6 +125,11 @@ pub fn cli() -> Command {
                 .arg(Arg::new("id").short('i').long("id").help("Task ID"))
                 .arg_required_else_help(true),
         )
+        .subcommand(
+            Command::new("interact")
+                .about("Interact with tasks")
+                .arg(Arg::new("id").short('i').long("id").help("Task ID")),
+        )
         .arg_required_else_help(true);
 
     // Full CLI Set
