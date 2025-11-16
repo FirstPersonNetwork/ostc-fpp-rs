@@ -9,20 +9,23 @@ use crate::{
 use affinidi_tdk::TDK;
 use anyhow::Result;
 use console::style;
-use dialoguer::{Confirm, Select, theme::ColorfulTheme};
+use dialoguer::{Select, theme::ColorfulTheme};
 
 impl Task {
     /// Console interaction for this task
     pub async fn interact(&self, tdk: &TDK, config: &mut Config) -> Result<bool> {
         match &self.type_ {
             TaskType::RelationshipRequestInbound { from, to, request } => {
-                interact_relationship_request(config, &self, from, request).await?;
+                interact_relationship_request(config, self, from, request).await?;
             }
             TaskType::RelationshipRequestOutbound => {
                 todo!("Implement outbound interaction")
             }
             TaskType::RelationshipRequestRejected => {
                 todo!("Implement rejected interaction")
+            }
+            TaskType::RelationshipRequestAccepted => {
+                todo!("Implement accepted interaction")
             }
         }
 

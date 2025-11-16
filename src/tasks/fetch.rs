@@ -102,6 +102,9 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
                         MessageType::RelationshipRequestRejected => {
                             todo!("Implement rejected message handling")
                         }
+                        MessageType::RelationshipRequestAccepted => {
+                            todo!("Implement accepted message handling")
+                        }
                     }
                 } else {
                     println!(

@@ -30,6 +30,7 @@ pub enum TaskType {
         request: RelationshipRequestBody,
     },
     RelationshipRequestRejected,
+    RelationshipRequestAccepted,
 }
 
 impl Display for TaskType {
@@ -38,6 +39,7 @@ impl Display for TaskType {
             TaskType::RelationshipRequestOutbound => "Relationship Request (Outbound)",
             TaskType::RelationshipRequestInbound { .. } => "Relationship Request (Inbound)",
             TaskType::RelationshipRequestRejected => "Relationship Request Rejected",
+            TaskType::RelationshipRequestAccepted => "Relationship Request Accepted",
         };
         write!(f, "{}", friendly_name)
     }
@@ -49,6 +51,7 @@ impl Display for TaskType {
 pub enum MessageType {
     RelationshipRequest,
     RelationshipRequestRejected,
+    RelationshipRequestAccepted,
 }
 
 impl MessageType {
@@ -56,6 +59,7 @@ impl MessageType {
         match self {
             MessageType::RelationshipRequest => "Relationship Request",
             MessageType::RelationshipRequestRejected => "Relationship Request Rejected",
+            MessageType::RelationshipRequestAccepted => "Relationship Request Accepted",
         }
         .to_string()
     }
@@ -70,6 +74,9 @@ impl From<MessageType> for String {
             }
             MessageType::RelationshipRequestRejected => {
                 "https://linuxfoundation.org/lkmv/1.0/relationship-request-reject".to_string()
+            }
+            MessageType::RelationshipRequestAccepted => {
+                "https://linuxfoundation.org/lkmv/1.0/relationship-request-accept".to_string()
             }
         }
     }
@@ -86,6 +93,9 @@ impl TryFrom<&str> for MessageType {
             }
             "https://linuxfoundation.org/lkmv/1.0/relationship-request-reject" => {
                 Ok(MessageType::RelationshipRequestRejected)
+            }
+            "https://linuxfoundation.org/lkmv/1.0/relationship-request-accept" => {
+                Ok(MessageType::RelationshipRequestAccepted)
             }
             _ => bail!("Invalid Task Type: {}", value),
         }
