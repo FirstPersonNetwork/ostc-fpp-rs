@@ -3,6 +3,7 @@ use std::rc::Rc;
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
     config::Config,
+    log::LogFamily,
     tasks::{MessageType, TaskType},
 };
 use affinidi_tdk::{
@@ -79,27 +80,37 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
                 continue;
             };
 
-            let task_type_style = if let Ok(msg_type) = MessageType::try_from(&unpacked_msg) {
-                match msg_type {
-                    MessageType::RelationshipRequest => {
-                        config.private.tasks.new_task(
-                            &Rc::new(unpacked_msg.id.clone()),
-                            TaskType::RelationshipRequestInbound {
+            let (task_type_style, task_type) =
+                if let Ok(msg_type) = MessageType::try_from(&unpacked_msg) {
+                    match msg_type {
+                        MessageType::RelationshipRequest => {
+                            let task_type = TaskType::RelationshipRequestInbound {
                                 from: from_did.clone(),
-                                to: to_did,
+                                to: to_did.clone(),
                                 request: serde_json::from_value(unpacked_msg.body)?,
-                            },
-                        );
-                        task_count += 1;
-                        style(msg_type.friendly_name()).color256(CLI_GREEN)
+                            };
+                            config
+                                .private
+                                .tasks
+                                .new_task(&Rc::new(unpacked_msg.id.clone()), task_type.clone());
+                            task_count += 1;
+                            (
+                                style(msg_type.friendly_name()).color256(CLI_GREEN),
+                                task_type,
+                            )
+                        }
+                        MessageType::RelationshipRequestRejected => {
+                            todo!("Implement rejected message handling")
+                        }
                     }
-                    MessageType::RelationshipRequestRejected => {
-                        todo!("Implement rejected message handling")
-                    }
-                }
-            } else {
-                style(format!("INVALID Task Type: {}", unpacked_msg.type_)).color256(CLI_ORANGE)
-            };
+                } else {
+                    println!(
+                        "{}{}",
+                        style("INVALID Task Type: ").color256(CLI_RED),
+                        style(unpacked_msg.type_).color256(CLI_ORANGE)
+                    );
+                    continue;
+                };
 
             println!(
                 "{}{} {}{}",
@@ -107,6 +118,14 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
                 style(&unpacked_msg.id).color256(CLI_PURPLE),
                 style("Type: ").color256(CLI_BLUE),
                 style(task_type_style).color256(CLI_PURPLE),
+            );
+
+            config.public.logs.insert(
+                LogFamily::Task,
+                &format!(
+                    "Fetched: Task ID({}) Type({}) From({}) To({})",
+                    &unpacked_msg.id, task_type, from_did, &to_did
+                ),
             );
         } else {
             println!(
