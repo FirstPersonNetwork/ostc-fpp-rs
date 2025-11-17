@@ -257,6 +257,8 @@ impl Config {
             style(from).color256(CLI_PURPLE)
         );
 
+        self.private.tasks.remove(task_id);
+
         self.public.logs.insert(
             LogFamily::Relationship,
             format!(
