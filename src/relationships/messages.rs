@@ -137,7 +137,7 @@ pub async fn create_send_request(
 
     config.public.logs.insert(
         LogFamily::Relationship,
-        &format!(
+        format!(
             "Relationship requested: remote DID({}) Task ID({})",
             &contact.did, &msg_id
         ),
@@ -218,7 +218,7 @@ pub async fn send_rejection(
 
     config.public.logs.insert(
         LogFamily::Relationship,
-        &format!(
+        format!(
             "Relationship request rejected: remote DID({}) Task ID({})",
             respondent, task_id
         ),

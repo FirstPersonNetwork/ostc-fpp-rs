@@ -117,9 +117,11 @@ async fn interact_relationship_request(
                 config.private.tasks.remove(&task.id);
                 config.public.logs.insert(
                     LogFamily::Task,
-                    &format!(
-                        "Rejected Relationship request from remote DID({}) Task ID({})",
-                        from, task.id
+                    format!(
+                        "Rejected Relationship request from remote DID({}) Task ID({}) Reason: {}",
+                        from,
+                        task.id,
+                        reason.as_deref().unwrap_or("NO REASON PROVIDED")
                     ),
                 );
                 Ok(true)

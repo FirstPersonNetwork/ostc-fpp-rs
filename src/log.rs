@@ -62,11 +62,11 @@ impl Default for Logs {
 impl Logs {
     /// Insert a new log entry message to the log
     /// Handles keeping the log messages within the limit
-    pub fn insert(&mut self, type_: LogFamily, message: &str) {
+    pub fn insert(&mut self, type_: LogFamily, message: String) {
         self.messages.push_back(LogMessage {
             created: Utc::now(),
             type_,
-            message: message.to_string(),
+            message,
         });
 
         if self.messages.len() > self.limit {

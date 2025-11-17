@@ -200,7 +200,7 @@ impl Contacts {
 
         logs.insert(
             LogFamily::Contact,
-            &format!(
+            format!(
                 "Added contact ({}) alias({})",
                 contact_did,
                 alias.as_deref().unwrap_or("N/A")
@@ -223,7 +223,7 @@ impl Contacts {
             if result.is_some() {
                 logs.insert(
                     LogFamily::Contact,
-                    &format!(
+                    format!(
                         "Removed contact ({}) alias({})",
                         contact.did,
                         contact.alias.as_deref().unwrap_or("N/A")

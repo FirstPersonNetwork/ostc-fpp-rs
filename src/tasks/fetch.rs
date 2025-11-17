@@ -4,6 +4,7 @@ use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
     config::Config,
     log::LogFamily,
+    relationships::RelationshipRejectBody,
     tasks::{MessageType, TaskType},
 };
 use affinidi_tdk::{
@@ -38,6 +39,7 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
     let mut delete_list = DeleteMessageRequest::default();
 
     for msg in &msgs.success {
+        task_count += 1;
         if let Some(message) = &msg.msg {
             let (unpacked_msg, _) = atm.unpack(message).await?;
             // Ensure message is deleted after processing
@@ -80,44 +82,78 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
                 continue;
             };
 
-            let (task_type_style, task_type) =
-                if let Ok(msg_type) = MessageType::try_from(&unpacked_msg) {
-                    match msg_type {
-                        MessageType::RelationshipRequest => {
-                            let task_type = TaskType::RelationshipRequestInbound {
-                                from: from_did.clone(),
-                                to: to_did.clone(),
-                                request: serde_json::from_value(unpacked_msg.body)?,
-                            };
-                            config
-                                .private
-                                .tasks
-                                .new_task(&Rc::new(unpacked_msg.id.clone()), task_type.clone());
-                            task_count += 1;
-                            (
-                                style(msg_type.friendly_name()).color256(CLI_GREEN),
-                                task_type,
-                            )
-                        }
-                        MessageType::RelationshipRequestRejected => {
-                            todo!("Implement rejected message handling")
-                        }
-                        MessageType::RelationshipRequestAccepted => {
-                            todo!("Implement accepted message handling")
-                        }
+            let (task_type_style, task_type) = if let Ok(msg_type) =
+                MessageType::try_from(&unpacked_msg)
+            {
+                match msg_type {
+                    MessageType::RelationshipRequest => {
+                        let task_type = TaskType::RelationshipRequestInbound {
+                            from: from_did.clone(),
+                            to: to_did.clone(),
+                            request: serde_json::from_value(unpacked_msg.body)?,
+                        };
+                        config
+                            .private
+                            .tasks
+                            .new_task(&Rc::new(unpacked_msg.id.clone()), task_type.clone());
+                        (
+                            style(msg_type.friendly_name()).color256(CLI_GREEN),
+                            task_type,
+                        )
                     }
-                } else {
-                    println!(
-                        "{}{}",
-                        style("INVALID Task Type: ").color256(CLI_RED),
-                        style(unpacked_msg.type_).color256(CLI_ORANGE)
-                    );
-                    continue;
-                };
+                    MessageType::RelationshipRequestRejected => {
+                        let Some(task_id) = unpacked_msg.thid else {
+                            println!(
+                                "{}",
+                                style(
+                                    "WARN: A Relationship request rejection message was received, but has no `thid` header. Can't do anything with this..."
+                                )
+                            );
+                            continue;
+                        };
+
+                        let body: RelationshipRejectBody = match serde_json::from_value(
+                            unpacked_msg.body,
+                        ) {
+                            Ok(body) => body,
+                            Err(e) => {
+                                println!(
+                                    "{}",
+                                    style(format!(
+                                        "WARN: Invalid body receieved for relationship request rejection message. Reason: {}",
+                                        e
+                                    ))
+                                );
+                                continue;
+                            }
+                        };
+                        if let Err(e) = config
+                            .handle_reject_relationship(&Rc::new(task_id), body.reason.as_deref())
+                        {
+                            println!("{}", style(format!("WARN: An error occurred when processing a relationship request rejection response. Error: {}", e)).color256(CLI_ORANGE));
+                            continue;
+                        }
+                        (
+                            style("Relationship request rejected".to_string()).color256(CLI_ORANGE),
+                            TaskType::RelationshipRequestRejected,
+                        )
+                    }
+                    MessageType::RelationshipRequestAccepted => {
+                        todo!("Implement accepted message handling")
+                    }
+                }
+            } else {
+                println!(
+                    "{}{}",
+                    style("INVALID Task Type: ").color256(CLI_RED),
+                    style(unpacked_msg.type_).color256(CLI_ORANGE)
+                );
+                continue;
+            };
 
             println!(
                 "{}{} {}{}",
-                style("Added Task Id: ").color256(CLI_BLUE),
+                style("Task Id: ").color256(CLI_BLUE),
                 style(&unpacked_msg.id).color256(CLI_PURPLE),
                 style("Type: ").color256(CLI_BLUE),
                 style(task_type_style).color256(CLI_PURPLE),
@@ -125,7 +161,7 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
 
             config.public.logs.insert(
                 LogFamily::Task,
-                &format!(
+                format!(
                     "Fetched: Task ID({}) Type({}) From({}) To({})",
                     &unpacked_msg.id, task_type, from_did, &to_did
                 ),

@@ -152,6 +152,21 @@ impl Relationships {
             }
         }
     }
+
+    /// Removes a relationship by it's task_id
+    pub fn remove_by_task_id(&mut self, id: &Rc<String>) -> Option<Rc<Relationship>> {
+        if let Some(relationship) = self
+            .relationships
+            .values()
+            .find(|f| f.task_id == *id)
+            .cloned()
+        {
+            self.relationships.remove(&relationship.remote_did);
+            Some(relationship)
+        } else {
+            None
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
