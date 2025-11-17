@@ -132,7 +132,25 @@ async fn interact_relationship_request(
         }
         2 => {
             // Delete
-            Ok(true)
+
+            println!("{}", style("When you delete a relationship request, no response is sent to the initiator of the request. Deleting acts as a silent ignore...").color256(CLI_BLUE));
+            if Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt("Are you sure you want to DELETE this Relationship request?")
+                .default(false)
+                .interact()?
+            {
+                config.private.tasks.remove(&task.id);
+                config.public.logs.insert(
+                    LogFamily::Task,
+                    format!(
+                        "Deleted Relationship request from remote DID({}) Task ID({})",
+                        from, task.id
+                    ),
+                );
+                Ok(true)
+            } else {
+                Ok(false)
+            }
         }
         3 => {
             // Return to previous menu
