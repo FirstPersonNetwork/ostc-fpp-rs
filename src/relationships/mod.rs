@@ -103,7 +103,7 @@ pub struct Relationships {
 
 impl Relationships {
     /// Prints Relationship status to the console
-    pub fn status(&self, contacts: &Contacts) {
+    pub fn status(&self, contacts: &Contacts, our_c_did: &Rc<String>) {
         println!("{}", style("Relationships").bold().color256(CLI_BLUE));
         println!("{}", style("=============").bold().color256(CLI_BLUE));
 
@@ -122,10 +122,10 @@ impl Relationships {
         }
 
         println!("{}", style("Relationships").color256(CLI_BLUE));
-        self.print_relationships(contacts);
+        self.print_relationships(contacts, our_c_did);
     }
 
-    pub fn print_relationships(&self, contacts: &Contacts) {
+    pub fn print_relationships(&self, contacts: &Contacts, our_c_did: &Rc<String>) {
         if self.relationships.is_empty() {
             println!("{}", style("No relationships exist").color256(CLI_ORANGE));
         } else {
@@ -148,10 +148,18 @@ impl Relationships {
                     style(&r.remote_c_did).color256(CLI_GREEN),
                 );
 
+                if &r.our_did != our_c_did {
+                    println!(
+                        "    {}{}",
+                        style("Using local r-did: ").color256(CLI_BLUE),
+                        style(&r.our_did).color256(CLI_PURPLE)
+                    );
+                }
+
                 if r.remote_did != r.remote_c_did {
                     println!(
                         "    {}{}",
-                        style("Using r-did: ").color256(CLI_BLUE),
+                        style("Using remote r-did: ").color256(CLI_BLUE),
                         style(&r.remote_did).color256(CLI_PURPLE)
                     );
                 }
@@ -284,7 +292,7 @@ pub async fn relationships_entry(
             config
                 .private
                 .relationships
-                .print_relationships(&config.private.contacts);
+                .print_relationships(&config.private.contacts, &config.public.community_did);
         }
         Some(("request", sub_args)) => {
             let respondent = if let Some(respondent) = sub_args.get_one::<String>("respondent") {

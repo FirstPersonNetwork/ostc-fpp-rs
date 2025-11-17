@@ -372,7 +372,9 @@ impl Config {
             println!();
         }
 
-        self.private.relationships.status(&self.private.contacts);
+        self.private
+            .relationships
+            .status(&self.private.contacts, &self.public.community_did);
     }
 
     /// Exports the configuration settings to an encrypted file
