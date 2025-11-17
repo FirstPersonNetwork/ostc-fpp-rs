@@ -1,40 +1,39 @@
-use std::rc::Rc;
+use std::{rc::Rc, sync::Mutex};
 
 use crate::{
     CLI_BLUE, CLI_ORANGE, CLI_PURPLE,
     config::Config,
     log::LogFamily,
-    relationships::{RelationshipRequestBody, create_relationship_did, messages::send_rejection},
-    tasks::{Task, TaskType},
+    relationships::{RelationshipRequestBody, messages::send_rejection},
+    tasks::{Task, TaskType, Tasks},
 };
 use affinidi_tdk::TDK;
 use anyhow::Result;
 use console::style;
 use dialoguer::{Confirm, Input, Select, theme::ColorfulTheme};
 
-impl Task {
+impl Tasks {
     /// Console interaction for this task
-    pub async fn interact(&self, tdk: &TDK, config: &mut Config) -> Result<bool> {
-        match &self.type_ {
+    pub async fn interact_task(
+        task: &Rc<Mutex<Task>>,
+        tdk: &TDK,
+        config: &mut Config,
+    ) -> Result<bool> {
+        let type_ = { task.lock().unwrap().type_.clone() };
+        Ok(match type_ {
             TaskType::RelationshipRequestInbound {
                 from,
                 to: _,
                 request,
-            } => {
-                interact_relationship_request(tdk, config, self, from, request).await?;
-            }
-            TaskType::RelationshipRequestOutbound => {
-                todo!("Implement outbound interaction")
-            }
-            TaskType::RelationshipRequestRejected => {
-                todo!("Implement rejected interaction")
-            }
+            } => interact_relationship_request(tdk, config, task, &from, &request).await?,
             TaskType::RelationshipRequestAccepted => {
-                todo!("Implement accepted interaction")
+                interact_relationship_accepted(config, task).await?
             }
-        }
-
-        Ok(true)
+            _ => {
+                // Do nothing
+                false
+            }
+        })
     }
 }
 
@@ -42,16 +41,18 @@ impl Task {
 async fn interact_relationship_request(
     tdk: &TDK,
     config: &mut Config,
-    task: &Task,
+    task: &Rc<Mutex<Task>>,
     from: &Rc<String>,
     request: &RelationshipRequestBody,
 ) -> Result<bool> {
+    let task_id = { task.lock().unwrap().id.clone() };
+
     // Show relationship request info
     println!();
     println!(
         "{}{} {}{}",
         style("Task ID: ").color256(CLI_BLUE),
-        style(&task.id).color256(CLI_PURPLE),
+        style(&task_id).color256(CLI_PURPLE),
         style("Type: ").color256(CLI_BLUE),
         style("Inbound Relationship Request").color256(CLI_PURPLE)
     );
@@ -95,8 +96,10 @@ async fn interact_relationship_request(
             {
                 // Accept the relationship request
                 config
-                    .handle_relationship_request_accept(tdk, from, &task.id)
+                    .handle_relationship_request_send_accept(tdk, from, &task_id)
                     .await?;
+
+                task.lock().unwrap().type_ = TaskType::RelationshipRequestAccepted;
 
                 Ok(true)
             } else {
@@ -125,15 +128,15 @@ async fn interact_relationship_request(
                 .default(true)
                 .interact()?
             {
-                send_rejection(tdk, config, from, reason.as_deref(), &task.id).await?;
+                send_rejection(tdk, config, from, reason.as_deref(), &task_id).await?;
 
-                config.private.tasks.remove(&task.id);
+                config.private.tasks.remove(&task_id);
                 config.public.logs.insert(
                     LogFamily::Task,
                     format!(
                         "Rejected Relationship request from remote DID({}) Task ID({}) Reason: {}",
                         from,
-                        task.id,
+                        task_id,
                         reason.as_deref().unwrap_or("NO REASON PROVIDED")
                     ),
                 );
@@ -152,12 +155,12 @@ async fn interact_relationship_request(
                 .default(false)
                 .interact()?
             {
-                config.private.tasks.remove(&task.id);
+                config.private.tasks.remove(&task_id);
                 config.public.logs.insert(
                     LogFamily::Task,
                     format!(
                         "Deleted Relationship request from remote DID({}) Task ID({})",
-                        from, task.id
+                        from, task_id
                     ),
                 );
                 Ok(true)
@@ -169,6 +172,82 @@ async fn interact_relationship_request(
             // Return to previous menu
             Ok(false)
         }
+        _ => Ok(false),
+    }
+}
+
+/// Limited interaction for a relationship acceptance that is in progress
+async fn interact_relationship_accepted(
+    config: &mut Config,
+    task: &Rc<Mutex<Task>>,
+) -> Result<bool> {
+    let task_id = { task.lock().unwrap().id.clone() };
+
+    let relationship =
+        if let Some(relationship) = config.private.relationships.find_by_task_id(&task_id) {
+            relationship
+        } else {
+            println!(
+                "{}{}",
+                style("WARN: Couldn't find relationship for task ID: ").color256(CLI_ORANGE),
+                style(&task_id).color256(CLI_PURPLE)
+            );
+
+            println!(
+                "{}",
+                style("Removing this task as it is no longer valid...").color256(CLI_ORANGE)
+            );
+
+            config.private.tasks.remove(&task_id);
+            return Ok(true);
+        };
+
+    let from = { relationship.lock().unwrap().remote_c_did.clone() };
+    // Show relationship request info
+    println!();
+    println!(
+        "{}{} {}{}",
+        style("Task ID: ").color256(CLI_BLUE),
+        style(&task_id).color256(CLI_PURPLE),
+        style("Type: ").color256(CLI_BLUE),
+        style("Accepted Relationship Request").color256(CLI_PURPLE)
+    );
+
+    println!(
+        "{}{}",
+        style("From: ").color256(CLI_BLUE),
+        style(&from).color256(CLI_PURPLE)
+    );
+
+    println!();
+
+    match Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("Task Action?")
+        .item("Delete this Relationship request (Does not notify the other party)")
+        .item("Return to previous menu?")
+        .interact()?
+    {
+        0 => {
+            println!("{}", style("When you delete a relationship request, no response is sent to the initiator of the request. Deleting acts as a silent ignore...").color256(CLI_BLUE));
+            if Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt("Are you sure you want to DELETE this Relationship request?")
+                .default(false)
+                .interact()?
+            {
+                config.private.tasks.remove(&task_id);
+                config.public.logs.insert(
+                    LogFamily::Task,
+                    format!(
+                        "Deleted Relationship request from remote DID({}) Task ID({})",
+                        from, task_id
+                    ),
+                );
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        }
+        1 => Ok(false),
         _ => Ok(false),
     }
 }

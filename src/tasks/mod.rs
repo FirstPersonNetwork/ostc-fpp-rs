@@ -2,8 +2,6 @@
 *   A [Task] is something that requires action on behalf of the user
 */
 
-use std::{collections::HashMap, fmt::Display, rc::Rc};
-
 use crate::{
     CLI_BLUE, CLI_ORANGE, CLI_PURPLE, CLI_RED, config::Config,
     relationships::RelationshipRequestBody, tasks::fetch::fetch_tasks,
@@ -15,7 +13,9 @@ use clap::ArgMatches;
 use console::{StyledObject, style};
 use dialoguer::{Select, theme::ColorfulTheme};
 use serde::{Deserialize, Serialize};
+use std::{collections::HashMap, fmt::Display, rc::Rc, sync::Mutex};
 
+pub mod clear;
 pub mod fetch;
 pub mod interact;
 
@@ -31,6 +31,7 @@ pub enum TaskType {
     },
     RelationshipRequestRejected,
     RelationshipRequestAccepted,
+    RelationshipRequestFinalized,
 }
 
 impl Display for TaskType {
@@ -40,6 +41,7 @@ impl Display for TaskType {
             TaskType::RelationshipRequestInbound { .. } => "Relationship Request (Inbound)",
             TaskType::RelationshipRequestRejected => "Relationship Request Rejected",
             TaskType::RelationshipRequestAccepted => "Relationship Request Accepted",
+            TaskType::RelationshipRequestFinalized => "Relationship Request Finalized",
         };
         write!(f, "{}", friendly_name)
     }
@@ -52,6 +54,7 @@ pub enum MessageType {
     RelationshipRequest,
     RelationshipRequestRejected,
     RelationshipRequestAccepted,
+    RelationshipRequestFinalize,
 }
 
 impl MessageType {
@@ -60,6 +63,7 @@ impl MessageType {
             MessageType::RelationshipRequest => "Relationship Request",
             MessageType::RelationshipRequestRejected => "Relationship Request Rejected",
             MessageType::RelationshipRequestAccepted => "Relationship Request Accepted",
+            MessageType::RelationshipRequestFinalize => "Relationship Request Finalize",
         }
         .to_string()
     }
@@ -77,6 +81,9 @@ impl From<MessageType> for String {
             }
             MessageType::RelationshipRequestAccepted => {
                 "https://linuxfoundation.org/lkmv/1.0/relationship-request-accept".to_string()
+            }
+            MessageType::RelationshipRequestFinalize => {
+                "https://linuxfoundation.org/lkmv/1.0/relationship-request-finalize".to_string()
             }
         }
     }
@@ -96,6 +103,9 @@ impl TryFrom<&str> for MessageType {
             }
             "https://linuxfoundation.org/lkmv/1.0/relationship-request-accept" => {
                 Ok(MessageType::RelationshipRequestAccepted)
+            }
+            "https://linuxfoundation.org/lkmv/1.0/relationship-request-finalize" => {
+                Ok(MessageType::RelationshipRequestFinalize)
             }
             _ => bail!("Invalid Task Type: {}", value),
         }
@@ -119,7 +129,7 @@ impl TryFrom<&Message> for MessageType {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Tasks {
     /// key: Task ID
-    tasks: HashMap<Rc<String>, Rc<Task>>,
+    tasks: HashMap<Rc<String>, Rc<Mutex<Task>>>,
 }
 
 /// LKMV Task
@@ -145,6 +155,7 @@ impl Tasks {
             );
         } else {
             for (task_id, task) in &self.tasks {
+                let task = task.lock().unwrap();
                 println!(
                     "{}{} {}{} {}{}",
                     style("Id: ").color256(CLI_BLUE),
@@ -159,12 +170,12 @@ impl Tasks {
     }
 
     /// Creates and adds a new Task to list of tasks
-    pub fn new_task(&mut self, id: &Rc<String>, type_: TaskType) -> Rc<Task> {
-        let task = Rc::new(Task {
+    pub fn new_task(&mut self, id: &Rc<String>, type_: TaskType) -> Rc<Mutex<Task>> {
+        let task = Rc::new(Mutex::new(Task {
             id: id.clone(),
             type_,
             created: Utc::now(),
-        });
+        }));
         self.tasks.insert(id.clone(), task.clone());
         task
     }
@@ -176,13 +187,22 @@ impl Tasks {
 
     /// Returns task at position pos
     /// Be careful with this, as insertions/removals can change operation
-    pub fn get_by_pos(&self, pos: usize) -> Option<Rc<Task>> {
+    pub fn get_by_pos(&self, pos: usize) -> Option<Rc<Mutex<Task>>> {
         self.tasks.iter().nth(pos).map(|(_, task)| task.clone())
     }
 
     /// Retrieves a task by ID or returns None
-    pub fn get_by_id(&self, id: &Rc<String>) -> Option<&Rc<Task>> {
+    pub fn get_by_id(&self, id: &Rc<String>) -> Option<&Rc<Mutex<Task>>> {
         self.tasks.get(id)
+    }
+
+    /// Clears all tasks
+    /// Returns true if any tasks were removed
+    /// Returns false if no changes were made
+    pub fn clear(&mut self) -> bool {
+        let flag = !self.tasks.is_empty();
+        self.tasks.clear();
+        flag
     }
 
     /// Interactive console for handling tasks
@@ -209,7 +229,8 @@ impl Tasks {
                 .tasks
                 .iter()
                 .map(|(id, task)| {
-                    style(format!("{} Type: {}", id, task.type_)).color256(CLI_PURPLE)
+                    style(format!("{} Type: {}", id, task.lock().unwrap().type_))
+                        .color256(CLI_PURPLE)
                 })
                 .collect();
             select_list.push(style("Exit Task Interaction".to_string()).color256(CLI_ORANGE));
@@ -225,8 +246,7 @@ impl Tasks {
                 // exit option
                 break;
             } else if let Some(task) = config.private.tasks.get_by_pos(selected) {
-                // TODO: Add task_interact
-                if task.interact(tdk, config).await? {
+                if Tasks::interact_task(&task, tdk, config).await? {
                     change_flag = true;
                 }
             } else {
@@ -290,7 +310,7 @@ pub async fn tasks_entry(
                         bail!("Unknown Task ID");
                     };
 
-                if task.interact(&tdk, config).await? {
+                if Tasks::interact_task(&task, &tdk, config).await? {
                     config.save(profile)?;
                     return Ok(());
                 }
@@ -298,6 +318,15 @@ pub async fn tasks_entry(
 
             if Tasks::interact(&tdk, config).await? {
                 config.save(profile)?;
+            }
+        }
+        Some(("clear", sub_args)) => {
+            // Removes all tasks from the remote server as well as locally
+            let force = sub_args.get_flag("force");
+
+            if Tasks::clear_all(&tdk, config, force).await? {
+                config.save(profile)?;
+                return Ok(());
             }
         }
         _ => {

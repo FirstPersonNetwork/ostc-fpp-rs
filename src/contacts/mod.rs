@@ -265,9 +265,9 @@ impl Contacts {
 
             let relationship_status =
                 if let Some(relationship) = relationships.relationships.get(&contact.did) {
-                    style(&relationship.state).color256(CLI_GREEN)
+                    style(relationship.lock().unwrap().state.clone()).color256(CLI_GREEN)
                 } else {
-                    style(&RelationshipState::None).color256(CLI_ORANGE)
+                    style(RelationshipState::None).color256(CLI_ORANGE)
                 };
 
             println!(

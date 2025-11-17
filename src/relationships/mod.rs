@@ -23,12 +23,12 @@ use clap::ArgMatches;
 use console::style;
 use ed25519_dalek_bip32::DerivationPath;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt::Display, rc::Rc};
+use std::{collections::HashMap, fmt::Display, rc::Rc, sync::Mutex};
 
 pub mod inbound;
 pub mod messages;
 
-#[derive(Debug, Hash, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq)]
 pub enum RelationshipState {
     /// Relationship Request has been sent to the remote party
     RequestSent,
@@ -80,6 +80,9 @@ pub struct RelationshipAcceptBody {
     pub did: String,
 }
 
+/// Body of the final Relationship Request sequence
+pub type RelationshipFinalizeBody = RelationshipAcceptBody;
+
 // ****************************************************************************
 // Relationships
 // ****************************************************************************
@@ -88,7 +91,7 @@ pub struct RelationshipAcceptBody {
 #[serde(from = "RelationshipsShadow", into = "RelationshipsShadow")]
 pub struct Relationships {
     /// Mapping relationships by the remote C-DID
-    pub relationships: HashMap<Rc<String>, Rc<Relationship>>,
+    pub relationships: HashMap<Rc<String>, Rc<Mutex<Relationship>>>,
 
     /*
     /// Mapping relationships by our R-DIDs
@@ -127,6 +130,7 @@ impl Relationships {
             println!("{}", style("No relationships exist").color256(CLI_ORANGE));
         } else {
             for r in self.relationships.values() {
+                let r = r.lock().unwrap();
                 let remote_c_did_alias = if let Some(contact) =
                     contacts.find_contact(&r.remote_c_did)
                     && let Some(alias) = &contact.alias
@@ -152,11 +156,13 @@ impl Relationships {
                     );
                 }
                 println!(
-                    "    {}{}{}{}",
+                    "    {}{}{}{}{}{}",
                     style("State: ").color256(CLI_BLUE),
                     style(&r.state).color256(CLI_GREEN),
                     style(" Created: ").color256(CLI_BLUE),
-                    style(r.created).color256(CLI_GREEN)
+                    style(r.created).color256(CLI_GREEN),
+                    style(" Task ID: ").color256(CLI_BLUE),
+                    style(&r.task_id).color256(CLI_GREEN)
                 );
                 println!();
             }
@@ -164,18 +170,32 @@ impl Relationships {
     }
 
     /// Removes a relationship by it's task_id
-    pub fn remove_by_task_id(&mut self, id: &Rc<String>) -> Option<Rc<Relationship>> {
+    pub fn remove_by_task_id(&mut self, id: &Rc<String>) -> Option<Rc<Mutex<Relationship>>> {
         if let Some(relationship) = self
             .relationships
             .values()
-            .find(|f| f.task_id == *id)
+            .find(|f| f.lock().unwrap().task_id == *id)
             .cloned()
         {
-            self.relationships.remove(&relationship.remote_did);
+            self.relationships
+                .remove(&relationship.lock().unwrap().remote_did);
             Some(relationship)
         } else {
             None
         }
+    }
+
+    /// Gets a relationship using the remote C-DID key
+    pub fn get(&self, c_did: &Rc<String>) -> Option<Rc<Mutex<Relationship>>> {
+        self.relationships.get(c_did).cloned()
+    }
+
+    /// Finds a relationship by it's task ID
+    pub fn find_by_task_id(&self, task_id: &Rc<String>) -> Option<Rc<Mutex<Relationship>>> {
+        self.relationships
+            .values()
+            .find(|f| &f.lock().unwrap().task_id == task_id)
+            .cloned()
     }
 }
 
@@ -205,7 +225,7 @@ pub struct Relationship {
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(default)]
 pub struct RelationshipsShadow {
-    pub relationships: Vec<Rc<Relationship>>,
+    pub relationships: Vec<Rc<Mutex<Relationship>>>,
     pub path_pointer: u32,
 }
 
@@ -215,7 +235,7 @@ impl From<Relationships> for RelationshipsShadow {
             .relationships
             .values()
             .cloned()
-            .collect::<Vec<Rc<Relationship>>>();
+            .collect::<Vec<Rc<Mutex<Relationship>>>>();
         RelationshipsShadow {
             relationships,
             path_pointer: value.path_pointer,
@@ -225,11 +245,12 @@ impl From<Relationships> for RelationshipsShadow {
 
 impl From<RelationshipsShadow> for Relationships {
     fn from(value: RelationshipsShadow) -> Self {
-        let mut relationships: HashMap<Rc<String>, Rc<Relationship>> = HashMap::new();
+        let mut relationships: HashMap<Rc<String>, Rc<Mutex<Relationship>>> = HashMap::new();
         //let mut r_map: HashMap<Rc<String>, Vec<HashSet<Rc<Relationship>>>> = HashMap::new();
 
         for relationship in value.relationships {
-            relationships.insert(relationship.remote_did.clone(), relationship.clone());
+            let remote_did = relationship.lock().unwrap().remote_did.clone();
+            relationships.insert(remote_did.clone(), relationship.clone());
 
             /*
                         r_map

@@ -4,7 +4,7 @@ use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
     config::Config,
     log::LogFamily,
-    relationships::RelationshipRejectBody,
+    relationships::{RelationshipAcceptBody, RelationshipFinalizeBody, RelationshipRejectBody},
     tasks::{MessageType, TaskType},
 };
 use affinidi_tdk::{
@@ -139,8 +139,88 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
                         )
                     }
                     MessageType::RelationshipRequestAccepted => {
-                        println!("TIMTAM: TODO");
-                        continue;
+                        let Some(task_id) = unpacked_msg.thid else {
+                            println!(
+                                "{}",
+                                style(
+                                    "WARN: A Relationship request accept message was received, but has no `thid` header. Can't do anything with this..."
+                                )
+                            );
+                            continue;
+                        };
+
+                        let body: RelationshipAcceptBody = match serde_json::from_value(
+                            unpacked_msg.body,
+                        ) {
+                            Ok(body) => body,
+                            Err(e) => {
+                                println!(
+                                    "{}",
+                                    style(format!(
+                                        "WARN: Invalid body receieved for relationship request accept message. Reason: {}",
+                                        e
+                                    ))
+                                );
+                                continue;
+                            }
+                        };
+                        if let Err(e) = config
+                            .handle_relationship_inbound_accept(
+                                tdk,
+                                &from_did,
+                                &Rc::new(task_id),
+                                &body.did,
+                            )
+                            .await
+                        {
+                            println!("{}", style(format!("WARN: An error occurred when processing a relationship request accept response. Error: {}", e)).color256(CLI_ORANGE));
+                            continue;
+                        }
+                        (
+                            style("Relationship request accepted".to_string()).color256(CLI_GREEN),
+                            TaskType::RelationshipRequestAccepted,
+                        )
+                    }
+                    MessageType::RelationshipRequestFinalize => {
+                        let Some(task_id) = unpacked_msg.thid else {
+                            println!(
+                                "{}",
+                                style(
+                                    "WARN: A Relationship request finalize message was received, but has no `thid` header. Can't do anything with this..."
+                                )
+                            );
+                            continue;
+                        };
+                        let task_id = Rc::new(task_id);
+
+                        let body: RelationshipFinalizeBody = match serde_json::from_value(
+                            unpacked_msg.body,
+                        ) {
+                            Ok(body) => body,
+                            Err(e) => {
+                                println!(
+                                    "{}",
+                                    style(format!(
+                                        "WARN: Invalid body receieved for relationship request finalize message. Reason: {}",
+                                        e
+                                    ))
+                                );
+                                continue;
+                            }
+                        };
+                        if let Err(e) = config
+                            .handle_relationship_inbound_finalize(&from_did, &task_id, &body.did)
+                            .await
+                        {
+                            println!("{}", style(format!("WARN: An error occurred when processing a relationship request finalize response. Error: {}", e)).color256(CLI_ORANGE));
+                            continue;
+                        }
+
+                        config.private.tasks.remove(&task_id);
+                        (
+                            style("Relationship request finalized".to_string()).color256(CLI_GREEN),
+                            TaskType::RelationshipRequestFinalized,
+                        )
                     }
                 }
             } else {

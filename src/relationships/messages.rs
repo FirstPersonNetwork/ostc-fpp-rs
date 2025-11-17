@@ -20,7 +20,7 @@ use anyhow::{Result, bail};
 use chrono::Utc;
 use console::style;
 use serde_json::json;
-use std::{rc::Rc, time::SystemTime};
+use std::{rc::Rc, sync::Mutex, time::SystemTime};
 use uuid::Uuid;
 
 /// Creates a new Relationship Request and send it to the remote party
@@ -114,14 +114,14 @@ pub async fn create_send_request(
 
     config.private.relationships.relationships.insert(
         contact.did.clone(),
-        Rc::new(Relationship {
+        Rc::new(Mutex::new(Relationship {
             task_id: msg_id.clone(),
             our_did: r_did.clone(),
             remote_c_did: contact.did.clone(),
             remote_did: contact.did.clone(),
             created: Utc::now(),
             state: RelationshipState::RequestSent,
-        }),
+        })),
     );
 
     config
