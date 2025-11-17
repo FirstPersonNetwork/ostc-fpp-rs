@@ -7,14 +7,14 @@ use crate::{
     config::Config,
     log::LogFamily,
     relationships::{
-        Relationship, RelationshipRequestBody, RelationshipState, create_relationship_did,
+        Relationship, RelationshipRejectBody, RelationshipRequestBody, RelationshipState,
+        create_relationship_did,
     },
     tasks::TaskType,
 };
 use affinidi_tdk::{
     TDK,
     didcomm::{Message, PackEncryptedOptions},
-    messaging::profiles::ATMProfile,
 };
 use anyhow::{Result, bail};
 use chrono::Utc;
@@ -30,8 +30,8 @@ use uuid::Uuid;
 /// alias: optional alias for the remote DID if it doesn't exist in contacts
 /// reason: Optional reason for creating this relationship request
 /// generate_did: whether to generate a new local R-DID for the relationship
-pub async fn create_request(
-    tdk: TDK,
+pub async fn create_send_request(
+    tdk: &TDK,
     config: &mut Config,
     respondent: &str,
     alias: Option<String>,
@@ -47,7 +47,7 @@ pub async fn create_request(
             config
                 .private
                 .contacts
-                .add_contact(&tdk, respondent, alias, true, &mut config.public.logs)
+                .add_contact(tdk, respondent, alias, true, &mut config.public.logs)
                 .await?
         } else {
             println!(
@@ -64,9 +64,9 @@ pub async fn create_request(
     let atm = tdk.atm.clone().unwrap();
 
     // is a local relationship-did needed?
-    let (our_did, our_profile) = if generate_did {
+    let r_did = if generate_did {
         let mediator = config.public.mediator_did.clone();
-        let r_did = Rc::new(create_relationship_did(&tdk, config, &mediator).await?);
+        let r_did = Rc::new(create_relationship_did(tdk, config, &mediator).await?);
         println!(
             "{}{}{}{}",
             style("Generated new Relationship DID for contact ").color256(CLI_GREEN),
@@ -74,25 +74,21 @@ pub async fn create_request(
             style(" :: ").color256(CLI_GREEN),
             style(&r_did).color256(CLI_PURPLE)
         );
-        let profile = ATMProfile::new(&atm, None, r_did.to_string(), Some(mediator)).await?;
-        (r_did, atm.profile_add(&profile, false).await?)
+        r_did
     } else {
-        (
-            config.public.community_did.clone(),
-            config.community_did.profile.clone(),
-        )
+        config.public.community_did.clone()
     };
 
     // Create the Relationship Request Message
-    let msg = create_message_request(&our_did, &contact.did, reason)?;
+    let msg = create_message_request(&config.public.community_did, &contact.did, reason)?;
     let msg_id = Rc::new(msg.id.clone());
 
     // Pack the message
     let (msg, _) = msg
         .pack_encrypted(
             &contact.did,
-            Some(&our_did),
-            Some(&our_did),
+            Some(&config.public.community_did),
+            Some(&config.public.community_did),
             tdk.did_resolver(),
             &tdk.get_shared_state().secrets_resolver,
             &PackEncryptedOptions {
@@ -103,7 +99,7 @@ pub async fn create_request(
         .await?;
 
     atm.forward_and_send_message(
-        &our_profile,
+        &config.community_did.profile,
         false,
         &msg,
         None,
@@ -119,7 +115,7 @@ pub async fn create_request(
         contact.did.clone(),
         Rc::new(Relationship {
             task_id: msg_id.clone(),
-            our_did: our_did.clone(),
+            our_did: r_did.clone(),
             remote_c_did: contact.did.clone(),
             remote_did: contact.did.clone(),
             created: Utc::now(),
@@ -172,7 +168,71 @@ fn create_message_request(from: &str, to: &str, reason: Option<&str>) -> Result<
     Ok(message)
 }
 
-fn create_message_rejected(from: &str, to: &str, reason: Option<&str>) -> Result<Message> {
+/// Sends a Relationship rejection message to the remote party
+pub async fn send_rejection(
+    tdk: &TDK,
+    config: &mut Config,
+    respondent: &str,
+    reason: Option<&str>,
+    task_id: &Rc<String>,
+) -> Result<()> {
+    let atm = tdk.atm.clone().unwrap();
+
+    // Create the Relationship Request rejection Message
+    let msg = create_message_rejected(&config.public.community_did, respondent, reason, task_id)?;
+
+    // Pack the message
+    let (msg, _) = msg
+        .pack_encrypted(
+            respondent,
+            Some(&config.public.community_did),
+            Some(&config.public.community_did),
+            tdk.did_resolver(),
+            &tdk.get_shared_state().secrets_resolver,
+            &PackEncryptedOptions {
+                forward: false,
+                ..Default::default()
+            },
+        )
+        .await?;
+
+    atm.forward_and_send_message(
+        &config.community_did.profile,
+        false,
+        &msg,
+        None,
+        &config.public.mediator_did,
+        respondent,
+        None,
+        None,
+        false,
+    )
+    .await?;
+
+    println!();
+    println!(
+        "{}{}",
+        style("✅ Succesfully sent Relationship Request Rejection to ").color256(CLI_GREEN),
+        style(respondent).color256(CLI_PURPLE)
+    );
+
+    config.public.logs.insert(
+        LogFamily::Relationship,
+        &format!(
+            "Relationship request rejected: remote DID({}) Task ID({})",
+            respondent, task_id
+        ),
+    );
+
+    Ok(())
+}
+
+fn create_message_rejected(
+    from: &str,
+    to: &str,
+    reason: Option<&str>,
+    task_id: &Rc<String>,
+) -> Result<Message> {
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
@@ -181,12 +241,13 @@ fn create_message_rejected(from: &str, to: &str, reason: Option<&str>) -> Result
     let message = Message::build(
         Uuid::new_v4().into(),
         "https://linuxfoundation.org/lkmv/1.0/relationship-request-reject".to_string(),
-        json!(RelationshipRequestBody {
+        json!(RelationshipRejectBody {
             reason: reason.map(|r| r.to_string())
         }),
     )
     .from(from.to_string())
     .to(to.to_string())
+    .thid(task_id.to_string())
     .created_time(now)
     .expires_time(60 * 60 * 48) // 48 hours
     .finalize();

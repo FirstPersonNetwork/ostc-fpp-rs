@@ -3,20 +3,25 @@ use std::rc::Rc;
 use crate::{
     CLI_BLUE, CLI_ORANGE, CLI_PURPLE,
     config::Config,
-    relationships::RelationshipRequestBody,
+    log::LogFamily,
+    relationships::{RelationshipRequestBody, messages::send_rejection},
     tasks::{Task, TaskType},
 };
 use affinidi_tdk::TDK;
 use anyhow::Result;
 use console::style;
-use dialoguer::{Select, theme::ColorfulTheme};
+use dialoguer::{Confirm, Input, Select, theme::ColorfulTheme};
 
 impl Task {
     /// Console interaction for this task
     pub async fn interact(&self, tdk: &TDK, config: &mut Config) -> Result<bool> {
         match &self.type_ {
-            TaskType::RelationshipRequestInbound { from, to, request } => {
-                interact_relationship_request(config, self, from, request).await?;
+            TaskType::RelationshipRequestInbound {
+                from,
+                to: _,
+                request,
+            } => {
+                interact_relationship_request(tdk, config, self, from, request).await?;
             }
             TaskType::RelationshipRequestOutbound => {
                 todo!("Implement outbound interaction")
@@ -35,6 +40,7 @@ impl Task {
 
 /// Handles the menu for an interactive inbound relationship request
 async fn interact_relationship_request(
+    tdk: &TDK,
     config: &mut Config,
     task: &Task,
     from: &Rc<String>,
@@ -86,11 +92,44 @@ async fn interact_relationship_request(
         }
         1 => {
             // Reject
-            Ok(true)
+
+            let reason: String = Input::with_theme(&ColorfulTheme::default())
+                .with_prompt(
+                    "Would you like to provide a reason for this rejection (Leave BLANK for None)?",
+                )
+                .allow_empty(true)
+                .interact_text()
+                .unwrap();
+
+            let reason = if reason.trim().is_empty() {
+                None
+            } else {
+                Some(reason.trim().to_string())
+            };
+
+            if Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt("Are you sure you want to reject this Relationship request?")
+                .default(true)
+                .interact()?
+            {
+                send_rejection(tdk, config, from, reason.as_deref(), &task.id).await?;
+
+                config.private.tasks.remove(&task.id);
+                config.public.logs.insert(
+                    LogFamily::Task,
+                    &format!(
+                        "Rejected Relationship request from remote DID({}) Task ID({})",
+                        from, task.id
+                    ),
+                );
+                Ok(true)
+            } else {
+                // Cancel rejection
+                Ok(false)
+            }
         }
         2 => {
             // Delete
-            //
             Ok(true)
         }
         3 => {

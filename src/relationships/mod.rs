@@ -9,7 +9,7 @@ use crate::{
         secured_config::{KeyInfoConfig, KeySourceMaterial},
     },
     contacts::Contacts,
-    relationships::messages::create_request,
+    relationships::messages::create_send_request,
 };
 use affinidi_tdk::{
     TDK,
@@ -254,8 +254,8 @@ pub async fn relationships_entry(
             let reason = sub_args.get_one::<String>("reason");
             let generate_did = sub_args.get_flag("generate-did");
 
-            create_request(
-                tdk,
+            create_send_request(
+                &tdk,
                 config,
                 &respondent,
                 alias.map(|s| s.to_string()),

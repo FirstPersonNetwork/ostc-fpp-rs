@@ -106,8 +106,8 @@ pub fn cli() -> Command {
                         .short('g')
                         .long("generate-did")
                         .help("Generate a new local relationship DID for this relationship request")
-                        .default_value("true")
-                        .action(ArgAction::SetFalse),
+                        .default_value("false")
+                        .action(ArgAction::SetTrue),
                 ])
                 .about("Request a new relationship")
                 .arg_required_else_help(true),
