@@ -128,7 +128,7 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
                             }
                         };
                         if let Err(e) = config
-                            .handle_reject_relationship(&Rc::new(task_id), body.reason.as_deref())
+                            .handle_relationship_reject(&Rc::new(task_id), body.reason.as_deref())
                         {
                             println!("{}", style(format!("WARN: An error occurred when processing a relationship request rejection response. Error: {}", e)).color256(CLI_ORANGE));
                             continue;
@@ -139,7 +139,8 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
                         )
                     }
                     MessageType::RelationshipRequestAccepted => {
-                        todo!("Implement accepted message handling")
+                        println!("TIMTAM: TODO");
+                        continue;
                     }
                 }
             } else {

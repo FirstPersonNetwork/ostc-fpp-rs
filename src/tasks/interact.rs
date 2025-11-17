@@ -4,7 +4,7 @@ use crate::{
     CLI_BLUE, CLI_ORANGE, CLI_PURPLE,
     config::Config,
     log::LogFamily,
-    relationships::{RelationshipRequestBody, messages::send_rejection},
+    relationships::{RelationshipRequestBody, create_relationship_did, messages::send_rejection},
     tasks::{Task, TaskType},
 };
 use affinidi_tdk::TDK;
@@ -88,7 +88,20 @@ async fn interact_relationship_request(
     {
         0 => {
             // Accept
-            Ok(true)
+            if Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt("Are you sure you want to accept this Relationship request?")
+                .default(true)
+                .interact()?
+            {
+                // Accept the relationship request
+                config
+                    .handle_relationship_request_accept(tdk, from, &task.id)
+                    .await?;
+
+                Ok(true)
+            } else {
+                Ok(false)
+            }
         }
         1 => {
             // Reject

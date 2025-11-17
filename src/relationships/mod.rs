@@ -74,10 +74,20 @@ pub struct RelationshipRequestBody {
 /// rejected
 pub type RelationshipRejectBody = RelationshipRequestBody;
 
+/// Body of a Relationship Rquest accept message
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct RelationshipAcceptBody {
+    pub did: String,
+}
+
+// ****************************************************************************
+// Relationships
+// ****************************************************************************
+
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(from = "RelationshipsShadow", into = "RelationshipsShadow")]
 pub struct Relationships {
-    /// Mapping relationships by the remote R-DID
+    /// Mapping relationships by the remote C-DID
     pub relationships: HashMap<Rc<String>, Rc<Relationship>>,
 
     /*

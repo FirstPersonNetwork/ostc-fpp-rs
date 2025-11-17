@@ -65,7 +65,8 @@ pub async fn create_send_request(
 
     // is a local relationship-did needed?
     let r_did = if generate_did {
-        let mediator = config.public.mediator_did.clone();
+        let mediator = config.public.mediator_did.clone(); // Clone so we can borrow config
+        // as mutable below
         let r_did = Rc::new(create_relationship_did(tdk, config, &mediator).await?);
         println!(
             "{}{}{}{}",

@@ -152,10 +152,16 @@ pub fn setup_hardware_token(
     }
 
     // Set cardholder name?
-    println!("{}{}\n{}\n", 
-        style("You can set a cardholder name (max 39 characters).\nRecommended Format: ").color256(CLI_BLUE),
+    println!(
+        "{}{}\n{}\n",
+        style("You can set a cardholder name (max 39 characters).\nRecommended Format: ")
+            .color256(CLI_BLUE),
         style("LAST_NAME<<FIRST_NAME<OTHER<OTHER").color256(CLI_PURPLE),
-        style("NOTE: You are free to enter any name in the cardholder name. No encoding is applied.").color256(CLI_BLUE));
+        style(
+            "NOTE: You are free to enter any name in the cardholder name. No encoding is applied."
+        )
+        .color256(CLI_BLUE)
+    );
 
     if Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Would you like to set the Cardholder Name?")
