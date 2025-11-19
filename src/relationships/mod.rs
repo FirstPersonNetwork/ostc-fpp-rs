@@ -20,7 +20,9 @@ use affinidi_tdk::{
     didcomm::PackEncryptedOptions,
     dids::DID,
     messaging::{profiles::ATMProfile, protocols::Protocols},
-    secrets_resolver::{SecretsResolver, secrets::Secret},
+    secrets_resolver::{
+        SecretsResolver, crypto::ed25519::ed25519_private_to_x25519_private_key, secrets::Secret,
+    },
 };
 use anyhow::{Result, bail};
 use chrono::{DateTime, Utc};
@@ -480,7 +482,12 @@ pub async fn create_relationship_did(
         .derive(&e_path.parse::<DerivationPath>()?)?;
 
     let mut v_secret = Secret::generate_ed25519(None, Some(v_key.signing_key.as_bytes()));
-    let mut e_secret = Secret::generate_x25519(None, Some(e_key.signing_key.as_bytes()))?;
+    let mut e_secret = Secret::generate_x25519(
+        None,
+        Some(&ed25519_private_to_x25519_private_key(
+            e_key.signing_key.as_bytes(),
+        )),
+    )?;
 
     let mut keys = vec![
         (DIDPeerKeys::Verification, &mut v_secret),

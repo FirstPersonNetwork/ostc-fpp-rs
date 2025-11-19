@@ -205,7 +205,7 @@ impl Config {
         let atm_profiles = private_cfg
             .relationships
             .generate_profiles(
-                &tdk,
+                tdk,
                 &pc.community_did,
                 &pc.mediator_did,
                 &bip32_root,
