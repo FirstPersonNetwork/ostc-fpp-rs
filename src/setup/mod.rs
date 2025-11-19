@@ -251,6 +251,7 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
         token_user_pin: UserPin::default(),
         protection_method: ProtectionMethod::default(),
         unlock_code,
+        atm_profiles: HashMap::new(),
     };
 
     config.save(profile)?;

@@ -17,8 +17,8 @@ use pgp::{
         SignatureType, Subpacket, SubpacketData, UserId,
     },
     types::{
-        self, EcdhPublicParams, EddsaLegacyPublicParams, KeyDetails, KeyVersion, PlainSecretParams,
-        PublicParams, SecretParams, SignedUser, Tag,
+        self, EcdhKdfType, EcdhPublicParams, EddsaLegacyPublicParams, KeyDetails, KeyVersion,
+        PlainSecretParams, PublicParams, SecretParams, SignedUser, Tag,
     },
 };
 use secrecy::{ExposeSecret, SecretString};
@@ -278,7 +278,7 @@ pub fn export_community_did_keys(
             ),
             hash: crypto::hash::HashAlgorithm::Sha256,
             alg_sym: crypto::sym::SymmetricKeyAlgorithm::AES256,
-            // ecdh_kdf_type: EcdhKdfType::Native,
+            ecdh_kdf_type: EcdhKdfType::Native,
         }),
     )?;
 

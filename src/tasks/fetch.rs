@@ -41,9 +41,22 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
     for msg in &msgs.success {
         task_count += 1;
         if let Some(message) = &msg.msg {
-            let (unpacked_msg, _) = atm.unpack(message).await?;
             // Ensure message is deleted after processing
             delete_list.message_ids.push(msg.msg_id.clone());
+
+            let unpacked_msg = match atm.unpack(message).await {
+                Ok((msg, _)) => msg,
+                Err(e) => {
+                    println!(
+                        "{} {}",
+                        style("WARN: Message fetched, but the DIDComm envelope is bad. Error:")
+                            .color256(CLI_ORANGE),
+                        style(e).color256(CLI_ORANGE)
+                    );
+                    println!("DIDComm bad enevlope:\n{:#?}", message);
+                    continue;
+                }
+            };
 
             // No anonymous messages are allowed
             let from_did = if let Some(did) = &unpacked_msg.from {
@@ -221,6 +234,12 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
                             style("Relationship request finalized".to_string()).color256(CLI_GREEN),
                             TaskType::RelationshipRequestFinalized,
                         )
+                    }
+                    MessageType::TrustPing => {
+                        todo!("Handle PING");
+                    }
+                    MessageType::TrustPong => {
+                        todo!("Handle PONG");
                     }
                 }
             } else {

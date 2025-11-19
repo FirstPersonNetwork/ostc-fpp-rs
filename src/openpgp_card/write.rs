@@ -16,8 +16,8 @@ use pgp::{
     crypto::{self, ed25519::Mode, public_key::PublicKeyAlgorithm},
     packet::{PacketHeader, PublicKey, SecretKey},
     types::{
-        EcdhPublicParams, EddsaLegacyPublicParams, KeyVersion, PlainSecretParams, PublicParams,
-        SecretParams, Tag,
+        EcdhKdfType, EcdhPublicParams, EddsaLegacyPublicParams, KeyVersion, PlainSecretParams,
+        PublicParams, SecretParams, Tag,
     },
 };
 use secrecy::SecretString;
@@ -141,6 +141,7 @@ fn create_pgp_secret_packet(key: &KeyInfo, kp: KeyPurpose) -> Result<UploadableK
                     p: x25519_pk,
                     hash: crypto::hash::HashAlgorithm::Sha256,
                     alg_sym: crypto::sym::SymmetricKeyAlgorithm::AES256,
+                    ecdh_kdf_type: EcdhKdfType::Native,
                 }),
             )?;
 

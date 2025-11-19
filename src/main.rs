@@ -10,7 +10,7 @@ use crate::{
     tasks::tasks_entry,
 };
 use affinidi_tdk::{TDK, common::config::TDKConfigBuilder};
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use console::{Term, style};
 use dialoguer::{Password, theme::ColorfulTheme};
 use secrecy::SecretString;
@@ -104,7 +104,10 @@ fn check_duplicate_instance(profile: &str) -> Result<String> {
         Ok(exists) => {
             if exists {
                 // Check the PID
-                let pid = fs::read_to_string(&lock_file)?.trim_end().to_string();
+                let pid = fs::read_to_string(&lock_file)
+                    .context("Couldn't read from lockfile")?
+                    .trim_end()
+                    .to_string();
 
                 // We want to only refresh processes.
                 let system = System::new_with_specifics(
@@ -137,7 +140,7 @@ fn check_duplicate_instance(profile: &str) -> Result<String> {
     }
 
     // Create the lock file
-    create_lock_file(&lock_file)?;
+    create_lock_file(&lock_file).context("create_lock_file() failed")?;
     Ok(lock_file)
 }
 
@@ -166,7 +169,19 @@ fn get_lock_file(profile: &str) -> Result<String> {
 
 /// Creates the lock file containg the running process PID
 fn create_lock_file(lock_file: &str) -> Result<()> {
-    Ok(fs::write(lock_file, process::id().to_string())?)
+    match fs::write(lock_file, process::id().to_string()) {
+        Ok(_) => Ok(()),
+        Err(e) => {
+            println!(
+                "{}{}{}{}",
+                style("ERROR: Couldn't create lock file: ").color256(CLI_RED),
+                style(lock_file).color256(CLI_PURPLE),
+                style(" Reason: ").color256(CLI_RED),
+                style(e).color256(CLI_ORANGE)
+            );
+            bail!("Couldn't create lock file");
+        }
+    }
 }
 
 /// Removes the lock file for the given profile

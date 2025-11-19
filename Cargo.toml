@@ -36,8 +36,7 @@ ed25519-dalek-bip32 = "0.3"
 hex = "0.4"
 keyring = "3.6"
 multibase = "0.9"
-# openpgp-card needs to be updated to support pgp 0.18
-pgp = "0.17"
+pgp = "0.18"
 # This is locked 0.8 due to *-dalek crates not udpated to rand 0.9
 rand = "0.8"
 regex = "1.12"
@@ -57,4 +56,4 @@ zeroize = "1.8"
 # Openpgp-Card Support
 openpgp-card = { version = "0.5", optional = true }
 card-backend-pcsc = { version = "0.5", optional = true }
-openpgp-card-rpgp = { version = "0.5", optional = true }
+openpgp-card-rpgp = { version = "0.6", optional = true }

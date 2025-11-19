@@ -32,6 +32,10 @@ pub enum TaskType {
     RelationshipRequestRejected,
     RelationshipRequestAccepted,
     RelationshipRequestFinalized,
+    TrustPing {
+        from: Rc<String>,
+        to: Rc<String>,
+    },
 }
 
 impl Display for TaskType {
@@ -42,6 +46,7 @@ impl Display for TaskType {
             TaskType::RelationshipRequestRejected => "Relationship Request Rejected",
             TaskType::RelationshipRequestAccepted => "Relationship Request Accepted",
             TaskType::RelationshipRequestFinalized => "Relationship Request Finalized",
+            TaskType::TrustPing { .. } => "Trust Ping Sent",
         };
         write!(f, "{}", friendly_name)
     }
@@ -55,6 +60,8 @@ pub enum MessageType {
     RelationshipRequestRejected,
     RelationshipRequestAccepted,
     RelationshipRequestFinalize,
+    TrustPing,
+    TrustPong,
 }
 
 impl MessageType {
@@ -64,6 +71,8 @@ impl MessageType {
             MessageType::RelationshipRequestRejected => "Relationship Request Rejected",
             MessageType::RelationshipRequestAccepted => "Relationship Request Accepted",
             MessageType::RelationshipRequestFinalize => "Relationship Request Finalize",
+            MessageType::TrustPing => "Trust Ping (Send)",
+            MessageType::TrustPong => "Trust Pong (Receive)",
         }
         .to_string()
     }
@@ -84,6 +93,10 @@ impl From<MessageType> for String {
             }
             MessageType::RelationshipRequestFinalize => {
                 "https://linuxfoundation.org/lkmv/1.0/relationship-request-finalize".to_string()
+            }
+            MessageType::TrustPing => "https://didcomm.org/trust-ping/2.0/ping".to_string(),
+            MessageType::TrustPong => {
+                "https://didcomm.org/trust-ping/2.0/ping-response".to_string()
             }
         }
     }
@@ -107,6 +120,8 @@ impl TryFrom<&str> for MessageType {
             "https://linuxfoundation.org/lkmv/1.0/relationship-request-finalize" => {
                 Ok(MessageType::RelationshipRequestFinalize)
             }
+            "https://didcomm.org/trust-ping/2.0/ping" => Ok(MessageType::TrustPing),
+            "https://didcomm.org/trust-ping/2.0/ping-response" => Ok(MessageType::TrustPong),
             _ => bail!("Invalid Task Type: {}", value),
         }
     }

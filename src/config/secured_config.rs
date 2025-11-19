@@ -155,6 +155,8 @@ pub struct SecuredConfig {
     // base64 encoded BIP32 private seed
     pub bip32_seed: String,
 
+    /// Key information containing path info
+    /// key is the DID VerificationMethod ID
     #[zeroize(skip)] // chrono doesn't support zeroize
     pub key_info: HashMap<String, KeyInfoConfig>,
 

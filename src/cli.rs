@@ -112,6 +112,17 @@ pub fn cli() -> Command {
                 .about("Request a new relationship")
                 .arg_required_else_help(true),
         )
+        .subcommand(
+            Command::new("ping")
+                .about("Ping the remote end of an established connection.")
+                .arg(
+                    Arg::new("remote")
+                        .short('r')
+                        .long("remote")
+                        .help("DID or contact alias to ping"),
+                )
+                .arg_required_else_help(true),
+        )
         .arg_required_else_help(true);
 
     // Tasks management
