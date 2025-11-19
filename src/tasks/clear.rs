@@ -15,7 +15,15 @@ use console::style;
 use dialoguer::{Confirm, theme::ColorfulTheme};
 
 impl Tasks {
-    pub async fn clear_all(tdk: &TDK, config: &mut Config, force: bool) -> Result<bool> {
+    /// Clears all tasks
+    /// force: Whether to ask for confirmation (no if true)
+    /// remote: Deletes all messages on the DIDComm mediator if true
+    pub async fn clear_all(
+        tdk: &TDK,
+        config: &mut Config,
+        force: bool,
+        remote: bool,
+    ) -> Result<bool> {
         let atm = tdk.atm.clone().unwrap();
         let mut change_flag = false;
 
@@ -32,24 +40,26 @@ impl Tasks {
         }
 
         // Remove remote queued tasks
-        let mut task_count: usize = 0;
-        loop {
-            let c = delete_remote(&atm, config).await?;
-            task_count += c;
-            if c < 100 {
-                break;
+        if remote {
+            let mut task_count: usize = 0;
+            loop {
+                let c = delete_remote(&atm, config).await?;
+                task_count += c;
+                if c < 100 {
+                    break;
+                }
             }
-        }
-        if task_count > 0 {
-            change_flag = true;
-        }
+            if task_count > 0 {
+                change_flag = true;
+            }
 
-        println!(
-            "{}{}{}",
-            style("Successfully removed ").color256(CLI_BLUE),
-            style(task_count).color256(CLI_GREEN),
-            style(" tasks from remote server").color256(CLI_BLUE)
-        );
+            println!(
+                "{}{}{}",
+                style("Successfully removed ").color256(CLI_BLUE),
+                style(task_count).color256(CLI_GREEN),
+                style(" tasks from remote server").color256(CLI_BLUE)
+            );
+        }
 
         // Remove local tasks
         let local_task_count = config.private.tasks.tasks.len();

@@ -340,8 +340,9 @@ pub async fn tasks_entry(
         Some(("clear", sub_args)) => {
             // Removes all tasks from the remote server as well as locally
             let force = sub_args.get_flag("force");
+            let remote = sub_args.get_flag("remote");
 
-            if Tasks::clear_all(&tdk, config, force).await? {
+            if Tasks::clear_all(&tdk, config, force, remote).await? {
                 config.save(profile)?;
                 return Ok(());
             }

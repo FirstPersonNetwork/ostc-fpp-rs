@@ -142,15 +142,18 @@ pub fn cli() -> Command {
                 .arg(Arg::new("id").short('i').long("id").help("Task ID")),
         )
         .subcommand(
-            Command::new("clear")
-                .about("Clears all tasks including remotely queued")
-                .arg(
-                    Arg::new("force")
-                        .long("force")
-                        .help("Forced clear, will not ask to confirm!")
-                        .default_value("false")
-                        .action(ArgAction::SetTrue),
-                ),
+            Command::new("clear").about("Clears tasks").args([
+                Arg::new("force")
+                    .long("force")
+                    .help("Forced clear, will not ask to confirm!")
+                    .default_value("false")
+                    .action(ArgAction::SetTrue),
+                Arg::new("remote")
+                    .long("remote")
+                    .help("Will also clear remote messages on LKMV Task Queue")
+                    .default_value("false")
+                    .action(ArgAction::SetTrue),
+            ]),
         )
         .arg_required_else_help(true);
 
