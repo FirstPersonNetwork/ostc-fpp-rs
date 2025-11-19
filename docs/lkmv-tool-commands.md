@@ -18,6 +18,13 @@ List of commands and options available from the LKMV Tool.
   - [lkmv contacts list](#lkmv-contacts-list)
 - [lkmv relationships](#lkmv-relationships)
   - [lkmv relationships request](#lkmv-relationships-request)
+  - [lkmv relationships list](#lkmv-relationships-list)
+- [lkmv tasks](#lkmv-tasks)
+  - [lkmv tasks list](#lkmv-tasks-list)
+  - [lkmv tasks fetch](#lkmv-tasks-fetch)
+  - [lkmv tasks remove](#lkmv-tasks-remove)
+  - [lkmv tasks interact](#lkmv-tasks-interact)
+  - [lkmv tasks clear](#lkmv-tasks-clear)
 
 
 ## Global Options
@@ -292,8 +299,6 @@ List all known contacts.
 
 #### Examples
 
-Removes a contact with a given DID.
-
 ```bash
 lkmv contacts list
 ```
@@ -347,3 +352,136 @@ lkmv -p profile-1 relationships request -d did:webvh:... -r "I want to connect."
 ```
 
 Sends a relationship request to the DID from a specific profile. 
+
+### lkmv relationships list
+
+List existing relationships.
+
+#### Examples
+
+```bash
+lkmv relationships list
+```
+
+List all relationships from the default or current profile (`LKMV_CONFIG_PROFILE`) of the CLI.
+
+```bash
+lkmv -p profile-1 relationships list
+```
+
+List all relationships from a specific profile.
+
+---
+
+## lkmv tasks
+
+Manage outstanding tasks, such as fetching messages from the mediator and approving relationship request.
+
+### lkmv tasks list
+
+List oustanding tasks.
+
+#### Examples
+
+```bash
+lkmv tasks list
+```
+
+List outstanding tasks from the default or current profile (`LKMV_CONFIG_PROFILE`) of the CLI.
+
+```bash
+lkmv -p profile-1 tasks list
+```
+
+List outstanding tasks from a specific profile.
+
+### lkmv tasks fetch
+
+Fetches new tasks from the mediator.
+
+#### Examples
+
+```bash
+lkmv tasks fetch
+```
+
+Fetches new tasks from the default or current profile (`LKMV_CONFIG_PROFILE`) of the CLI.
+
+```bash
+lkmv -p profile-1 tasks list
+```
+
+Fetches new tasks from a specific profile.
+
+### lkmv tasks remove
+
+Removes existing task from the list.
+
+#### Options
+
+- `-i, --id <id>`
+
+    ID of the task to remove.
+
+#### Examples
+
+```bash
+lkmv tasks remove --id 50ff0179-6d82-4424-8dab-bdf3b0c24b44
+```
+
+Removes an existing task from the default or current profile (`LKMV_CONFIG_PROFILE`) of the CLI.
+
+```bash
+lkmv -p profile-1 tasks remove --id 50ff0179-6d82-4424-8dab-bdf3b0c24b44
+```
+
+Removes an existing task from a specific profile.
+
+### lkmv tasks interact
+
+A CLI manager that allows you to interact with outstanding tasks, such as approving or rejecting relationship request.
+
+#### Options
+
+- `-i, --id <id>`
+
+    ID of the task to interact with.
+
+#### Examples
+
+```bash
+lkmv tasks interact --id 50ff0179-6d82-4424-8dab-bdf3b0c24b44
+```
+
+Interact with a specific task from the default or current profile (`LKMV_CONFIG_PROFILE`) of the CLI.
+
+```bash
+lkmv tasks interact
+```
+
+Enables the CLI manager to interact with the list of existing tasks.
+
+### lkmv tasks clear
+
+Clears all tasks, including tasks (messages) from the remote mediator.
+
+#### Options
+
+- `--force`
+
+    Forces clearing of existing tasks without requesting confirmation.
+
+#### Examples
+
+```bash
+lkmv tasks clear
+```
+
+Clears all task from the default or current profile (`LKMV_CONFIG_PROFILE`) of the CLI.
+
+```bash
+lkmv -p profile-1 tasks clear
+```
+
+Clears all task from a specific profile.
+

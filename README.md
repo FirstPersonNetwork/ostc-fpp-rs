@@ -11,11 +11,15 @@
   - [Public Configuration](#public-configuration)
   - [Secured Configuration](#secured-configuration)
 - [Prerequisites](#prerequisites)
+- [Feature Flags](#feature-flags)
 - [Set Up Environment](#set-up-environment)
   - [Same Domain with Multiple WebVH DIDs](#same-domain-with-multiple-webvh-dids)
 - [Check Environment Setup](#check-environment-setup)
-- [Feature Flags](#feature-flags)
 - [LKMV Commands](#lkmv-commands)
+- [Backup and Restore Configurations](#backup-and-restore-configurations)
+  - [Backup Configurations](#backup-configurations)
+  - [Restore Configurations](#restore-configurations)
+  - [DID Secrets Recovery](#did-secrets-recovery)
 
 
 ## Core Concepts
@@ -77,6 +81,7 @@ Stored in JSON format, the public configuration contains environment-specific de
 - Community DID.
 - Mediator DID.
 - Security mode (e.g., Unlock Codes or Hardware Token).
+- Encrypted private data containing known contacts and relationships.
 
 Config file location:
 
@@ -97,8 +102,7 @@ Stored in the operating system’s secure storage, e.g., macOS Keychain or Linux
 
 The secured configuration includes:
 
-- Private key material.
-- Known contact DIDs.
+- Private key materials.
 - Encrypted Session Key (ESK), if using a hardware token.
 
 If your profile uses both a hardware token and unlock code, the secured data is encrypted using the ESK.
@@ -116,6 +120,14 @@ For more details about secured configuration, refer to the [Handling Secured Con
    - `LKMV_CONFIG_PROFILE`: Set a specific configuration profile (defaults to `default`).
     
       **NOTE:** Setting the `LKMV_CONFIG_PROFILE` overrides any value set using the `-p/--profile` option.
+
+## Feature Flags 
+
+LKMV currently support two feature flags: 
+
+- **default:** Currently set to `openpgp-card`. To disable default features, use `--no-default-features` flag on the setup command. 
+
+- **openpgp-card:** Enables support for openpgp-card compatible devices. Set as the default feature. 
 
 ## Set Up Environment
 
@@ -146,7 +158,7 @@ Follow the setup steps to create the configuration, generate your Community DID,
 To create different WebVH DIDs for the same domain name, set the URL during setup to:
 
 ```bash
-✔ Enter the URL that will host your DID document (e.g., https://<your-domain>.com): https://affrncsp.github.io/profile1
+✔ Enter the URL that will host your DID document (e.g., https://<your-domain>.com): https://mydomain.com/profile1
 ```
 
 The setup wizard creates a WebVH DID with the following value:
@@ -176,14 +188,6 @@ lkmv -p profile-1 status
 
 It displays the tool version, along with the DIDs configured, and whether your Community DID is resolvable. 
 
-## Feature Flags 
-
-LKMV currently support two feature flags: 
-
-- **default:** Currently set to `openpgp-card`. To disable default features, use `--no-default-features` flag on the setup command. 
-
-- **openpgp-card:** Enables support for openpgp-card compatible devices. Set as the default feature. 
-
 ## LKMV Commands
 
 To run commands from an installed binary:
@@ -199,3 +203,67 @@ cargo run -- contacts list
 ```
 
 Refer to the list of [LKMV Tool Commands](./docs/lkmv-tool-commands.md) documentation for all available commands and options.
+
+## Backup and Restore Configurations
+
+The tool provides functionality to backup your profile configurations, including PGP keys, so you can transfer them to another machine or restore previous settings when needed.
+
+### Backup Configurations
+
+To back up the configuration for your profile, run the following command:
+
+```bash
+lkmv export settings --file ~/Downloads/lkmv-export.lkmv --passphrase MyPassphrase
+```
+
+The command will:
+
+- Export the default profile configuration, including key materials stored in the OS’s secure storage.
+- Save the encrypted backup to `~/Downloads/lkmv-export.lkmv`.
+- Encrypt the backup using the passphrase provided.
+
+**Important:** Store the backup file in a secure location for future recovery.
+
+### Restore Configurations
+
+To restore the backup on another machine or recover your previous setup, run the following command:
+
+```bash
+lkmv setup import --file ~/Downloads/lkmv-export.lkmv --passphrase MyPassphrase
+```
+
+The command will:
+
+- Import the configurations from the backup file.
+- Recreate the default profile (if no `--profile` option), including secured configuration stored in the OS’s secure storage.
+
+This process is helpful in use cases, such as:
+
+- Transferring LKMV configuration to a new machine.
+- Recovering access after losing the original machine.
+- Resetting the LKMV configuration.
+
+### DID Secrets Recovery
+
+To restore the same DID and associated secrets, use the **24-word recovery phrase** generated during the previous setup. This recovery phrase allows you to regenerate the DID secrets and an option to retain the same DID value. To do this:
+
+1. Run the setup command:
+
+```bash
+lkmv setup
+```
+> Optionally, run the setup command with the `--profile` to setup another profile.
+
+2. The first prompt will ask you if you would like to recover your DID secrets using the 24-word recovery phrase, select `yes`.
+
+```bash
+? Recover Secrets from 24 word recovery phrase? (y/n) › yes
+```
+
+3. Enter the 24-word recovery phrase to generate the DID secrets.
+
+4. After you entered the recovery phrase, one of the steps will ask if you would like to use your existing DID, select `yes`.
+
+This process will allow to retain the same DID and DID secrets, including the DID document.
+
+**Note:** The recovery phrase only restores the DID and its secrets, not the full profile configuration, such as contacts, relationships, and logs.
