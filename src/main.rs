@@ -189,6 +189,9 @@ fn remove_lock_file(lock_file: &str) {
     let _ = fs::remove_file(lock_file);
 }
 
+// ****************************************************************************
+// MAIN FUNCTION
+// ****************************************************************************
 #[tokio::main]
 async fn main() -> Result<()> {
     let term = Term::stdout();
@@ -207,17 +210,19 @@ async fn main() -> Result<()> {
             );
             println!(
                 "{} {}",
-                style("WARNING: Using ENV Profile:").color256(CLI_ORANGE),
-                style(&env_profile).color256(CLI_PURPLE)
+                style("WARNING: Using CLI Profile:").color256(CLI_ORANGE),
+                style(&cli_profile).color256(CLI_PURPLE)
             );
+            cli_profile
+        } else {
+            println!(
+                "{}{}{}",
+                style("Using profile (").color256(CLI_BLUE),
+                style(&env_profile).color256(CLI_PURPLE),
+                style(") from LKMV_CONFIG_PROFILE ENV variable").color256(CLI_BLUE)
+            );
+            env_profile
         }
-        println!(
-            "{}{}{}",
-            style("Using profile (").color256(CLI_BLUE),
-            style(&env_profile).color256(CLI_PURPLE),
-            style(") from LKMV_CONFIG_PROFILE ENV variable").color256(CLI_BLUE)
-        );
-        env_profile
     } else {
         cli()
             .get_matches()
