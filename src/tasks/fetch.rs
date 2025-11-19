@@ -4,6 +4,7 @@ use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
     config::Config,
     log::LogFamily,
+    messaging::{handle_inbound_ping, handle_inbound_pong},
     relationships::{RelationshipAcceptBody, RelationshipFinalizeBody, RelationshipRejectBody},
     tasks::{MessageType, TaskType},
 };
@@ -236,10 +237,52 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
                         )
                     }
                     MessageType::TrustPing => {
-                        todo!("Handle PING");
+                        match handle_inbound_ping(tdk, config, &from_did, &to_did, &unpacked_msg)
+                            .await
+                        {
+                            Ok(_) => (
+                                style(format!(
+                                    "Relationship trust-ping received from({})",
+                                    &from_did
+                                ))
+                                .color256(CLI_GREEN),
+                                TaskType::TrustPing {
+                                    from: from_did.clone(),
+                                    to: to_did.clone(),
+                                },
+                            ),
+                            Err(_) => {
+                                continue;
+                            }
+                        }
                     }
                     MessageType::TrustPong => {
-                        todo!("Handle PONG");
+                        let Some(task_id) = unpacked_msg.thid else {
+                            println!(
+                                "{}",
+                                style(
+                                    "WARN: A Trust-Ping response was reeceived, but has no thread-id (`thid`). Can't process this message..."
+                                )
+                            );
+                            continue;
+                        };
+
+                        match handle_inbound_pong(config, &from_did, &to_did, &Rc::new(task_id)) {
+                            Ok(_) => (
+                                style(format!(
+                                    "Relationship trust-ping received from({})",
+                                    &from_did
+                                ))
+                                .color256(CLI_GREEN),
+                                TaskType::TrustPing {
+                                    from: from_did.clone(),
+                                    to: to_did.clone(),
+                                },
+                            ),
+                            Err(_) => {
+                                continue;
+                            }
+                        }
                     }
                 }
             } else {

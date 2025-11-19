@@ -216,6 +216,17 @@ impl Relationships {
             .cloned()
     }
 
+    /// Finds a relationship by it's remote DID (could be C-DID or R-DID)
+    pub fn find_by_remote_did(&self, did: &Rc<String>) -> Option<Rc<Mutex<Relationship>>> {
+        self.relationships
+            .values()
+            .find(|r| {
+                let lock = r.lock().unwrap();
+                lock.remote_did == *did || lock.remote_c_did == *did
+            })
+            .cloned()
+    }
+
     /// Generates ATM Profiles for established relationships where the local r-did is different
     /// than the local c-did
     pub async fn generate_profiles(

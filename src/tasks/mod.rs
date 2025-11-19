@@ -36,6 +36,7 @@ pub enum TaskType {
         from: Rc<String>,
         to: Rc<String>,
     },
+    TrustPong,
 }
 
 impl Display for TaskType {
@@ -47,6 +48,7 @@ impl Display for TaskType {
             TaskType::RelationshipRequestAccepted => "Relationship Request Accepted",
             TaskType::RelationshipRequestFinalized => "Relationship Request Finalized",
             TaskType::TrustPing { .. } => "Trust Ping Sent",
+            TaskType::TrustPong => "Trust Pong Received",
         };
         write!(f, "{}", friendly_name)
     }
