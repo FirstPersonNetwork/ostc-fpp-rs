@@ -16,7 +16,7 @@ use dialoguer::{Password, theme::ColorfulTheme};
 use secrecy::SecretString;
 use sha2::Digest;
 use status::print_status;
-use std::{env, fs, process, str::FromStr};
+use std::{env, fs, path::Path, process, str::FromStr};
 use sysinfo::{Pid, ProcessRefreshKind, RefreshKind, System};
 use tracing_subscriber::EnvFilter;
 
@@ -169,6 +169,16 @@ fn get_lock_file(profile: &str) -> Result<String> {
 
 /// Creates the lock file containg the running process PID
 fn create_lock_file(lock_file: &str) -> Result<()> {
+    let dir_path = Path::new(&lock_file);
+
+    // Check that directory structure exists
+    if let Some(parent_path) = dir_path.parent()
+        && !parent_path.exists()
+    {
+        // Create parent directories
+        fs::create_dir_all(parent_path)?;
+    }
+
     match fs::write(lock_file, process::id().to_string()) {
         Ok(_) => Ok(()),
         Err(e) => {
