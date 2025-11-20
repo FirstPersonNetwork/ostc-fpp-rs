@@ -123,6 +123,7 @@ pub fn cli() -> Command {
                 )
                 .arg_required_else_help(true),
         )
+        .subcommand(Command::new("delete"))
         .arg_required_else_help(true);
 
     // Tasks management
@@ -156,6 +157,9 @@ pub fn cli() -> Command {
             ]),
         )
         .arg_required_else_help(true);
+
+    // VRC Management
+    let vrc_subcommand = Command::new("vrcs").about("Manage Verified Relationship Credentials");
 
     // Full CLI Set
     Command::new("lkmv")
@@ -198,5 +202,6 @@ pub fn cli() -> Command {
             contacts_subcommand,
             relationships_subcommand,
             tasks_subcommand,
+            vrc_subcommand,
         ])
 }

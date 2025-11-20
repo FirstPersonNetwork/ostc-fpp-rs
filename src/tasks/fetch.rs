@@ -1,4 +1,4 @@
-use std::rc::Rc;
+use std::{rc::Rc, sync::Arc};
 
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
@@ -10,18 +10,34 @@ use crate::{
 };
 use affinidi_tdk::{
     TDK,
-    messaging::messages::{DeleteMessageRequest, FetchDeletePolicy, fetch::FetchOptions},
+    messaging::{
+        messages::{DeleteMessageRequest, FetchDeletePolicy, fetch::FetchOptions},
+        profiles::ATMProfile,
+    },
 };
 use anyhow::Result;
-use console::style;
+use console::{Term, style};
 
 /// Fetches tasks from the DIDComm mediator and returns the number of new tasks retrieved
-pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
+pub async fn fetch_tasks(
+    tdk: &TDK,
+    config: &mut Config,
+    term: &Term,
+    profile: &Arc<ATMProfile>,
+) -> Result<u32> {
     let atm = tdk.atm.clone().unwrap();
+    let our_did = profile.dids()?.0.to_string();
 
+    print!(
+        "{}{}",
+        style("Fetching tasks for DID: ").color256(CLI_BLUE),
+        style(&our_did).color256(CLI_PURPLE)
+    );
+    let _ = term.hide_cursor();
+    let _ = term.flush();
     let msgs = atm
         .fetch_messages(
-            &config.community_did.profile,
+            profile,
             &FetchOptions {
                 limit: 100,
                 start_id: None,
@@ -30,10 +46,11 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
         )
         .await?;
 
+    let _ = term.show_cursor();
     println!(
-        "{}{}",
-        style(msgs.success.len()).color256(CLI_GREEN),
-        style(" tasks fetched successfully:").color256(CLI_BLUE)
+        " {}{}",
+        style("✅ tasks fetched:").color256(CLI_GREEN),
+        style(msgs.success.len()).color256(CLI_PURPLE),
     );
 
     let mut task_count: u32 = 0;
@@ -70,12 +87,12 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
             };
 
             let to_did = if let Some(to) = &unpacked_msg.to {
-                if to.contains(&config.public.community_did) {
+                if to.contains(&our_did) {
                     // Message is addressed to us
-                    config.public.community_did.clone()
+                    Rc::new(our_did.clone())
                 } else {
                     // Ignore this TASK as it isn't addressed to us
-                    println!("{}", style("WARN: An incoming message is not addressed to our Community DID. Ignoring this message for safety.").color256(CLI_ORANGE));
+                    println!("{}", style("WARN: An incoming message is not addressed to our Profile DID. Ignoring this message for safety.").color256(CLI_ORANGE));
                     println!(
                         "  {}{}",
                         style("from: ").color256(CLI_ORANGE),
@@ -320,10 +337,7 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
 
     // Delete messages as we have retrieved them
     if !delete_list.message_ids.is_empty() {
-        match atm
-            .delete_messages_direct(&config.community_did.profile, &delete_list)
-            .await
-        {
+        match atm.delete_messages_direct(profile, &delete_list).await {
             Ok(_) => {}
             Err(e) => {
                 println!(

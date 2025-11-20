@@ -31,6 +31,7 @@ mod relationships;
 mod setup;
 mod status;
 mod tasks;
+mod vrc;
 
 // CLI Color codes
 const CLI_BLUE: u8 = 69; // Use for general information
@@ -370,7 +371,7 @@ async fn lkmv(term: &Term, profile: &str) -> Result<()> {
         Some(("tasks", args)) => {
             let (tdk, mut config) = load(term, profile).await?;
 
-            tasks_entry(tdk, &mut config, profile, args).await?;
+            tasks_entry(tdk, &mut config, profile, args, term).await?;
         }
         _ => {
             eprintln!("No valid subcommand was used. Use --help for more information.");

@@ -6,14 +6,19 @@ use crate::{
     CLI_BLUE, CLI_ORANGE, CLI_PURPLE, CLI_RED, config::Config,
     relationships::RelationshipRequestBody, tasks::fetch::fetch_tasks,
 };
-use affinidi_tdk::{TDK, didcomm::Message};
+use affinidi_tdk::{TDK, didcomm::Message, messaging::profiles::ATMProfile};
 use anyhow::{Result, bail};
 use chrono::{DateTime, Utc};
 use clap::ArgMatches;
-use console::{StyledObject, style};
+use console::{StyledObject, Term, style};
 use dialoguer::{Select, theme::ColorfulTheme};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt::Display, rc::Rc, sync::Mutex};
+use std::{
+    collections::HashMap,
+    fmt::Display,
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 
 pub mod clear;
 pub mod fetch;
@@ -224,12 +229,19 @@ impl Tasks {
 
     /// Interactive console for handling tasks
     /// Returns true if changes were made to config
-    pub async fn interact(tdk: &TDK, config: &mut Config) -> Result<bool> {
+    pub async fn interact(tdk: &TDK, config: &mut Config, term: &Term) -> Result<bool> {
         let mut change_flag = false; // set to true if config changed
         loop {
             // fetch tasks in case there are new ones
-            if fetch_tasks(tdk, config).await? > 0 {
+            if fetch_tasks(tdk, config, term, &config.community_did.profile.clone()).await? > 0 {
                 change_flag = true;
+            }
+
+            let profiles: Vec<Arc<ATMProfile>> = config.atm_profiles.values().cloned().collect();
+            for profile in profiles {
+                if fetch_tasks(tdk, config, term, &profile).await? > 0 {
+                    change_flag = true;
+                }
             }
 
             if config.private.tasks.tasks.is_empty() {
@@ -288,6 +300,7 @@ pub async fn tasks_entry(
     config: &mut crate::config::Config,
     profile: &str,
     args: &ArgMatches,
+    term: &Term,
 ) -> Result<()> {
     match args.subcommand() {
         Some(("list", _)) => {
@@ -309,7 +322,17 @@ pub async fn tasks_entry(
             }
         }
         Some(("fetch", _)) => {
-            if fetch_tasks(&tdk, config).await? > 0 {
+            let mut change_flag = false;
+            if fetch_tasks(&tdk, config, term, &config.community_did.profile.clone()).await? > 0 {
+                change_flag = true;
+            }
+            let profiles: Vec<Arc<ATMProfile>> = config.atm_profiles.values().cloned().collect();
+            for profile in profiles {
+                if fetch_tasks(&tdk, config, term, &profile).await? > 0 {
+                    change_flag = true;
+                }
+            }
+            if change_flag {
                 config.save(profile)?;
             }
         }
@@ -333,7 +356,7 @@ pub async fn tasks_entry(
                 }
             }
 
-            if Tasks::interact(&tdk, config).await? {
+            if Tasks::interact(&tdk, config, term).await? {
                 config.save(profile)?;
             }
         }
