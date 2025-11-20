@@ -123,7 +123,16 @@ pub fn cli() -> Command {
                 )
                 .arg_required_else_help(true),
         )
-        .subcommand(Command::new("delete"))
+        .subcommand(
+            Command::new("remove")
+                .about("Remove a relationship")
+                .arg_required_else_help(true)
+                .arg(
+                    Arg::new("remote").short('r').long("remote").help(
+                        "DID or alias of the remote DID of the relationship you want to remove",
+                    ),
+                ),
+        )
         .arg_required_else_help(true);
 
     // Tasks management

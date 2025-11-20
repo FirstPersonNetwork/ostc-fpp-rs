@@ -422,6 +422,60 @@ pub async fn relationships_entry(
 
             config.save(profile)?;
         }
+        Some(("remove", sub_args)) => {
+            let remote_did = if let Some(did) = sub_args.get_one::<String>("remote") {
+                did.to_string()
+            } else {
+                println!(
+                    "{}",
+                    style("ERROR: You must specify the remote alias or DID!").color256(CLI_RED)
+                );
+                bail!("Remote Alias or DID is required");
+            };
+
+            let Some(contact) = config.private.contacts.find_contact(&remote_did) else {
+                println!(
+                    "{}{}",
+                    style("ERROR: Couldn't find a contact for: ").color256(CLI_RED),
+                    style(remote_did).color256(CLI_ORANGE)
+                );
+                bail!("Couldn't find contact");
+            };
+
+            let relationship = if let Some(r) = config
+                .private
+                .relationships
+                .find_by_remote_did(&contact.did)
+            {
+                r
+            } else {
+                println!(
+                    "{} {}",
+                    style("ERROR: No relationship found for remote DID/alias:").color256(CLI_RED),
+                    style(remote_did).color256(CLI_ORANGE)
+                );
+                bail!("No relationship found for remote DID/alias");
+            };
+
+            let remote_c_did = {
+                let lock = relationship.lock().unwrap();
+                lock.remote_c_did.clone()
+            };
+
+            config
+                .private
+                .relationships
+                .relationships
+                .remove(&remote_c_did);
+
+            println!(
+                "{} {}",
+                style("✅ Relationship with remote DID removed:").color256(CLI_GREEN),
+                style(remote_c_did).color256(CLI_GREEN)
+            );
+
+            config.save(profile)?;
+        }
         _ => {
             println!(
                 "{} {}",
