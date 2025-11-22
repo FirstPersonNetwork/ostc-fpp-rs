@@ -80,20 +80,21 @@ impl Display for RelationshipState {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RelationshipRequestBody {
     pub reason: Option<String>,
+    pub did: String,
 }
 
 /// DIDComm message body sent to the initiator of a relationship request when the request is
 /// rejected
-pub type RelationshipRejectBody = RelationshipRequestBody;
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct RelationshipRejectBody {
+    pub reason: Option<String>,
+}
 
 /// Body of a Relationship Rquest accept message
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RelationshipAcceptBody {
     pub did: String,
 }
-
-/// Body of the final Relationship Request sequence
-pub type RelationshipFinalizeBody = RelationshipAcceptBody;
 
 // ****************************************************************************
 // Relationships

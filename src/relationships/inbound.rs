@@ -7,8 +7,7 @@ use crate::{
     config::Config,
     log::LogFamily,
     relationships::{
-        Relationship, RelationshipAcceptBody, RelationshipFinalizeBody, RelationshipState,
-        create_relationship_did,
+        Relationship, RelationshipAcceptBody, RelationshipState, create_relationship_did,
     },
 };
 use affinidi_tdk::{
@@ -26,17 +25,31 @@ use uuid::Uuid;
 impl Config {
     /// Accepts an incoming relationship request from a remote party and sends the acceptance
     /// message back to them
+    /// tdk: Trust Development Kit instance
+    /// from: The remote party's C-DID
+    /// task_id: what task_id should be used for this relationship request?
+    /// their_did:What DID is the initiator requesting to use for the relationship after setup?
     pub async fn handle_relationship_request_send_accept(
         &mut self,
         tdk: &TDK,
         from: &Rc<String>,
         task_id: &Rc<String>,
+        their_did: &str,
     ) -> Result<()> {
+        let (their_did, use_r_did) = if their_did == from.as_str() {
+            // Using C-DID as relationship DID
+            (from.clone(), false)
+        } else {
+            // Using a random DID for the R-DID
+            println!("{}", style("NOTE: The remote party is using a random relationship DID, it is suggested you also do the same!").color256(CLI_GREEN));
+            (Rc::new(their_did.to_string()), true)
+        };
+
         // What r-did to use for this relationship?
         let r_did = if Confirm::with_theme(&ColorfulTheme::default())
                     .with_prompt("Do you want to create a random relationship DID to be used with this Relationship?")
-                    .default(false)
-                    .interact()?
+                    .default(use_r_did)
+                    .interact().unwrap()
         {
             let mediator = self.public.mediator_did.clone(); // Clone so we can borrow config
                 // as mutable below
@@ -117,7 +130,7 @@ impl Config {
             from.clone(),
             Rc::new(Mutex::new(Relationship {
                 task_id: task_id.clone(),
-                remote_did: from.clone(),
+                remote_did: their_did.clone(),
                 remote_c_did: from.clone(),
                 our_did: r_did.clone(),
                 created: Utc::now(),
@@ -192,7 +205,7 @@ impl Config {
         r_did: &str,
     ) -> Result<()> {
         // Update the relationship state with new r-did if required
-        let our_r_did = if let Some(relationship) = self.private.relationships.get(from) {
+        if let Some(relationship) = self.private.relationships.get(from) {
             let mut lock = relationship.lock().unwrap();
             lock.state = RelationshipState::Established;
             if lock.remote_did.as_str() != r_did {
@@ -205,7 +218,6 @@ impl Config {
                     ),
                 );
             }
-            lock.our_did.clone()
         } else {
             println!(
                 "{}",
@@ -215,10 +227,10 @@ impl Config {
                 .color256(CLI_ORANGE)
             );
             bail!("Couldn't find relationship for task ID ({})", task_id);
-        };
+        }
 
         // Create the DIDComm message
-        let msg = create_message_finalize(&self.public.community_did, from, &our_r_did, task_id)?;
+        let msg = create_message_finalize(&self.public.community_did, from, task_id)?;
 
         let atm = tdk.atm.clone().unwrap();
 
@@ -275,22 +287,11 @@ impl Config {
         &mut self,
         from: &Rc<String>,
         task_id: &Rc<String>,
-        r_did: &str,
     ) -> Result<()> {
         // Update the relationship state with new remote r-did if required
         let relationship = if let Some(relationship) = self.private.relationships.get(from) {
             let mut lock = relationship.lock().unwrap();
             lock.state = RelationshipState::Established;
-            if lock.remote_did.as_str() != r_did {
-                lock.remote_did = Rc::new(r_did.to_string());
-                self.public.logs.insert(
-                    LogFamily::Relationship,
-                    format!(
-                        "Changing remote DID to a r-did of ({}) for c-did ({}) task ID ({})",
-                        r_did, from, task_id
-                    ),
-                );
-            }
             relationship.clone()
         } else {
             println!(
@@ -397,12 +398,7 @@ fn create_message_accepted(
 }
 
 /// DIDComm final message for when a relationship request has been accepted by all parties
-fn create_message_finalize(
-    from: &str,
-    to: &str,
-    r_did: &Rc<String>,
-    task_id: &Rc<String>,
-) -> Result<Message> {
+fn create_message_finalize(from: &str, to: &str, task_id: &Rc<String>) -> Result<Message> {
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
@@ -411,9 +407,7 @@ fn create_message_finalize(
     let message = Message::build(
         Uuid::new_v4().into(),
         "https://linuxfoundation.org/lkmv/1.0/relationship-request-finalize".to_string(),
-        json!(RelationshipFinalizeBody {
-            did: r_did.to_string()
-        }),
+        json!({}),
     )
     .from(from.to_string())
     .to(to.to_string())

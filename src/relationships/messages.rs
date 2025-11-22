@@ -81,7 +81,7 @@ pub async fn create_send_request(
     };
 
     // Create the Relationship Request Message
-    let msg = create_message_request(&config.public.community_did, &contact.did, reason)?;
+    let msg = create_message_request(&config.public.community_did, &contact.did, reason, &r_did)?;
     let msg_id = Rc::new(msg.id.clone());
 
     // Pack the message
@@ -147,7 +147,17 @@ pub async fn create_send_request(
     Ok(())
 }
 
-fn create_message_request(from: &str, to: &str, reason: Option<&str>) -> Result<Message> {
+/// Creates the initial relationship request message
+/// from: initiator C-DID
+/// to: Respondent C-DID
+/// reason: Optional reason for the relationship request
+/// our_did: What DID to use for this relationship after creation (C-DID or R-DID
+fn create_message_request(
+    from: &str,
+    to: &str,
+    reason: Option<&str>,
+    our_did: &Rc<String>,
+) -> Result<Message> {
     let now = SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
         .unwrap()
@@ -157,7 +167,8 @@ fn create_message_request(from: &str, to: &str, reason: Option<&str>) -> Result<
         Uuid::new_v4().into(),
         "https://linuxfoundation.org/lkmv/1.0/relationship-request".to_string(),
         json!(RelationshipRequestBody {
-            reason: reason.map(|r| r.to_string())
+            reason: reason.map(|r| r.to_string()),
+            did: our_did.to_string(),
         }),
     )
     .from(from.to_string())

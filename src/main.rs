@@ -8,6 +8,7 @@ use crate::{
     relationships::relationships_entry,
     setup::{cli_setup, pgp_export::ask_export_community_did_keys},
     tasks::tasks_entry,
+    vrc::interact::vrcs_entry,
 };
 use affinidi_tdk::{TDK, common::config::TDKConfigBuilder};
 use anyhow::{Context, Result, bail};
@@ -372,6 +373,11 @@ async fn lkmv(term: &Term, profile: &str) -> Result<()> {
             let (tdk, mut config) = load(term, profile).await?;
 
             tasks_entry(tdk, &mut config, profile, args, term).await?;
+        }
+        Some(("vrcs", args)) => {
+            let (tdk, mut config) = load(term, profile).await?;
+
+            vrcs_entry(tdk, &mut config, profile, args).await?;
         }
         _ => {
             eprintln!("No valid subcommand was used. Use --help for more information.");

@@ -6,6 +6,9 @@ use affinidi_data_integrity::DataIntegrityProof;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+pub mod interact;
+pub mod request;
+
 /// Verifiable Relationship Credential Specification
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]

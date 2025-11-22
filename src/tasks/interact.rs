@@ -1,7 +1,7 @@
 use std::{rc::Rc, sync::Mutex};
 
 use crate::{
-    CLI_BLUE, CLI_ORANGE, CLI_PURPLE,
+    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE,
     config::Config,
     log::LogFamily,
     relationships::{RelationshipRequestBody, messages::send_rejection},
@@ -63,15 +63,26 @@ async fn interact_relationship_request(
         style(from).color256(CLI_PURPLE)
     );
 
+    print!(
+        "{}",
+        style("Rquestiong to use random relationship DID?").color256(CLI_BLUE)
+    );
+
+    if request.did == from.as_str() {
+        print!(" {}", style("NO").color256(CLI_GREEN));
+    } else {
+        print!(" {}", style("YES").color256(CLI_GREEN).blink());
+    }
+
     if let Some(reason) = &request.reason {
         println!(
-            "{}{}",
+            " {}{}",
             style("Reason: ").color256(CLI_BLUE),
             style(reason).color256(CLI_PURPLE)
         );
     } else {
         println!(
-            "{}{}",
+            " {}{}",
             style("Reason: ").color256(CLI_BLUE),
             style("No reason provided").color256(CLI_ORANGE)
         );
@@ -96,7 +107,7 @@ async fn interact_relationship_request(
             {
                 // Accept the relationship request
                 config
-                    .handle_relationship_request_send_accept(tdk, from, &task_id)
+                    .handle_relationship_request_send_accept(tdk, from, &task_id, &request.did)
                     .await?;
 
                 task.lock().unwrap().type_ = TaskType::RelationshipRequestAccepted;

@@ -5,7 +5,7 @@ use crate::{
     config::Config,
     log::LogFamily,
     messaging::{handle_inbound_ping, handle_inbound_pong},
-    relationships::{RelationshipAcceptBody, RelationshipFinalizeBody, RelationshipRejectBody},
+    relationships::{RelationshipAcceptBody, RelationshipRejectBody},
     tasks::{MessageType, TaskType},
 };
 use affinidi_tdk::{
@@ -224,23 +224,8 @@ pub async fn fetch_tasks(
                         };
                         let task_id = Rc::new(task_id);
 
-                        let body: RelationshipFinalizeBody = match serde_json::from_value(
-                            unpacked_msg.body,
-                        ) {
-                            Ok(body) => body,
-                            Err(e) => {
-                                println!(
-                                    "{}",
-                                    style(format!(
-                                        "WARN: Invalid body receieved for relationship request finalize message. Reason: {}",
-                                        e
-                                    ))
-                                );
-                                continue;
-                            }
-                        };
                         if let Err(e) = config
-                            .handle_relationship_inbound_finalize(&from_did, &task_id, &body.did)
+                            .handle_relationship_inbound_finalize(&from_did, &task_id)
                             .await
                         {
                             println!("{}", style(format!("WARN: An error occurred when processing a relationship request finalize response. Error: {}", e)).color256(CLI_ORANGE));
