@@ -392,7 +392,16 @@ pub async fn relationships_entry(
                     );
                 bail!("Respondent alias or DID is required");
             };
-            let alias = sub_args.get_one::<String>("alias");
+            let alias = if let Some(alias) = sub_args.get_one::<String>("alias") {
+                alias.to_string()
+            } else {
+                println!(
+                    "{}",
+                    style("ERROR: Alias must be specified when requesting a Relationship!")
+                        .color256(CLI_RED)
+                );
+                bail!("Missing alias argument!");
+            };
             let reason = sub_args.get_one::<String>("reason");
             let generate_did = sub_args.get_flag("generate-did");
 
@@ -400,7 +409,7 @@ pub async fn relationships_entry(
                 &tdk,
                 config,
                 &respondent,
-                alias.map(|s| s.to_string()),
+                alias,
                 reason.map(|s| s.as_str()),
                 generate_did,
             )

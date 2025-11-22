@@ -34,7 +34,7 @@ pub async fn create_send_request(
     tdk: &TDK,
     config: &mut Config,
     respondent: &str,
-    alias: Option<String>,
+    alias: String,
     reason: Option<&str>,
     generate_did: bool,
 ) -> Result<()> {
@@ -47,7 +47,7 @@ pub async fn create_send_request(
             config
                 .private
                 .contacts
-                .add_contact(tdk, respondent, alias, true, &mut config.public.logs)
+                .add_contact(tdk, respondent, Some(alias), true, &mut config.public.logs)
                 .await?
         } else {
             println!(

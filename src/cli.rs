@@ -97,7 +97,8 @@ pub fn cli() -> Command {
                     Arg::new("alias")
                         .short('a')
                         .long("alias")
-                        .help("Optional alias for the respondent DID"),
+                        .help("Alias for the respondent DID")
+                        .required(true),
                     Arg::new("reason")
                         .short('r')
                         .long("reason")
