@@ -2,9 +2,15 @@
 *   Verified Relationship Credentials (VRC)
 */
 
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE};
 use affinidi_data_integrity::DataIntegrityProof;
+use affinidi_tdk::didcomm::Message;
+use anyhow::Result;
 use chrono::{DateTime, Utc};
+use console::style;
 use serde::{Deserialize, Serialize};
+use std::{rc::Rc, time::SystemTime};
+use uuid::Uuid;
 
 pub mod interact;
 pub mod request;
@@ -206,4 +212,100 @@ pub struct Session {
     /// Optional: The DID of the session witness of any
     #[serde(skip_serializing_if = "Option::is_none")]
     pub witness_id: Option<String>,
+}
+
+// ****************************************************************************
+// VRC Request Structure
+// ****************************************************************************
+
+/// Structure of a request to someone to issue a VRC. Contains hints and information to help the
+/// issuer create the VRC.
+/// NOTE: It does not guarantee that the issuer will issue a VRC with the requested details.
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct VRCRequest {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    /// Optional: Include a reason for the VRC Request?
+    pub reason: Option<String>,
+
+    /// Include the r_did if one exists?
+    /// If true, will add r_did for this relationship to alsoKnownAs array of the "to" subject.
+    /// Defaults to false
+    pub include_r_did: bool,
+
+    /// Optional: Relationship Type URI that you would like the issuer to use
+    /// NOTE: The issuer may not honor this, and replace with their own value.
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub type_: Option<String>,
+
+    /// Would you like to include the start date in the VRC?
+    /// NOTE: The issuer may not honor this
+    pub start_date: bool,
+
+    /// Would you like to include the end date in the VRC?
+    /// NOTE: The issuer may not honor this
+    pub end_date: bool,
+}
+
+impl VRCRequest {
+    /// Create a new VRCRequest with default values
+    pub fn print(&self) {
+        print!("{}", style("VRC Request Reason: ").color256(CLI_BLUE));
+        if let Some(reason) = &self.reason {
+            println!("{}", style(reason).color256(CLI_PURPLE));
+        } else {
+            println!("{}", style("NO REASON PROVIDED").color256(CLI_ORANGE));
+        }
+
+        print!(
+            "{}",
+            style("VRC Relationship Type Requested: ").color256(CLI_BLUE)
+        );
+        if let Some(type_) = &self.type_ {
+            println!("{}", style(type_).color256(CLI_PURPLE));
+        } else {
+            println!("{}", style("NO TYPE REQUESTED").color256(CLI_ORANGE));
+        }
+
+        print!(
+            "{}",
+            style("Include r_did in alsoKnownAs?: ").color256(CLI_BLUE)
+        );
+        if self.include_r_did {
+            print!("{}", style("YES").color256(CLI_GREEN));
+        } else {
+            print!("{}", style("NO").color256(CLI_ORANGE));
+        }
+
+        print!(" {}", style("Requesting Start Date?: ").color256(CLI_BLUE));
+        if self.start_date {
+            print!("{}", style("YES").color256(CLI_GREEN));
+        } else {
+            print!("{}", style("NO").color256(CLI_ORANGE));
+        }
+
+        print!(" {}", style("Requesting End Date?: ").color256(CLI_BLUE));
+        if self.end_date {
+            println!("{}", style("YES").color256(CLI_GREEN));
+        } else {
+            println!("{}", style("NO").color256(CLI_ORANGE));
+        }
+    }
+
+    pub fn create_message(&self, to: &Rc<String>, from: &Rc<String>) -> Result<Message> {
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        Ok(Message::build(
+            Uuid::new_v4().to_string(),
+            "https://firstperson.network/vrc/1.0/request".to_string(),
+            serde_json::to_value(self)?,
+        )
+        .from(from.to_string())
+        .to(to.to_string())
+        .created_time(now)
+        .expires_time(60 * 60 * 48) // 48 hours
+        .finalize())
+    }
 }

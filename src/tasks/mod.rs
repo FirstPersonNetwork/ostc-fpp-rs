@@ -3,8 +3,10 @@
 */
 
 use crate::{
-    CLI_BLUE, CLI_ORANGE, CLI_PURPLE, CLI_RED, config::Config,
-    relationships::RelationshipRequestBody, tasks::fetch::fetch_tasks,
+    CLI_BLUE, CLI_ORANGE, CLI_PURPLE, CLI_RED,
+    config::Config,
+    relationships::{Relationship, RelationshipRequestBody},
+    tasks::fetch::fetch_tasks,
 };
 use affinidi_tdk::{TDK, didcomm::Message, messaging::profiles::ATMProfile};
 use anyhow::{Result, bail};
@@ -40,8 +42,12 @@ pub enum TaskType {
     TrustPing {
         from: Rc<String>,
         to: Rc<String>,
+        relationship: Rc<Mutex<Relationship>>,
     },
     TrustPong,
+    VRCRequest {
+        relationship: Rc<Mutex<Relationship>>,
+    },
 }
 
 impl Display for TaskType {
@@ -54,6 +60,7 @@ impl Display for TaskType {
             TaskType::RelationshipRequestFinalized => "Relationship Request Finalized",
             TaskType::TrustPing { .. } => "Trust Ping Sent",
             TaskType::TrustPong => "Trust Pong Received",
+            TaskType::VRCRequest { .. } => "VRC Request Sent",
         };
         write!(f, "{}", friendly_name)
     }
@@ -178,7 +185,7 @@ impl Tasks {
         } else {
             for (task_id, task) in &self.tasks {
                 let task = task.lock().unwrap();
-                println!(
+                print!(
                     "{}{} {}{} {}{}",
                     style("Id: ").color256(CLI_BLUE),
                     style(&task_id).color256(CLI_PURPLE),
@@ -187,6 +194,26 @@ impl Tasks {
                     style("Created: ").color256(CLI_BLUE),
                     style(&task.created).color256(CLI_PURPLE),
                 );
+                match &task.type_ {
+                    TaskType::TrustPing { relationship, .. } => {
+                        let lock = relationship.lock().unwrap();
+                        print!(
+                            " {} {}",
+                            style("Remote C-DID:").color256(CLI_BLUE),
+                            style(&lock.remote_c_did).color256(CLI_PURPLE)
+                        );
+                    }
+                    TaskType::VRCRequest { relationship } => {
+                        let lock = relationship.lock().unwrap();
+                        print!(
+                            " {} {}",
+                            style("Remote C-DID:").color256(CLI_BLUE),
+                            style(&lock.remote_c_did).color256(CLI_PURPLE)
+                        );
+                    }
+                    _ => {}
+                }
+                println!();
             }
         }
     }

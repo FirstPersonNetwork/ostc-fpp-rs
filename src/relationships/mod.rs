@@ -293,6 +293,21 @@ impl Relationships {
 
         Ok(profiles)
     }
+
+    /// Filters relationships and only returns those that are established
+    pub fn get_established_relationships(&self) -> Vec<Rc<Mutex<Relationship>>> {
+        self.relationships
+            .values()
+            .filter_map(|r| {
+                let lock = r.lock().unwrap();
+                if lock.state == RelationshipState::Established {
+                    Some(r.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -690,6 +705,7 @@ async fn remote_ping(tdk: &TDK, config: &mut Config, remote: &str) -> Result<()>
         TaskType::TrustPing {
             from: our_did,
             to: remote_did,
+            relationship,
         },
     );
 

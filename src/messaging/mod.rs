@@ -2,9 +2,11 @@
 *   Everything to do with DIDComm messaging is contained within this module.
 */
 
-use std::rc::Rc;
+use std::{rc::Rc, sync::Mutex};
 
-use crate::{CLI_ORANGE, CLI_PURPLE, CLI_RED, config::Config, log::LogFamily};
+use crate::{
+    CLI_ORANGE, CLI_PURPLE, CLI_RED, config::Config, log::LogFamily, relationships::Relationship,
+};
 use affinidi_tdk::{
     TDK,
     didcomm::{Message, PackEncryptedOptions},
@@ -43,14 +45,13 @@ pub async fn handle_inbound_ping(
     from: &Rc<String>,
     to: &Rc<String>,
     msg: &Message,
-) -> Result<()> {
+) -> Result<Rc<Mutex<Relationship>>> {
     // Check if there is a relationship between the two DIDs
-    if config
-        .private
-        .relationships
-        .find_by_remote_did(from)
-        .is_none()
+    let relationship = if let Some(relationship) =
+        config.private.relationships.find_by_remote_did(from)
     {
+        relationship.clone()
+    } else {
         println!("{}", style(format!("WARN: A ping message from ({}) was receieved, but there is not an established relationship for this DID!", from)).color256(CLI_ORANGE));
         bail!("Invalid Ping received");
     };
@@ -123,7 +124,7 @@ pub async fn handle_inbound_ping(
         );
     }
 
-    Ok(())
+    Ok(relationship)
 }
 
 /// Handles an inbound trust-pong message
@@ -132,14 +133,13 @@ pub fn handle_inbound_pong(
     from: &Rc<String>,
     to: &Rc<String>,
     task_id: &Rc<String>,
-) -> Result<()> {
+) -> Result<Rc<Mutex<Relationship>>> {
     // Check if there is a relationship between the two DIDs
-    if config
-        .private
-        .relationships
-        .find_by_remote_did(from)
-        .is_none()
+    let relationship = if let Some(relationship) =
+        config.private.relationships.find_by_remote_did(from)
     {
+        relationship.clone()
+    } else {
         println!("{}", style(format!("WARN: A ping response message from ({}) was receieved, but there is not an established relationship for this DID!", from)).color256(CLI_ORANGE));
         bail!("Invalid Ping response received");
     };
@@ -167,5 +167,5 @@ pub fn handle_inbound_pong(
 
     config.private.tasks.remove(task_id);
 
-    Ok(())
+    Ok(relationship)
 }

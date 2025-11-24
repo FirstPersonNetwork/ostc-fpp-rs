@@ -49,7 +49,7 @@ pub async fn fetch_tasks(
     let _ = term.show_cursor();
     println!(
         " {}{}",
-        style("✅ tasks fetched:").color256(CLI_GREEN),
+        style("✅ tasks fetched: ").color256(CLI_GREEN),
         style(msgs.success.len()).color256(CLI_PURPLE),
     );
 
@@ -242,7 +242,7 @@ pub async fn fetch_tasks(
                         match handle_inbound_ping(tdk, config, &from_did, &to_did, &unpacked_msg)
                             .await
                         {
-                            Ok(_) => (
+                            Ok(relationship) => (
                                 style(format!(
                                     "Relationship trust-ping received from({})",
                                     &from_did
@@ -251,6 +251,7 @@ pub async fn fetch_tasks(
                                 TaskType::TrustPing {
                                     from: from_did.clone(),
                                     to: to_did.clone(),
+                                    relationship,
                                 },
                             ),
                             Err(_) => {
@@ -270,7 +271,7 @@ pub async fn fetch_tasks(
                         };
 
                         match handle_inbound_pong(config, &from_did, &to_did, &Rc::new(task_id)) {
-                            Ok(_) => (
+                            Ok(relationship) => (
                                 style(format!(
                                     "Relationship trust-ping received from({})",
                                     &from_did
@@ -279,6 +280,7 @@ pub async fn fetch_tasks(
                                 TaskType::TrustPing {
                                     from: from_did.clone(),
                                     to: to_did.clone(),
+                                    relationship,
                                 },
                             ),
                             Err(_) => {

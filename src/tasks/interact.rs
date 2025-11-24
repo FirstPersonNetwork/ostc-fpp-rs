@@ -65,7 +65,7 @@ async fn interact_relationship_request(
 
     print!(
         "{}",
-        style("Rquestiong to use random relationship DID?").color256(CLI_BLUE)
+        style("Rquesting to use random relationship DID?").color256(CLI_BLUE)
     );
 
     if request.did == from.as_str() {

@@ -88,6 +88,7 @@ pub struct Config {
     pub unlock_code: Option<[u8; 32]>,
 
     /// Holds ATM profiles for relationships
+    /// Key: Our local DID for the relationship
     /// NOTE: Does not hold the community DID profile!
     pub atm_profiles: HashMap<Rc<String>, Arc<ATMProfile>>,
 }
