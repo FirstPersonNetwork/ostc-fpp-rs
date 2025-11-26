@@ -7,6 +7,7 @@ use crate::{
     config::Config,
     relationships::{Relationship, RelationshipRequestBody},
     tasks::fetch::fetch_tasks,
+    vrc::VRCRequest,
 };
 use affinidi_tdk::{TDK, didcomm::Message, messaging::profiles::ATMProfile};
 use anyhow::{Result, bail};
@@ -45,9 +46,14 @@ pub enum TaskType {
         relationship: Rc<Mutex<Relationship>>,
     },
     TrustPong,
-    VRCRequest {
+    VRCRequestOutbound {
         relationship: Rc<Mutex<Relationship>>,
     },
+    VRCRequestInbound {
+        request: VRCRequest,
+        relationship: Rc<Mutex<Relationship>>,
+    },
+    VRCRequestRejected,
 }
 
 impl Display for TaskType {
@@ -60,7 +66,9 @@ impl Display for TaskType {
             TaskType::RelationshipRequestFinalized => "Relationship Request Finalized",
             TaskType::TrustPing { .. } => "Trust Ping Sent",
             TaskType::TrustPong => "Trust Pong Received",
-            TaskType::VRCRequest { .. } => "VRC Request Sent",
+            TaskType::VRCRequestOutbound { .. } => "VRC Request Sent",
+            TaskType::VRCRequestInbound { .. } => "VRC Request Received",
+            TaskType::VRCRequestRejected => "VRC Request Rejected",
         };
         write!(f, "{}", friendly_name)
     }
@@ -76,6 +84,8 @@ pub enum MessageType {
     RelationshipRequestFinalize,
     TrustPing,
     TrustPong,
+    VRCRequest,
+    VRCRequestRejected,
 }
 
 impl MessageType {
@@ -87,6 +97,8 @@ impl MessageType {
             MessageType::RelationshipRequestFinalize => "Relationship Request Finalize",
             MessageType::TrustPing => "Trust Ping (Send)",
             MessageType::TrustPong => "Trust Pong (Receive)",
+            MessageType::VRCRequest => "VRC Request",
+            MessageType::VRCRequestRejected => "VRC Request Rejected",
         }
         .to_string()
     }
@@ -112,6 +124,10 @@ impl From<MessageType> for String {
             MessageType::TrustPong => {
                 "https://didcomm.org/trust-ping/2.0/ping-response".to_string()
             }
+            MessageType::VRCRequest => "https://firsteprson.network/vrc/1.0/request".to_string(),
+            MessageType::VRCRequestRejected => {
+                "https://firsteprson.network/vrc/1.0/rejected".to_string()
+            }
         }
     }
 }
@@ -136,6 +152,8 @@ impl TryFrom<&str> for MessageType {
             }
             "https://didcomm.org/trust-ping/2.0/ping" => Ok(MessageType::TrustPing),
             "https://didcomm.org/trust-ping/2.0/ping-response" => Ok(MessageType::TrustPong),
+            "https://firstperson.network/vrc/1.0/request" => Ok(MessageType::VRCRequest),
+            "https://firstperson.network/vrc/1.0/rejected" => Ok(MessageType::VRCRequestRejected),
             _ => bail!("Invalid Task Type: {}", value),
         }
     }
@@ -203,7 +221,7 @@ impl Tasks {
                             style(&lock.remote_c_did).color256(CLI_PURPLE)
                         );
                     }
-                    TaskType::VRCRequest { relationship } => {
+                    TaskType::VRCRequestOutbound { relationship } => {
                         let lock = relationship.lock().unwrap();
                         print!(
                             " {} {}",

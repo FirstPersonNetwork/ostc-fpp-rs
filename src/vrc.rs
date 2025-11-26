@@ -2,7 +2,7 @@
 *   Verified Relationship Credentials (VRC)
 */
 
-use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE};
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, config::Config, log::LogFamily};
 use affinidi_data_integrity::DataIntegrityProof;
 use affinidi_tdk::didcomm::Message;
 use anyhow::Result;
@@ -292,6 +292,7 @@ impl VRCRequest {
         }
     }
 
+    /// Creates a DIDCOmm message for the request
     pub fn create_message(&self, to: &Rc<String>, from: &Rc<String>) -> Result<Message> {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -307,5 +308,80 @@ impl VRCRequest {
         .created_time(now)
         .expires_time(60 * 60 * 48) // 48 hours
         .finalize())
+    }
+}
+
+// ****************************************************************************
+// VRC Request Reject Structure
+// ****************************************************************************
+
+/// VRC Request Rejected body
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct VRCRequestReject {
+    /// Optional: A reason for the rejection
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+impl VRCRequestReject {
+    /// Creates a DIDCOmm message for the rejection
+    pub fn create_message(
+        to: &Rc<String>,
+        from: &Rc<String>,
+        thid: &Rc<String>,
+        reason: Option<String>,
+    ) -> Result<Message> {
+        let now = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        Ok(Message::build(
+            Uuid::new_v4().to_string(),
+            "https://firstperson.network/vrc/1.0/rejected".to_string(),
+            serde_json::to_value(VRCRequestReject { reason })?,
+        )
+        .from(from.to_string())
+        .to(to.to_string())
+        .thid(thid.to_string())
+        .created_time(now)
+        .expires_time(60 * 60 * 48) // 48 hours
+        .finalize())
+    }
+}
+
+impl Config {
+    /// Handles rejection of a VRC request
+    pub fn handle_vrc_reject(
+        &mut self,
+        task_id: &Rc<String>,
+        reason: Option<&str>,
+        from: &Rc<String>,
+    ) -> Result<()> {
+        let reason = if let Some(reason) = reason {
+            reason.to_string()
+        } else {
+            "NO REASON PROVIDED".to_string()
+        };
+
+        self.public.logs.insert(
+            LogFamily::Relationship,
+            format!(
+                "Removed VRC ({}) request as rejected by remote entity Reason: {}",
+                task_id, reason
+            ),
+        );
+
+        self.private.tasks.remove(task_id);
+
+        self.public.logs.insert(
+            LogFamily::Task,
+            format!(
+                "VRC request rejected by remote DID({}) Task ID({}) Reason({})",
+                from, task_id, reason
+            ),
+        );
+
+        Ok(())
     }
 }

@@ -6,6 +6,7 @@ use crate::{
     log::LogFamily,
     relationships::{RelationshipRequestBody, messages::send_rejection},
     tasks::{Task, TaskType, Tasks},
+    vrc::{interact::interact_vrc_outbound_request, request::interact_vrc_inbound_request},
 };
 use affinidi_tdk::TDK;
 use anyhow::Result;
@@ -28,6 +29,13 @@ impl Tasks {
             } => interact_relationship_request(tdk, config, task, &from, &request).await?,
             TaskType::RelationshipRequestAccepted => {
                 interact_relationship_accepted(config, task).await?
+            }
+            TaskType::VRCRequestInbound {
+                request,
+                relationship,
+            } => interact_vrc_inbound_request(tdk, config, task, &request, &relationship).await?,
+            TaskType::VRCRequestOutbound { relationship } => {
+                interact_vrc_outbound_request(config, task, &relationship)?
             }
             _ => {
                 // Do nothing

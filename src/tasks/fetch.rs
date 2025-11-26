@@ -7,6 +7,7 @@ use crate::{
     messaging::{handle_inbound_ping, handle_inbound_pong},
     relationships::{RelationshipAcceptBody, RelationshipRejectBody},
     tasks::{MessageType, TaskType},
+    vrc::VRCRequestReject,
 };
 use affinidi_tdk::{
     TDK,
@@ -15,7 +16,7 @@ use affinidi_tdk::{
         profiles::ATMProfile,
     },
 };
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use console::{Term, style};
 
 /// Fetches tasks from the DIDComm mediator and returns the number of new tasks retrieved
@@ -287,6 +288,64 @@ pub async fn fetch_tasks(
                                 continue;
                             }
                         }
+                    }
+                    MessageType::VRCRequest => {
+                        let task_type = TaskType::VRCRequestInbound {
+                            request: serde_json::from_value(unpacked_msg.body)?,
+                            relationship: config
+                                .private
+                                .relationships
+                                .find_by_remote_did(&from_did)
+                                .ok_or(anyhow!("Couldn't find relationship for this VRC Request"))?
+                                .clone(),
+                        };
+
+                        config
+                            .private
+                            .tasks
+                            .new_task(&Rc::new(unpacked_msg.id.clone()), task_type.clone());
+                        (
+                            style(msg_type.friendly_name()).color256(CLI_GREEN),
+                            task_type,
+                        )
+                    }
+                    MessageType::VRCRequestRejected => {
+                        let Some(task_id) = unpacked_msg.thid else {
+                            println!(
+                                "{}",
+                                style(
+                                    "WARN: A VRC request rejection message was received, but has no `thid` header. Can't do anything with this..."
+                                )
+                            );
+                            continue;
+                        };
+
+                        let body: VRCRequestReject = match serde_json::from_value(unpacked_msg.body)
+                        {
+                            Ok(body) => body,
+                            Err(e) => {
+                                println!(
+                                    "{}",
+                                    style(format!(
+                                        "WARN: Invalid body receieved for VRC request rejection message. Reason: {}",
+                                        e
+                                    ))
+                                );
+                                continue;
+                            }
+                        };
+                        if let Err(e) = config.handle_vrc_reject(
+                            &Rc::new(task_id),
+                            body.reason.as_deref(),
+                            &from_did,
+                        ) {
+                            println!("{}", style(format!("WARN: An error occurred when processing a VRC request rejection response. Error: {}", e)).color256(CLI_ORANGE));
+                            continue;
+                        }
+                        (
+                            style("VRC request rejected".to_string()).color256(CLI_ORANGE),
+                            TaskType::VRCRequestRejected,
+                        )
                     }
                 }
             } else {

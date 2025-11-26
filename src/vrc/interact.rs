@@ -3,8 +3,12 @@
 */
 
 use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, config::Config, log::LogFamily,
-    relationships::Relationship, tasks::TaskType, vrc::VRCRequest,
+    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
+    config::Config,
+    log::LogFamily,
+    relationships::Relationship,
+    tasks::{Task, TaskType},
+    vrc::VRCRequest,
 };
 use affinidi_tdk::{TDK, didcomm::PackEncryptedOptions};
 use anyhow::{Result, bail};
@@ -119,7 +123,7 @@ async fn vrcs_interactive_request(tdk: &TDK, config: &mut Config) -> Result<bool
         config
             .private
             .tasks
-            .new_task(&msg_id, TaskType::VRCRequest { relationship });
+            .new_task(&msg_id, TaskType::VRCRequestOutbound { relationship });
 
         config.public.logs.insert(
             LogFamily::Relationship,
@@ -235,4 +239,62 @@ fn generate_vrc_request_body(
         start_date,
         end_date,
     })
+}
+
+/// Interactive menu to manage an outbound VRC request
+pub fn interact_vrc_outbound_request(
+    config: &mut Config,
+    task: &Rc<Mutex<Task>>,
+    relationship: &Rc<Mutex<Relationship>>,
+) -> Result<bool> {
+    let to_c_did = { relationship.lock().unwrap().remote_c_did.clone() };
+    let (task_id, task_created) = {
+        let lock = task.lock().unwrap();
+        (lock.id.clone(), lock.created)
+    };
+
+    println!(
+        "{}{} {}{}",
+        style("Task ID: ").color256(CLI_BLUE),
+        style(&task_id).color256(CLI_GREEN),
+        style("Created: ").color256(CLI_BLUE),
+        style(task_created).color256(CLI_GREEN)
+    );
+    println!(
+        "{}{}",
+        style("VRC Request Sent To: ").color256(CLI_BLUE),
+        style(&to_c_did).color256(CLI_PURPLE)
+    );
+    println!();
+
+    match Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("Task Action?")
+        .item("Delete this VRC request")
+        .item("Return to previous menu?")
+        .interact()?
+    {
+        0 => {
+            // Delete this task
+            println!("{}", style("When you delete a VRC request, no notification is sent to the remote DID. This means you may still receive a VRC in the future, it is safe to delete the VRC if one arrives.").color256(CLI_BLUE));
+            if Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt("Are you sure you want to DELETE this VRC request?")
+                .default(false)
+                .interact()?
+            {
+                config.private.tasks.remove(&task_id);
+                config.public.logs.insert(
+                    LogFamily::Task,
+                    format!(
+                        "Deleted VRC request to remote DID({}) Task ID({})",
+                        to_c_did, task_id
+                    ),
+                );
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        }
+        1 => Ok(false),
+        _ => Ok(false),
+    }
 }
