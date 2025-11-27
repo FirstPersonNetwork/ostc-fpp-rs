@@ -30,6 +30,9 @@ pub struct PublicConfig {
     /// Mediator DID
     pub mediator_did: String,
 
+    /// Human friendly name to use when referring to ourself
+    pub friendly_name: String,
+
     #[serde(default)]
     pub logs: Logs,
 

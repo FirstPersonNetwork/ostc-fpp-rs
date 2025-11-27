@@ -40,6 +40,7 @@ const CLI_GREEN: u8 = 34; // Use for Successful text
 const CLI_RED: u8 = 9; // Use for Error messages
 const CLI_ORANGE: u8 = 214; // Use for cautionary data
 const CLI_PURPLE: u8 = 165; // Use for Example data
+const CLI_WHITE: u8 = 15;
 
 // Primary Linux Kernel Mediator DID
 const LF_PUBLIC_MEDIATOR_DID: &str =

@@ -2,13 +2,16 @@
 *   Verified Relationship Credentials (VRC)
 */
 
-use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, config::Config, log::LogFamily};
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, config::Config, log::LogFamily};
 use affinidi_data_integrity::DataIntegrityProof;
-use affinidi_tdk::didcomm::Message;
-use anyhow::Result;
+use affinidi_tdk::{
+    didcomm::Message,
+    secrets_resolver::{SecretsResolver, ThreadedSecretsResolver},
+};
+use anyhow::{Result, bail};
 use chrono::{DateTime, Utc};
 use console::style;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize, Serializer};
 use std::{rc::Rc, time::SystemTime};
 use uuid::Uuid;
 
@@ -18,7 +21,7 @@ pub mod request;
 /// Verifiable Relationship Credential Specification
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct VRC {
+pub struct Vrc {
     /// JSON-LD links to contexts
     /// Must contain at least:
     /// https://www.w3.org/ns/credentials/v2
@@ -37,6 +40,7 @@ pub struct VRC {
     pub issuer: String,
 
     /// ISO 8601 format of when this credentials become valid from
+    #[serde(serialize_with = "iso8601_format")]
     pub valid_from: DateTime<Utc>,
 
     /// Human-readable name or title of this relationship
@@ -49,6 +53,53 @@ pub struct VRC {
 
     /// The relationship assertion between the entities involved
     pub credential_subject: CredentialSubject,
+
+    /// Cryptographic proof of credential authenticity
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub proof: Option<DataIntegrityProof>,
+}
+
+fn iso8601_format<S>(timestamp: &DateTime<Utc>, s: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+{
+    s.serialize_str(
+        timestamp
+            .to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+            .as_str(),
+    )
+}
+
+impl Default for Vrc {
+    fn default() -> Self {
+        Vrc {
+            context: vec![
+                "https://www.w3.org/ns/credentials/v2".to_string(),
+                "https://firstperson.network/credentials/relationship/v1".to_string(),
+            ],
+            type_: vec![
+                "VerifiableCredential".to_string(),
+                "RelationshipCredential".to_string(),
+            ],
+            issuer: String::new(),
+            valid_from: Utc::now(),
+            name: None,
+            description: None,
+            credential_subject: CredentialSubject::default(),
+            proof: None,
+        }
+    }
+}
+
+/// The relationship assertion between the entities involved
+#[derive(Default, Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CredentialSubject {
+    /// Information about the asserting ("from") entity
+    pub from: FromSubject,
+
+    /// Information about the target ("to") entity
+    pub to: ToSubject,
 
     /// Optional: URI or term from a published vocabulary specifying the nature of the relationship
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -65,45 +116,6 @@ pub struct VRC {
     /// Optional: Describes the live witnessing session linking the Fair Witness and the participants, if any
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session: Option<Session>,
-
-    /// Cryptographic proof of credential authenticity
-    pub proof: Option<DataIntegrityProof>,
-}
-
-impl Default for VRC {
-    fn default() -> Self {
-        VRC {
-            context: vec![
-                "https://www.w3.org/ns/credentials/v2".to_string(),
-                "https://firstperson.network/credentials/relationship/v1".to_string(),
-            ],
-            type_: vec![
-                "VerifiableCredential".to_string(),
-                "RelationshipCredential".to_string(),
-            ],
-            issuer: String::new(),
-            valid_from: Utc::now(),
-            name: None,
-            description: None,
-            credential_subject: CredentialSubject::default(),
-            relationship_type: None,
-            start_date: None,
-            end_date: None,
-            session: None,
-            proof: None,
-        }
-    }
-}
-
-/// The relationship assertion between the entities involved
-#[derive(Default, Serialize, Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
-pub struct CredentialSubject {
-    /// Information about the asserting ("from") entity
-    pub from: FromSubject,
-
-    /// Information about the target ("to") entity
-    pub to: ToSubject,
 }
 
 /// Information about the asserting ("from") entity
@@ -135,6 +147,65 @@ pub struct FromSubject {
     pub external_proofs: Vec<ExternalProof>,
 }
 
+impl FromSubject {
+    /// Create a new From Subject including proofs
+    /// NOTE: Does not support external proofs at this time
+    ///
+    /// from_did: DID of the VRC Issuer
+    /// to_did: DID of the VRC Recipient
+    pub async fn new(
+        from_did: String,
+        to_did: String,
+        name: Option<String>,
+        also_known_as: Vec<String>,
+        secrets: &ThreadedSecretsResolver,
+    ) -> Result<Self> {
+        // A linkage_proof is derived from the following:
+        // from_did
+        // to_did
+        // Alias DID
+
+        let mut linkage_proofs = Vec::new();
+        for alias in &also_known_as {
+            let Some(secret) = secrets
+                .get_secret([alias, "#key-1"].concat().as_str())
+                .await
+            else {
+                println!(
+                    "{} {}",
+                    style("Couldn't find Secret key material for #key-id:").color256(CLI_RED),
+                    style([alias, "#key-1"].concat()).color256(CLI_ORANGE)
+                );
+                bail!("COuldn't find Secret key material!");
+            };
+
+            let proof = DataIntegrityProof::sign_jcs_data(
+                &[&from_did, &to_did, alias.as_str()].concat(),
+                None,
+                &secret,
+                None,
+            )?;
+            linkage_proofs.push(LinkageProof {
+                type_: proof.type_,
+                identifier: alias.to_string(),
+                created: DateTime::parse_from_rfc3339(&proof.created.unwrap())
+                    .unwrap()
+                    .to_utc(),
+                proof_value: proof.proof_value.unwrap(),
+                nonce: None,
+            });
+        }
+
+        Ok(FromSubject {
+            did: from_did,
+            name,
+            also_known_as,
+            linkage_proofs,
+            external_proofs: Vec::new(),
+        })
+    }
+}
+
 /// An array of cryptographic proofs, each generated by signing a canonical message
 /// (such as the subject's DID or a credential hash) with the private key of an
 /// identifier listed in alsoKnownAs. Used to demonstrate that the entity controls
@@ -150,6 +221,7 @@ pub struct LinkageProof {
     pub identifier: String,
 
     /// The ISO 8601 date and time when the proof was created
+    #[serde(serialize_with = "iso8601_format")]
     pub created: DateTime<Utc>,
 
     /// The cryptographic signature value, such as a JWS or PGP armored block,
@@ -201,6 +273,20 @@ pub struct ToSubject {
     pub also_known_as: Vec<String>,
 }
 
+impl ToSubject {
+    /// Creates a new ToSubject
+    /// did: DID of the "to" entity
+    /// name: Optional friendly name for the "to" entity
+    /// also_known_as: Optional array of verifiable, subject-controlled identifiers/personas
+    pub fn new(did: String, name: Option<String>, also_known_as: Option<Vec<String>>) -> Self {
+        ToSubject {
+            did,
+            name,
+            also_known_as: also_known_as.unwrap_or_default(),
+        }
+    }
+}
+
 /// Describes the live witnessing session linking the Fair Witness and the
 /// participants, if any
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
@@ -223,7 +309,7 @@ pub struct Session {
 /// NOTE: It does not guarantee that the issuer will issue a VRC with the requested details.
 #[derive(Default, Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-pub struct VRCRequest {
+pub struct VrcRequest {
     #[serde(skip_serializing_if = "Option::is_none")]
     /// Optional: Include a reason for the VRC Request?
     pub reason: Option<String>,
@@ -245,9 +331,13 @@ pub struct VRCRequest {
     /// Would you like to include the end date in the VRC?
     /// NOTE: The issuer may not honor this
     pub end_date: bool,
+
+    /// Optional: Friendly name for yourself to include in the VRC
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
 }
 
-impl VRCRequest {
+impl VrcRequest {
     /// Create a new VRCRequest with default values
     pub fn print(&self) {
         print!("{}", style("VRC Request Reason: ").color256(CLI_BLUE));
@@ -267,6 +357,14 @@ impl VRCRequest {
             println!("{}", style("NO TYPE REQUESTED").color256(CLI_ORANGE));
         }
 
+        print!(
+            "{} {} ",
+            style("Friendly Name?").color256(CLI_BLUE),
+            self.name
+                .as_deref()
+                .map(|m| style(m).color256(CLI_GREEN))
+                .unwrap_or(style("N/A").color256(CLI_ORANGE))
+        );
         print!(
             "{}",
             style("Include r_did in alsoKnownAs?: ").color256(CLI_BLUE)

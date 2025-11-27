@@ -7,7 +7,7 @@ use crate::{
     config::Config,
     relationships::{Relationship, RelationshipRequestBody},
     tasks::fetch::fetch_tasks,
-    vrc::VRCRequest,
+    vrc::VrcRequest,
 };
 use affinidi_tdk::{TDK, didcomm::Message, messaging::profiles::ATMProfile};
 use anyhow::{Result, bail};
@@ -50,7 +50,7 @@ pub enum TaskType {
         relationship: Rc<Mutex<Relationship>>,
     },
     VRCRequestInbound {
-        request: VRCRequest,
+        request: VrcRequest,
         relationship: Rc<Mutex<Relationship>>,
     },
     VRCRequestRejected,

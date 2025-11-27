@@ -8,7 +8,7 @@ use crate::{
     log::LogFamily,
     relationships::Relationship,
     tasks::{Task, TaskType},
-    vrc::VRCRequest,
+    vrc::VrcRequest,
 };
 use affinidi_tdk::{TDK, didcomm::PackEncryptedOptions};
 use anyhow::{Result, bail};
@@ -55,7 +55,11 @@ async fn vrcs_interactive_request(tdk: &TDK, config: &mut Config) -> Result<bool
         return Ok(false);
     };
 
-    let request_body = generate_vrc_request_body(&relationship, &config.public.community_did)?;
+    let request_body = generate_vrc_request_body(
+        &relationship,
+        &config.public.community_did,
+        &config.public.friendly_name,
+    )?;
 
     request_body.print();
 
@@ -182,7 +186,8 @@ fn select_relationship(config: &Config) -> Option<Rc<Mutex<Relationship>>> {
 fn generate_vrc_request_body(
     relationship: &Rc<Mutex<Relationship>>,
     our_c_did: &Rc<String>,
-) -> Result<VRCRequest> {
+    friendly_name: &str,
+) -> Result<VrcRequest> {
     let reason: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Optional: Enter a reason for the VRC request (or leave blank to skip)")
         .allow_empty(true)
@@ -192,6 +197,29 @@ fn generate_vrc_request_body(
         None
     } else {
         Some(reason.trim().to_string())
+    };
+
+    println!(
+        "{} {}",
+        style("Your human readable name: ").color256(CLI_BLUE),
+        style(friendly_name).color256(CLI_GREEN)
+    );
+
+    let name = match Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("Would you like to include your human readable name in the VRC request?")
+        .items(["Yes", "Change my name", "No name specified"])
+        .default(0)
+        .interact()?
+    {
+        0 => Some(friendly_name.to_string()),
+        1 => Some(
+            Input::with_theme(&ColorfulTheme::default())
+                .with_prompt("Enter the name you would like to include in the VRC request")
+                .interact_text()
+                .unwrap(),
+        ),
+        2 => None,
+        _ => Some(friendly_name.to_string()),
     };
 
     let lock = relationship.lock().unwrap();
@@ -232,12 +260,13 @@ fn generate_vrc_request_body(
         .default(false)
         .interact()?;
 
-    Ok(VRCRequest {
+    Ok(VrcRequest {
         reason,
         include_r_did,
         type_,
         start_date,
         end_date,
+        name,
     })
 }
 

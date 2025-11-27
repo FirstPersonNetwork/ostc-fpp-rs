@@ -205,6 +205,12 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
         },
     );
 
+    println!("{}", style("Please enter a name for yourself, this is used to give a human readable name to your DID and Verifiable Relationship Credentials.").color256(CLI_BLUE));
+    let friendly_name = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Enter a name for yourself")
+        .interact_text()
+        .unwrap();
+
     // Instantiate TDK
     let tdk = TDK::new(
         TDKConfig::builder().with_load_environment(false).build()?,
@@ -230,6 +236,7 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
                 }]),
                 ..Default::default()
             },
+            friendly_name,
         },
         private: PrivateConfig::default(),
         community_did: CommunityDID {
