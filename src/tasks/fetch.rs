@@ -7,7 +7,7 @@ use crate::{
     messaging::{handle_inbound_ping, handle_inbound_pong},
     relationships::{RelationshipAcceptBody, RelationshipRejectBody},
     tasks::{MessageType, TaskType},
-    vrc::VRCRequestReject,
+    vrc::{VRCRequestReject, interact::handle_inbound_vrc_issued},
 };
 use affinidi_tdk::{
     TDK,
@@ -346,6 +346,18 @@ pub async fn fetch_tasks(
                             style("VRC request rejected".to_string()).color256(CLI_ORANGE),
                             TaskType::VRCRequestRejected,
                         )
+                    }
+                    MessageType::VRCIssued => {
+                        match handle_inbound_vrc_issued(config, &unpacked_msg) {
+                            Ok(vrc) => (
+                                style(format!("Signed VRC received from({})", &from_did))
+                                    .color256(CLI_GREEN),
+                                TaskType::VRCIssued { vrc: Box::new(vrc) },
+                            ),
+                            Err(_) => {
+                                continue;
+                            }
+                        }
                     }
                 }
             } else {

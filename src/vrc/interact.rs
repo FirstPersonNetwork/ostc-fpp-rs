@@ -8,9 +8,12 @@ use crate::{
     log::LogFamily,
     relationships::Relationship,
     tasks::{Task, TaskType},
-    vrc::VrcRequest,
+    vrc::{Vrc, VrcRequest},
 };
-use affinidi_tdk::{TDK, didcomm::PackEncryptedOptions};
+use affinidi_tdk::{
+    TDK,
+    didcomm::{Message, PackEncryptedOptions},
+};
 use anyhow::{Result, bail};
 use clap::ArgMatches;
 use console::style;
@@ -153,6 +156,15 @@ async fn vrcs_interactive_request(tdk: &TDK, config: &mut Config) -> Result<bool
 fn select_relationship(config: &Config) -> Option<Rc<Mutex<Relationship>>> {
     let mut items: Vec<String> = Vec::new();
     let relationships = config.private.relationships.get_established_relationships();
+    if relationships.is_empty() {
+        println!(
+            "{}",
+            style("There are no established relationships! Please create one first.")
+                .color256(CLI_ORANGE)
+        );
+        return None;
+    }
+
     for r in &relationships {
         let lock = r.lock().unwrap();
         let alias = if let Some(contact) = config.private.contacts.contacts.get(&lock.remote_c_did)
@@ -326,4 +338,96 @@ pub fn interact_vrc_outbound_request(
         1 => Ok(false),
         _ => Ok(false),
     }
+}
+
+/// Handles an inbound VRC Issued Message
+/// If related to a task, updates the Task information
+/// If not, then creates a new task for the user to accept or reject the VRC
+pub fn handle_inbound_vrc_issued(config: &mut Config, message: &Message) -> Result<Vrc> {
+    // Valid VRC structure?
+    let vrc: Vrc = match serde_json::from_value(message.body.clone()) {
+        Ok(vrc) => vrc,
+        Err(e) => {
+            println!(
+                "{}{}",
+                style("ERROR: VRC issued body is not a valid VRC! Reason: ").color256(CLI_RED),
+                style(e).color256(CLI_ORANGE)
+            );
+            bail!("Invalid VRC Body");
+        }
+    };
+
+    let Some(proof) = vrc.proof.clone() else {
+        println!(
+            "{}",
+            style("ERROR: VRC issued does not contain a proof!").color256(CLI_RED)
+        );
+        bail!("VRC Missing Proof");
+    };
+
+    let check_vrc = Vrc {
+        proof: None,
+        ..vrc.clone()
+    };
+
+    // Check the proof of the VRC
+    match affinidi_data_integrity::verification_proof::verify_data(&check_vrc, None, &proof) {
+        Ok(r) => {
+            if r.verified {
+                println!(
+                    "{}",
+                    style("✅ VRC proof verified successfully").color256(CLI_GREEN)
+                );
+            } else {
+                println!(
+                    "{}",
+                    style("VRC Proof failed integrity checks.").color256(CLI_RED)
+                );
+                bail!("VRC Failed Data Integrity Check");
+            }
+        }
+        Err(e) => {
+            println!(
+                "{}{}",
+                style("ERROR: VRC Failed Proof validation. Reason: ").color256(CLI_RED),
+                style(e).color256(CLI_ORANGE)
+            );
+            bail!("VRC Proof Validation Error");
+        }
+    }
+
+    if let Some(thid) = &message.thid {
+        if let Some(task) = config.private.tasks.get_by_id(&Rc::new(thid.to_string())) {
+            let mut lock = task.lock().unwrap();
+            lock.type_ = TaskType::VRCIssued {
+                vrc: Box::new(vrc.clone()),
+            };
+            return Ok(vrc);
+        } else {
+            println!(
+                "{}{}{}",
+                style("WARN: A VRC was issued to you with a task-id (").color256(CLI_ORANGE),
+                style(thid).color256(CLI_RED),
+                style(") that can't be found. Creating a new task instead").color256(CLI_ORANGE)
+            );
+        }
+    }
+
+    // No task, create a new one
+    let task = config.private.tasks.new_task(
+        &Rc::new(message.id.clone()),
+        TaskType::VRCIssued {
+            vrc: Box::new(vrc.clone()),
+        },
+    );
+
+    let task_id = task.lock().unwrap().id.clone();
+    println!(
+        "{} {}",
+        style("Issued VRC received. New task created to accept/reject this VRC. Task ID:")
+            .color256(CLI_GREEN),
+        style(task_id).color256(CLI_PURPLE)
+    );
+
+    Ok(vrc)
 }

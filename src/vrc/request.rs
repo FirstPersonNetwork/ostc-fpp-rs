@@ -621,6 +621,38 @@ pub async fn handle_accept_vrcs_request(
     let proof = DataIntegrityProof::sign_jcs_data(&vrc, None, &secret, None)?;
     vrc.proof = Some(proof);
 
+    // Send VRC to the requestor
+    let msg = vrc.message(&our_r_did, &their_r_did, Some(&task_id))?;
+
+    // Pack the message
+    let (msg, _) = msg
+        .pack_encrypted(
+            &their_r_did,
+            Some(&our_r_did),
+            Some(&our_r_did),
+            tdk.did_resolver(),
+            &tdk.get_shared_state().secrets_resolver,
+            &PackEncryptedOptions {
+                forward: false,
+                ..Default::default()
+            },
+        )
+        .await?;
+
+    let atm = tdk.atm.clone().unwrap();
+    atm.forward_and_send_message(
+        &config.community_did.profile,
+        false,
+        &msg,
+        None,
+        &config.public.mediator_did,
+        their_r_did.as_str(),
+        None,
+        None,
+        false,
+    )
+    .await?;
+
     println!(
         "{}\n{}",
         style("Issued VRC").color256(CLI_BLUE).underlined().bold(),
