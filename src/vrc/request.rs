@@ -443,6 +443,7 @@ pub async fn handle_accept_vrcs_request(
     }
     let relationship_type = match Select::with_theme(&ColorfulTheme::default())
         .with_prompt("How would you like to set the relationshipType attribute for this VRC?")
+        .default(0)
         .items(items)
         .interact()?
     {
@@ -563,6 +564,7 @@ pub async fn handle_accept_vrcs_request(
         .item("Set end date to now")
         .item("Set custom end date")
         .item("No end date")
+        .default(if request.end_date { 0 } else { 2 })
         .interact()?
     {
         0 => Some(Utc::now()),

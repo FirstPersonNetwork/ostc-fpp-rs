@@ -21,7 +21,7 @@ openpgp-card = [
 [dependencies]
 aes-gcm = "0.10"
 affinidi-tdk = "0.2"
-affinidi-data-integrity = "0.2"
+affinidi-data-integrity = "0.3"
 anyhow = "1.0"
 base64 = "0.22"
 bip39 = "2.2.0"

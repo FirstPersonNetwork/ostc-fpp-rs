@@ -348,7 +348,7 @@ pub async fn fetch_tasks(
                         )
                     }
                     MessageType::VRCIssued => {
-                        match handle_inbound_vrc_issued(config, &unpacked_msg) {
+                        match handle_inbound_vrc_issued(tdk, config, &unpacked_msg).await {
                             Ok(vrc) => (
                                 style(format!("Signed VRC received from({})", &from_did))
                                     .color256(CLI_GREEN),

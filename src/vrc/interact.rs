@@ -343,7 +343,11 @@ pub fn interact_vrc_outbound_request(
 /// Handles an inbound VRC Issued Message
 /// If related to a task, updates the Task information
 /// If not, then creates a new task for the user to accept or reject the VRC
-pub fn handle_inbound_vrc_issued(config: &mut Config, message: &Message) -> Result<Vrc> {
+pub async fn handle_inbound_vrc_issued(
+    tdk: &TDK,
+    config: &mut Config,
+    message: &Message,
+) -> Result<Vrc> {
     // Valid VRC structure?
     let vrc: Vrc = match serde_json::from_value(message.body.clone()) {
         Ok(vrc) => vrc,
@@ -371,7 +375,14 @@ pub fn handle_inbound_vrc_issued(config: &mut Config, message: &Message) -> Resu
     };
 
     // Check the proof of the VRC
-    match affinidi_data_integrity::verification_proof::verify_data(&check_vrc, None, &proof) {
+    match affinidi_data_integrity::verification_proof::verify_data(
+        tdk.did_resolver(),
+        &check_vrc,
+        None,
+        &proof,
+    )
+    .await
+    {
         Ok(r) => {
             if r.verified {
                 println!(
