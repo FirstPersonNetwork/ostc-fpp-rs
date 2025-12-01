@@ -408,7 +408,7 @@ impl VrcRequest {
         println!();
         print!(
             "{}",
-            style("Include r-did in alsoKnownAs: ").color256(CLI_BLUE)
+            style("Include R-DID in alsoKnownAs: ").color256(CLI_BLUE)
         );
         if self.include_r_did {
             print!("{}", style("YES").color256(CLI_GREEN));

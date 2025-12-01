@@ -187,7 +187,7 @@ fn select_relationship(config: &Config) -> Option<Rc<Mutex<Relationship>>> {
     }
 
     let selected = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select from the list (press ESC or q to quit)")
+        .with_prompt("Select from the list (press ESC or q to quit): ")
         .items(items)
         .interact_opt()
         .unwrap();
