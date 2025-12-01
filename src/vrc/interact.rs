@@ -51,7 +51,7 @@ pub async fn vrcs_entry(
 async fn vrcs_interactive_request(tdk: &TDK, config: &mut Config) -> Result<bool> {
     println!(
         "{}",
-        style("Requesting a VRC, please select the relationship you would like a VRC for:")
+        style("Select a relationship to request a VRC:")
             .color256(CLI_BLUE)
     );
     let Some(relationship) = select_relationship(config) else {
@@ -67,7 +67,7 @@ async fn vrcs_interactive_request(tdk: &TDK, config: &mut Config) -> Result<bool
     request_body.print();
 
     if Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Submit VRC request?")
+        .with_prompt("Send VRC request?")
         .default(true)
         .interact()?
     {
@@ -160,8 +160,16 @@ fn select_relationship(config: &Config) -> Option<Rc<Mutex<Relationship>>> {
     if relationships.is_empty() {
         println!(
             "{}",
-            style("There are no established relationships! Please create one first.")
+            style("No relationships found.")
                 .color256(CLI_ORANGE)
+        );
+        println!();
+        println!(
+            "{} \n{}",
+            style("To create a relationship, run:")
+                .color256(CLI_BLUE),
+            style("lkmv relationships request --respondent <did> --alias <respondent-alias>")
+                .color256(CLI_BLUE)
         );
         return None;
     }
@@ -180,7 +188,7 @@ fn select_relationship(config: &Config) -> Option<Rc<Mutex<Relationship>>> {
     }
 
     let selected = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select relationship (ESC or q to quit)")
+        .with_prompt("Select from the list (press ESC or q to quit): ")
         .items(items)
         .interact_opt()
         .unwrap();
@@ -190,7 +198,7 @@ fn select_relationship(config: &Config) -> Option<Rc<Mutex<Relationship>>> {
     } else {
         println!(
             "{}",
-            style("No relationship requested.").color256(CLI_ORANGE)
+            style("No relationship selected.").color256(CLI_ORANGE)
         );
         None
     }
@@ -202,7 +210,7 @@ fn generate_vrc_request_body(
     friendly_name: &str,
 ) -> Result<VrcRequest> {
     let reason: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Optional: Enter a reason for the VRC request (or leave blank to skip)")
+        .with_prompt("Enter a reason for the VRC request (optional, press Enter to skip)")
         .allow_empty(true)
         .interact_text()?;
 
@@ -212,22 +220,23 @@ fn generate_vrc_request_body(
         Some(reason.trim().to_string())
     };
 
+    println!();
     println!(
         "{} {}",
-        style("Your human readable name: ").color256(CLI_BLUE),
+        style("Your current human-readable name: ").color256(CLI_BLUE),
         style(friendly_name).color256(CLI_GREEN)
     );
 
     let name = match Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Would you like to include your human readable name in the VRC request?")
-        .items(["Yes", "Change my name", "No name specified"])
+        .with_prompt("Include your human-readable name in the VRC request?")
+        .items(["Yes, include my name", "Change my name", "Do not include a name"])
         .default(0)
         .interact()?
     {
         0 => Some(friendly_name.to_string()),
         1 => Some(
             Input::with_theme(&ColorfulTheme::default())
-                .with_prompt("Enter the name you would like to include in the VRC request")
+                .with_prompt("Enter the name to include in the VRC request")
                 .interact_text()
                 .unwrap(),
         ),
@@ -239,37 +248,35 @@ fn generate_vrc_request_body(
     let include_r_did = if &lock.our_did != our_c_did {
         println!(
             "{}{}",
-            style("You are using an r-did for this relationship: ").color256(CLI_BLUE),
+            style("You are using an R-DID for this relationship: ").color256(CLI_BLUE),
             style(&lock.our_did).color256(CLI_PURPLE)
         );
         Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt("Include r_did in alsoKnownAs?")
+            .with_prompt("Include R-DID in alsoKnownAs?")
             .default(false)
             .interact()?
     } else {
         false
     };
 
-    let type_: Option<String> = if Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Would you like to suggest a Relationship Type URI?")
-        .default(false)
-        .interact()?
-    {
-        let r_type: String = Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("Enter the Relationship Type URI")
-            .interact_text()?;
-        Some(r_type)
-    } else {
+    let type_: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Suggest a relationship type (e.g., Coworker, Peer, or a Relationship Type URI) \n   (optional, press Enter to skip)")
+        .allow_empty(true)
+        .interact_text()?;
+
+    let type_ = if type_.trim().is_empty() {
         None
+    } else {
+        Some(type_.trim().to_string())
     };
 
     let start_date = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Would you like to request including a start date?")
+        .with_prompt("Request to include a start date in the VRC request?")
         .default(true)
         .interact()?;
 
     let end_date = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Would you like to request including an end date?")
+        .with_prompt("Request to include an end date in the VRC request?")
         .default(false)
         .interact()?;
 

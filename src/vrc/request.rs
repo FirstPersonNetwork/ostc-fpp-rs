@@ -211,64 +211,73 @@ pub async fn handle_accept_vrcs_request(
     println!();
     println!(
         "{}",
-        style("Our information")
+        style("Your Information")
             .color256(CLI_BLUE)
-            .underlined()
             .bold()
     );
+    println!("{}", style("=================").bold().color256(CLI_BLUE));
     println!();
 
     println!(
         "{} {}",
-        style("Your human readable name is:").color256(CLI_BLUE),
+        style("Your current human-readable name:").color256(CLI_BLUE),
         style(&config.public.friendly_name).color256(CLI_GREEN)
     );
-    let from_name = if Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Would you like to change the human-readable name for yourself in this VRC?")
-        .default(false)
+
+    let from_name = match Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("Change your human-readable name in this VRC?")
+        .items(["No, keep my name", "Change my name", "Do not include a name"])
+        .default(0)
         .interact()?
     {
-        let from_name:String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Enter a human-readable name for yourself of the VRC (leave blank for no issuer name)")
-        .interact_text()
-        .unwrap();
-
-        if from_name.trim().is_empty() {
-            None
-        } else {
-            Some(from_name.trim().to_string())
-        }
-    } else {
-        Some(config.public.friendly_name.to_string())
+        0 => Some(config.public.friendly_name.to_string()),
+        1 => Some(
+            Input::with_theme(&ColorfulTheme::default())
+                .with_prompt("Enter the name to include in this VRC (leave blank for no issuer name): ")
+                .allow_empty(true)
+                .interact_text()
+                .unwrap(),
+        ),
+        2 => None,
+        _ => Some(config.public.friendly_name.to_string()),
     };
+
+    if from_name.clone().unwrap().trim().is_empty() {
+        println!(
+            "{}",
+            style("No issuer name included.").color256(CLI_ORANGE)
+        );
+    }
 
     let our_also_known_as = if our_r_did != config.public.community_did {
         println!(
             "{}{}",
-            style("This relationship is using private Relationship DIDs (R-DID). R-DID: ")
+            style("This relationship is using private Relationship DIDs (R-DID): ")
                 .color256(CLI_BLUE),
             style(&our_r_did).color256(CLI_PURPLE)
         );
+        println!();
         println!(
             "{}{}{}",
-            style("Typically it is ")
+            style("It is ")
                 .color256(CLI_BLUE),
             style("NOT RECOMMENDED")
                 .color256(CLI_ORANGE).bold(),
-            style(" to include the R-DID in alsoKnownAs as this is your private communication channel!")
+            style(" to include the R-DID in alsoKnownAs, as this is your private communication channel.")
                 .color256(CLI_BLUE),
         );
+        println!();
         let ask_default = if request.include_r_did {
             println!(
                 "{} {}",
-                style("Has the requestor requested to include their R-DID?").color256(CLI_BLUE),
+                style("Did the requestor request to include their R-DID?").color256(CLI_BLUE),
                 style("YES").color256(CLI_GREEN)
             );
             true
         } else {
             println!(
                 "{} {}",
-                style("Has the requestor requested to include their R-DID?").color256(CLI_BLUE),
+                style("Did the requestor request to include their R-DID?").color256(CLI_BLUE),
                 style("NO").color256(CLI_ORANGE)
             );
             false
@@ -288,7 +297,7 @@ pub async fn handle_accept_vrcs_request(
         } else {
             println!(
                 "{}",
-                style("You are NOT including your R-DID in alsoKnownAs").color256(CLI_BLUE)
+                style("You are NOT including your R-DID in alsoKnownAs.").color256(CLI_BLUE)
             );
             vec![]
         }
@@ -299,15 +308,15 @@ pub async fn handle_accept_vrcs_request(
     println!();
     println!(
         "{}",
-        style("Their information")
+        style("Requestor Information")
             .color256(CLI_BLUE)
-            .underlined()
             .bold()
     );
+    println!("{}", style("======================").bold().color256(CLI_BLUE));
     println!();
 
     let their_name = if let Some(name) = &request.name {
-        println!("{}{}", style("The requestor has suggested a name to use for themselves, do you want to use this? Name: ").color256(CLI_BLUE), style(name).color256(CLI_ORANGE));
+        println!("{}{}", style("The requestor suggested a name for themselves: ").color256(CLI_BLUE), style(name).color256(CLI_ORANGE));
         if Confirm::with_theme(&ColorfulTheme::default())
             .with_prompt("Use the requestor's suggested name?")
             .default(true)
@@ -330,7 +339,7 @@ pub async fn handle_accept_vrcs_request(
             if name.trim().is_empty() {
                 println!(
                     "{}",
-                    style("No name will be included for the requestor").color256(CLI_BLUE)
+                    style("No name will be included for the requestor.").color256(CLI_BLUE)
                 );
                 None
             } else {
@@ -346,7 +355,7 @@ pub async fn handle_accept_vrcs_request(
         if name.trim().is_empty() {
             println!(
                 "{}",
-                style("No name will be included for the requestor").color256(CLI_BLUE)
+                style("No name will be included for the requestor.").color256(CLI_BLUE)
             );
             None
         } else {
@@ -365,7 +374,7 @@ pub async fn handle_accept_vrcs_request(
         } else {
             println!(
                 "{}",
-                style("The requestor has NOT requested to include their R-DID in alsoKnownAs")
+                style("The requestor did not request to include their R-DID in alsoKnownAs.")
                     .color256(CLI_BLUE)
             );
         }
@@ -397,9 +406,9 @@ pub async fn handle_accept_vrcs_request(
         "{}",
         style("VRC Configuration")
             .color256(CLI_BLUE)
-            .underlined()
             .bold()
     );
+    println!("{}", style("=================").bold().color256(CLI_BLUE));
     println!();
 
     if let Some(reason) = &request.reason {
@@ -411,7 +420,7 @@ pub async fn handle_accept_vrcs_request(
     }
 
     let description: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Would you like to include a description for this VRC (leave blank for no)?")
+        .with_prompt("Enter a description for this VRC (optional, press Enter to skip):")
         .allow_empty(true)
         .interact_text()
         .unwrap();
@@ -419,17 +428,18 @@ pub async fn handle_accept_vrcs_request(
     let description = if description.trim().is_empty() {
         println!(
             "{}",
-            style("No description will be included in the VRC").color256(CLI_BLUE)
+            style("No VRC description included.").color256(CLI_ORANGE)
         );
         None
     } else {
         Some(description.trim().to_string())
     };
 
-    println!("{}", style("It can be useful to have a human readable name for the VRC to help others understand the purpose or reason for this VRC").color256(CLI_BLUE));
+    println!();
+    println!("{}", style("A human-readable name can help others understand the purpose or reason for this VRC.").color256(CLI_BLUE));
     let name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt(
-            "Would you like to include a human-readable name for this VRC (leave blank for no)?",
+            "Include a human-readable name for this VRC (optional, press Enter to skip):",
         )
         .allow_empty(true)
         .interact_text()
@@ -438,8 +448,9 @@ pub async fn handle_accept_vrcs_request(
     let name = if name.trim().is_empty() {
         println!(
             "{}",
-            style("No name will be included in the VRC").color256(CLI_BLUE)
+            style("No VRC name included.").color256(CLI_ORANGE)
         );
+        println!();
         None
     } else {
         Some(name.trim().to_string())
@@ -447,15 +458,16 @@ pub async fn handle_accept_vrcs_request(
 
     // Set the relationshipType attribute
     let mut items = vec![
-        "Do not include the relationshipType attribute".to_string(),
-        "Set relationshipType to a custom value".to_string(),
+        "Do not include a relationship type".to_string(),
+        "Set a custom relationship type".to_string(),
     ];
 
     if let Some(type_) = &request.type_ {
-        items.push(["Use the requestor's suggested relationshipType: ", type_].concat());
+        items.push(["Use the requestor's suggested relationship type: ", type_].concat());
     }
+
     let relationship_type = match Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("How would you like to set the relationshipType attribute for this VRC?")
+        .with_prompt("Include a relationship type for this VRC?")
         .default(0)
         .items(items)
         .interact()?
@@ -463,7 +475,7 @@ pub async fn handle_accept_vrcs_request(
         0 => None,
         1 => {
             let custom_relationship_type: String = Input::with_theme(&ColorfulTheme::default())
-                .with_prompt("Enter custom relationshipType value")
+                .with_prompt("Enter a custom relationship type: ")
                 .interact_text()
                 .unwrap();
             Some(custom_relationship_type.trim().to_string())
@@ -471,7 +483,7 @@ pub async fn handle_accept_vrcs_request(
         2 => {
             println!(
                 "{}{}",
-                style("Using the requestor's suggested relationshipType: ").color256(CLI_BLUE),
+                style("Using the requestor's suggested relationship type: ").color256(CLI_BLUE),
                 style(request.type_.as_deref().unwrap()).color256(CLI_PURPLE)
             );
             Some(request.type_.as_deref().unwrap().to_string())
@@ -479,37 +491,9 @@ pub async fn handle_accept_vrcs_request(
         _ => None,
     };
 
-    let valid_from = if Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Should the issued VRC be valid from now?")
-        .default(true)
-        .interact()?
-    {
-        Local::now()
-    } else {
-        let now = Local::now();
-        println!(
-            "{}",
-            style("Timestamp format must be in ISO 8601 Format!").color256(CLI_BLUE)
-        );
-        let custom_valid_from: String = Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("Enter custom valid from date-time (ISO 8601)")
-            .default(now.to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
-            .validate_with(|input: &String| -> Result<(), &str> {
-                if DateTime::parse_from_rfc3339(input).is_ok() {
-                    Ok(())
-                } else {
-                    Err("Invalid date-time format. Please use ISO 8601 format.")
-                }
-            })
-            .interact_text()
-            .unwrap();
-
-        custom_valid_from.parse().unwrap()
-    };
-
     println!(
         "{} {}",
-        style("Did the requestor want to include a relationship start date?").color256(CLI_BLUE),
+        style("Did the requestor request to include a relationship start date?").color256(CLI_BLUE),
         if request.start_date {
             style("YES").color256(CLI_GREEN)
         } else {
@@ -521,13 +505,13 @@ pub async fn handle_accept_vrcs_request(
         .to_rfc3339_opts(SecondsFormat::Secs, true);
     println!(
         "{} {}",
-        style("Relationship Start Date: ").color256(CLI_BLUE),
+        style("Relationship start date: ").color256(CLI_BLUE),
         style(&r_start_date_str).color256(CLI_GREEN)
     );
     let start_date = match Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Would you like to set a start date for the relationship?")
+        .with_prompt("Set a start date for the relationship?")
         .item(format!(
-            "Set start date to relationship start date: {}",
+            "Use the requestor's suggested start date: {}",
             &r_start_date_str
         ))
         .item("Set start date to now")
@@ -541,15 +525,15 @@ pub async fn handle_accept_vrcs_request(
         2 => {
             println!(
                 "{}",
-                style("Timestamp format must be in ISO 8601 Format!").color256(CLI_BLUE)
+                style("Timestamp format must be in ISO 8601 Format.").color256(CLI_BLUE)
             );
             let custom_start_date: String = Input::with_theme(&ColorfulTheme::default())
-                .with_prompt("Enter custom start date (ISO 8601)")
+                .with_prompt("Enter custom start date (e.g., 2025-12-01T14:09:29+08:00): ")
                 .validate_with(|input: &String| -> Result<(), &str> {
                     if DateTime::parse_from_rfc3339(input).is_ok() {
                         Ok(())
                     } else {
-                        Err("Invalid date-time format. Please use ISO 8601 format.")
+                        Err("Invalid date-time format. Use ISO 8601 format (e.g., 2025-12-01T14:09:29+08:00).")
                     }
                 })
                 .interact_text()
@@ -565,7 +549,7 @@ pub async fn handle_accept_vrcs_request(
 
     println!(
         "{} {}",
-        style("Did the requestor want to include a relationship end date?").color256(CLI_BLUE),
+        style("Did the requestor request to include a relationship end date?").color256(CLI_BLUE),
         if request.end_date {
             style("YES").color256(CLI_GREEN)
         } else {
@@ -573,7 +557,7 @@ pub async fn handle_accept_vrcs_request(
         }
     );
     let end_date = match Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Would you like to set an end date for the relationship?")
+        .with_prompt("Set an end date for the relationship?")
         .item("Set end date to now")
         .item("Set custom end date")
         .item("No end date")
@@ -584,15 +568,15 @@ pub async fn handle_accept_vrcs_request(
         1 => {
             println!(
                 "{}",
-                style("Timestamp format must be in ISO 8601 Format!").color256(CLI_BLUE)
+                style("Timestamp format must be in ISO 8601 Format.").color256(CLI_BLUE)
             );
             let custom_end_date: String = Input::with_theme(&ColorfulTheme::default())
-                .with_prompt("Enter custom end date (ISO 8601)")
+                .with_prompt("Enter custom end date (e.g., 2025-12-01T14:09:29+08:00): ")
                 .validate_with(|input: &String| -> Result<(), &str> {
                     if DateTime::parse_from_rfc3339(input).is_ok() {
                         Ok(())
                     } else {
-                        Err("Invalid date-time format. Please use ISO 8601 format.")
+                        Err("Invalid date-time format. Use ISO 8601 format (e.g., 2025-12-01T14:09:29+08:00).")
                     }
                 })
                 .interact_text()
@@ -604,6 +588,34 @@ pub async fn handle_accept_vrcs_request(
             )
         }
         _ => None,
+    };
+
+    let valid_from = if Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt("Should the VRC be valid from now?")
+        .default(true)
+        .interact()?
+    {
+        Local::now()
+    } else {
+        let now = Local::now();
+        println!(
+            "{}",
+            style("The timestamp format must be in ISO 8601 Format.").color256(CLI_BLUE)
+        );
+        let custom_valid_from: String = Input::with_theme(&ColorfulTheme::default())
+            .with_prompt("Enter a valid from date-time for this VRC (e.g., 2025-12-01T14:09:29+08:00): ")
+            .default(now.to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
+            .validate_with(|input: &String| -> Result<(), &str> {
+                if DateTime::parse_from_rfc3339(input).is_ok() {
+                    Ok(())
+                } else {
+                    Err("Invalid date-time format. Use ISO 8601 format (e.g., 2025-12-01T14:09:29+08:00).")
+                }
+            })
+            .interact_text()
+            .unwrap();
+
+        custom_valid_from.parse().unwrap()
     };
 
     let credential_subject = CredentialSubject {

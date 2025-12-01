@@ -374,7 +374,12 @@ pub struct VrcRequest {
 impl VrcRequest {
     /// Create a new VRCRequest with default values
     pub fn print(&self) {
-        print!("{}", style("VRC Request Reason: ").color256(CLI_BLUE));
+
+        println!();
+        println!("{}", style("VRC request details: ").color256(CLI_BLUE));
+
+        println!();
+        print!("{}", style("Request reason: ").color256(CLI_BLUE));
         if let Some(reason) = &self.reason {
             println!("{}", style(reason).color256(CLI_PURPLE));
         } else {
@@ -383,7 +388,7 @@ impl VrcRequest {
 
         print!(
             "{}",
-            style("VRC Relationship Type Requested: ").color256(CLI_BLUE)
+            style("Suggested relationship type: ").color256(CLI_BLUE)
         );
         if let Some(type_) = &self.type_ {
             println!("{}", style(type_).color256(CLI_PURPLE));
@@ -393,15 +398,17 @@ impl VrcRequest {
 
         print!(
             "{} {} ",
-            style("Friendly Name?").color256(CLI_BLUE),
+            style("Human-readable name: ").color256(CLI_BLUE),
             self.name
                 .as_deref()
                 .map(|m| style(m).color256(CLI_GREEN))
                 .unwrap_or(style("N/A").color256(CLI_ORANGE))
         );
+
+        println!();
         print!(
             "{}",
-            style("Include r_did in alsoKnownAs?: ").color256(CLI_BLUE)
+            style("Include R-DID in alsoKnownAs: ").color256(CLI_BLUE)
         );
         if self.include_r_did {
             print!("{}", style("YES").color256(CLI_GREEN));
@@ -409,19 +416,22 @@ impl VrcRequest {
             print!("{}", style("NO").color256(CLI_ORANGE));
         }
 
-        print!(" {}", style("Requesting Start Date?: ").color256(CLI_BLUE));
+        println!();
+        print!("{}", style("Start date requested: ").color256(CLI_BLUE));
         if self.start_date {
             print!("{}", style("YES").color256(CLI_GREEN));
         } else {
             print!("{}", style("NO").color256(CLI_ORANGE));
         }
 
-        print!(" {}", style("Requesting End Date?: ").color256(CLI_BLUE));
+        println!();
+        print!("{}", style("End date requested: ").color256(CLI_BLUE));
         if self.end_date {
             println!("{}", style("YES").color256(CLI_GREEN));
         } else {
             println!("{}", style("NO").color256(CLI_ORANGE));
         }
+        println!();
     }
 
     /// Creates a DIDCOmm message for the request
