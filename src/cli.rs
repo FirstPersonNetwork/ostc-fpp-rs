@@ -97,7 +97,8 @@ pub fn cli() -> Command {
                     Arg::new("alias")
                         .short('a')
                         .long("alias")
-                        .help("Optional alias for the respondent DID"),
+                        .help("Alias for the respondent DID")
+                        .required(true),
                     Arg::new("reason")
                         .short('r')
                         .long("reason")
@@ -111,6 +112,27 @@ pub fn cli() -> Command {
                 ])
                 .about("Request a new relationship")
                 .arg_required_else_help(true),
+        )
+        .subcommand(
+            Command::new("ping")
+                .about("Ping the remote end of an established connection.")
+                .arg(
+                    Arg::new("remote")
+                        .short('r')
+                        .long("remote")
+                        .help("DID or contact alias to ping"),
+                )
+                .arg_required_else_help(true),
+        )
+        .subcommand(
+            Command::new("remove")
+                .about("Remove a relationship")
+                .arg_required_else_help(true)
+                .arg(
+                    Arg::new("remote").short('r').long("remote").help(
+                        "DID or alias of the remote DID of the relationship you want to remove",
+                    ),
+                ),
         )
         .arg_required_else_help(true);
 
@@ -131,17 +153,26 @@ pub fn cli() -> Command {
                 .arg(Arg::new("id").short('i').long("id").help("Task ID")),
         )
         .subcommand(
-            Command::new("clear")
-                .about("Clears all tasks including remotely queued")
-                .arg(
-                    Arg::new("force")
-                        .long("force")
-                        .help("Forced clear, will not ask to confirm!")
-                        .default_value("false")
-                        .action(ArgAction::SetTrue),
-                ),
+            Command::new("clear").about("Clears tasks").args([
+                Arg::new("force")
+                    .long("force")
+                    .help("Forced clear, will not ask to confirm!")
+                    .default_value("false")
+                    .action(ArgAction::SetTrue),
+                Arg::new("remote")
+                    .long("remote")
+                    .help("Will also clear remote messages on LKMV Task Queue")
+                    .default_value("false")
+                    .action(ArgAction::SetTrue),
+            ]),
         )
         .arg_required_else_help(true);
+
+    // VRC Management
+    let vrc_subcommand = Command::new("vrcs")
+        .about("Manage Verified Relationship Credentials")
+        .arg_required_else_help(true)
+        .subcommand(Command::new("request").about("Request a VRC for a relationship"));
 
     // Full CLI Set
     Command::new("lkmv")
@@ -184,5 +215,6 @@ pub fn cli() -> Command {
             contacts_subcommand,
             relationships_subcommand,
             tasks_subcommand,
+            vrc_subcommand,
         ])
 }

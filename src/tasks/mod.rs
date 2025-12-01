@@ -3,17 +3,25 @@
 */
 
 use crate::{
-    CLI_BLUE, CLI_ORANGE, CLI_PURPLE, CLI_RED, config::Config,
-    relationships::RelationshipRequestBody, tasks::fetch::fetch_tasks,
+    CLI_BLUE, CLI_ORANGE, CLI_PURPLE, CLI_RED,
+    config::Config,
+    relationships::{Relationship, RelationshipRequestBody},
+    tasks::fetch::fetch_tasks,
+    vrc::{Vrc, VrcRequest},
 };
-use affinidi_tdk::{TDK, didcomm::Message};
+use affinidi_tdk::{TDK, didcomm::Message, messaging::profiles::ATMProfile};
 use anyhow::{Result, bail};
 use chrono::{DateTime, Utc};
 use clap::ArgMatches;
-use console::{StyledObject, style};
+use console::{StyledObject, Term, style};
 use dialoguer::{Select, theme::ColorfulTheme};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt::Display, rc::Rc, sync::Mutex};
+use std::{
+    collections::HashMap,
+    fmt::Display,
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 
 pub mod clear;
 pub mod fetch;
@@ -32,6 +40,23 @@ pub enum TaskType {
     RelationshipRequestRejected,
     RelationshipRequestAccepted,
     RelationshipRequestFinalized,
+    TrustPing {
+        from: Rc<String>,
+        to: Rc<String>,
+        relationship: Rc<Mutex<Relationship>>,
+    },
+    TrustPong,
+    VRCRequestOutbound {
+        relationship: Rc<Mutex<Relationship>>,
+    },
+    VRCRequestInbound {
+        request: VrcRequest,
+        relationship: Rc<Mutex<Relationship>>,
+    },
+    VRCRequestRejected,
+    VRCIssued {
+        vrc: Box<Vrc>,
+    },
 }
 
 impl Display for TaskType {
@@ -42,6 +67,12 @@ impl Display for TaskType {
             TaskType::RelationshipRequestRejected => "Relationship Request Rejected",
             TaskType::RelationshipRequestAccepted => "Relationship Request Accepted",
             TaskType::RelationshipRequestFinalized => "Relationship Request Finalized",
+            TaskType::TrustPing { .. } => "Trust Ping Sent",
+            TaskType::TrustPong => "Trust Pong Received",
+            TaskType::VRCRequestOutbound { .. } => "VRC Request Sent",
+            TaskType::VRCRequestInbound { .. } => "VRC Request Received",
+            TaskType::VRCRequestRejected => "VRC Request Rejected",
+            TaskType::VRCIssued { .. } => "VRC Issued",
         };
         write!(f, "{}", friendly_name)
     }
@@ -55,6 +86,11 @@ pub enum MessageType {
     RelationshipRequestRejected,
     RelationshipRequestAccepted,
     RelationshipRequestFinalize,
+    TrustPing,
+    TrustPong,
+    VRCRequest,
+    VRCRequestRejected,
+    VRCIssued,
 }
 
 impl MessageType {
@@ -64,6 +100,11 @@ impl MessageType {
             MessageType::RelationshipRequestRejected => "Relationship Request Rejected",
             MessageType::RelationshipRequestAccepted => "Relationship Request Accepted",
             MessageType::RelationshipRequestFinalize => "Relationship Request Finalize",
+            MessageType::TrustPing => "Trust Ping (Send)",
+            MessageType::TrustPong => "Trust Pong (Receive)",
+            MessageType::VRCRequest => "VRC Request",
+            MessageType::VRCRequestRejected => "VRC Request Rejected",
+            MessageType::VRCIssued => "VRC Issued",
         }
         .to_string()
     }
@@ -85,6 +126,15 @@ impl From<MessageType> for String {
             MessageType::RelationshipRequestFinalize => {
                 "https://linuxfoundation.org/lkmv/1.0/relationship-request-finalize".to_string()
             }
+            MessageType::TrustPing => "https://didcomm.org/trust-ping/2.0/ping".to_string(),
+            MessageType::TrustPong => {
+                "https://didcomm.org/trust-ping/2.0/ping-response".to_string()
+            }
+            MessageType::VRCRequest => "https://firstperson.network/vrc/1.0/request".to_string(),
+            MessageType::VRCRequestRejected => {
+                "https://firstperson.network/vrc/1.0/rejected".to_string()
+            }
+            MessageType::VRCIssued => "https://firstperson.network/vrc/1.0/issued".to_string(),
         }
     }
 }
@@ -107,6 +157,11 @@ impl TryFrom<&str> for MessageType {
             "https://linuxfoundation.org/lkmv/1.0/relationship-request-finalize" => {
                 Ok(MessageType::RelationshipRequestFinalize)
             }
+            "https://didcomm.org/trust-ping/2.0/ping" => Ok(MessageType::TrustPing),
+            "https://didcomm.org/trust-ping/2.0/ping-response" => Ok(MessageType::TrustPong),
+            "https://firstperson.network/vrc/1.0/request" => Ok(MessageType::VRCRequest),
+            "https://firstperson.network/vrc/1.0/rejected" => Ok(MessageType::VRCRequestRejected),
+            "https://firstperson.network/vrc/1.0/issued" => Ok(MessageType::VRCIssued),
             _ => bail!("Invalid Task Type: {}", value),
         }
     }
@@ -156,7 +211,7 @@ impl Tasks {
         } else {
             for (task_id, task) in &self.tasks {
                 let task = task.lock().unwrap();
-                println!(
+                print!(
                     "{}{} {}{} {}{}",
                     style("Id: ").color256(CLI_BLUE),
                     style(&task_id).color256(CLI_PURPLE),
@@ -165,6 +220,26 @@ impl Tasks {
                     style("Created: ").color256(CLI_BLUE),
                     style(&task.created).color256(CLI_PURPLE),
                 );
+                match &task.type_ {
+                    TaskType::TrustPing { relationship, .. } => {
+                        let lock = relationship.lock().unwrap();
+                        print!(
+                            " {} {}",
+                            style("Remote C-DID:").color256(CLI_BLUE),
+                            style(&lock.remote_c_did).color256(CLI_PURPLE)
+                        );
+                    }
+                    TaskType::VRCRequestOutbound { relationship } => {
+                        let lock = relationship.lock().unwrap();
+                        print!(
+                            " {} {}",
+                            style("Remote C-DID:").color256(CLI_BLUE),
+                            style(&lock.remote_c_did).color256(CLI_PURPLE)
+                        );
+                    }
+                    _ => {}
+                }
+                println!();
             }
         }
     }
@@ -207,12 +282,19 @@ impl Tasks {
 
     /// Interactive console for handling tasks
     /// Returns true if changes were made to config
-    pub async fn interact(tdk: &TDK, config: &mut Config) -> Result<bool> {
+    pub async fn interact(tdk: &TDK, config: &mut Config, term: &Term) -> Result<bool> {
         let mut change_flag = false; // set to true if config changed
         loop {
             // fetch tasks in case there are new ones
-            if fetch_tasks(tdk, config).await? > 0 {
+            if fetch_tasks(tdk, config, term, &config.community_did.profile.clone()).await? > 0 {
                 change_flag = true;
+            }
+
+            let profiles: Vec<Arc<ATMProfile>> = config.atm_profiles.values().cloned().collect();
+            for profile in profiles {
+                if fetch_tasks(tdk, config, term, &profile).await? > 0 {
+                    change_flag = true;
+                }
             }
 
             if config.private.tasks.tasks.is_empty() {
@@ -271,6 +353,7 @@ pub async fn tasks_entry(
     config: &mut crate::config::Config,
     profile: &str,
     args: &ArgMatches,
+    term: &Term,
 ) -> Result<()> {
     match args.subcommand() {
         Some(("list", _)) => {
@@ -292,7 +375,17 @@ pub async fn tasks_entry(
             }
         }
         Some(("fetch", _)) => {
-            if fetch_tasks(&tdk, config).await? > 0 {
+            let mut change_flag = false;
+            if fetch_tasks(&tdk, config, term, &config.community_did.profile.clone()).await? > 0 {
+                change_flag = true;
+            }
+            let profiles: Vec<Arc<ATMProfile>> = config.atm_profiles.values().cloned().collect();
+            for profile in profiles {
+                if fetch_tasks(&tdk, config, term, &profile).await? > 0 {
+                    change_flag = true;
+                }
+            }
+            if change_flag {
                 config.save(profile)?;
             }
         }
@@ -316,15 +409,16 @@ pub async fn tasks_entry(
                 }
             }
 
-            if Tasks::interact(&tdk, config).await? {
+            if Tasks::interact(&tdk, config, term).await? {
                 config.save(profile)?;
             }
         }
         Some(("clear", sub_args)) => {
             // Removes all tasks from the remote server as well as locally
             let force = sub_args.get_flag("force");
+            let remote = sub_args.get_flag("remote");
 
-            if Tasks::clear_all(&tdk, config, force).await? {
+            if Tasks::clear_all(&tdk, config, force, remote).await? {
                 config.save(profile)?;
                 return Ok(());
             }

@@ -1,26 +1,44 @@
-use std::rc::Rc;
+use std::{rc::Rc, sync::Arc};
 
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
     config::Config,
     log::LogFamily,
-    relationships::{RelationshipAcceptBody, RelationshipFinalizeBody, RelationshipRejectBody},
+    messaging::{handle_inbound_ping, handle_inbound_pong},
+    relationships::{RelationshipAcceptBody, RelationshipRejectBody},
     tasks::{MessageType, TaskType},
+    vrc::{VRCRequestReject, interact::handle_inbound_vrc_issued},
 };
 use affinidi_tdk::{
     TDK,
-    messaging::messages::{DeleteMessageRequest, FetchDeletePolicy, fetch::FetchOptions},
+    messaging::{
+        messages::{DeleteMessageRequest, FetchDeletePolicy, fetch::FetchOptions},
+        profiles::ATMProfile,
+    },
 };
-use anyhow::Result;
-use console::style;
+use anyhow::{Result, anyhow};
+use console::{Term, style};
 
 /// Fetches tasks from the DIDComm mediator and returns the number of new tasks retrieved
-pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
+pub async fn fetch_tasks(
+    tdk: &TDK,
+    config: &mut Config,
+    term: &Term,
+    profile: &Arc<ATMProfile>,
+) -> Result<u32> {
     let atm = tdk.atm.clone().unwrap();
+    let our_did = profile.dids()?.0.to_string();
 
+    print!(
+        "{}{}",
+        style("Fetching tasks for DID: ").color256(CLI_BLUE),
+        style(&our_did).color256(CLI_PURPLE)
+    );
+    let _ = term.hide_cursor();
+    let _ = term.flush();
     let msgs = atm
         .fetch_messages(
-            &config.community_did.profile,
+            profile,
             &FetchOptions {
                 limit: 100,
                 start_id: None,
@@ -29,10 +47,11 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
         )
         .await?;
 
+    let _ = term.show_cursor();
     println!(
-        "{}{}",
-        style(msgs.success.len()).color256(CLI_GREEN),
-        style(" tasks fetched successfully:").color256(CLI_BLUE)
+        " {}{}",
+        style("✅ tasks fetched: ").color256(CLI_GREEN),
+        style(msgs.success.len()).color256(CLI_PURPLE),
     );
 
     let mut task_count: u32 = 0;
@@ -41,9 +60,22 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
     for msg in &msgs.success {
         task_count += 1;
         if let Some(message) = &msg.msg {
-            let (unpacked_msg, _) = atm.unpack(message).await?;
             // Ensure message is deleted after processing
             delete_list.message_ids.push(msg.msg_id.clone());
+
+            let unpacked_msg = match atm.unpack(message).await {
+                Ok((msg, _)) => msg,
+                Err(e) => {
+                    println!(
+                        "{} {}",
+                        style("WARN: Message fetched, but the DIDComm envelope is bad. Error:")
+                            .color256(CLI_ORANGE),
+                        style(e).color256(CLI_ORANGE)
+                    );
+                    println!("DIDComm bad enevlope:\n{:#?}", message);
+                    continue;
+                }
+            };
 
             // No anonymous messages are allowed
             let from_did = if let Some(did) = &unpacked_msg.from {
@@ -56,12 +88,12 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
             };
 
             let to_did = if let Some(to) = &unpacked_msg.to {
-                if to.contains(&config.public.community_did) {
+                if to.contains(&our_did) {
                     // Message is addressed to us
-                    config.public.community_did.clone()
+                    Rc::new(our_did.clone())
                 } else {
                     // Ignore this TASK as it isn't addressed to us
-                    println!("{}", style("WARN: An incoming message is not addressed to our Community DID. Ignoring this message for safety.").color256(CLI_ORANGE));
+                    println!("{}", style("WARN: An incoming message is not addressed to our Profile DID. Ignoring this message for safety.").color256(CLI_ORANGE));
                     println!(
                         "  {}{}",
                         style("from: ").color256(CLI_ORANGE),
@@ -193,23 +225,8 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
                         };
                         let task_id = Rc::new(task_id);
 
-                        let body: RelationshipFinalizeBody = match serde_json::from_value(
-                            unpacked_msg.body,
-                        ) {
-                            Ok(body) => body,
-                            Err(e) => {
-                                println!(
-                                    "{}",
-                                    style(format!(
-                                        "WARN: Invalid body receieved for relationship request finalize message. Reason: {}",
-                                        e
-                                    ))
-                                );
-                                continue;
-                            }
-                        };
                         if let Err(e) = config
-                            .handle_relationship_inbound_finalize(&from_did, &task_id, &body.did)
+                            .handle_relationship_inbound_finalize(&from_did, &task_id)
                             .await
                         {
                             println!("{}", style(format!("WARN: An error occurred when processing a relationship request finalize response. Error: {}", e)).color256(CLI_ORANGE));
@@ -221,6 +238,126 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
                             style("Relationship request finalized".to_string()).color256(CLI_GREEN),
                             TaskType::RelationshipRequestFinalized,
                         )
+                    }
+                    MessageType::TrustPing => {
+                        match handle_inbound_ping(tdk, config, &from_did, &to_did, &unpacked_msg)
+                            .await
+                        {
+                            Ok(relationship) => (
+                                style(format!(
+                                    "Relationship trust-ping received from({})",
+                                    &from_did
+                                ))
+                                .color256(CLI_GREEN),
+                                TaskType::TrustPing {
+                                    from: from_did.clone(),
+                                    to: to_did.clone(),
+                                    relationship,
+                                },
+                            ),
+                            Err(_) => {
+                                continue;
+                            }
+                        }
+                    }
+                    MessageType::TrustPong => {
+                        let Some(task_id) = unpacked_msg.thid else {
+                            println!(
+                                "{}",
+                                style(
+                                    "WARN: A Trust-Ping response was reeceived, but has no thread-id (`thid`). Can't process this message..."
+                                )
+                            );
+                            continue;
+                        };
+
+                        match handle_inbound_pong(config, &from_did, &to_did, &Rc::new(task_id)) {
+                            Ok(relationship) => (
+                                style(format!(
+                                    "Relationship trust-ping received from({})",
+                                    &from_did
+                                ))
+                                .color256(CLI_GREEN),
+                                TaskType::TrustPing {
+                                    from: from_did.clone(),
+                                    to: to_did.clone(),
+                                    relationship,
+                                },
+                            ),
+                            Err(_) => {
+                                continue;
+                            }
+                        }
+                    }
+                    MessageType::VRCRequest => {
+                        let task_type = TaskType::VRCRequestInbound {
+                            request: serde_json::from_value(unpacked_msg.body)?,
+                            relationship: config
+                                .private
+                                .relationships
+                                .find_by_remote_did(&from_did)
+                                .ok_or(anyhow!("Couldn't find relationship for this VRC Request"))?
+                                .clone(),
+                        };
+
+                        config
+                            .private
+                            .tasks
+                            .new_task(&Rc::new(unpacked_msg.id.clone()), task_type.clone());
+                        (
+                            style(msg_type.friendly_name()).color256(CLI_GREEN),
+                            task_type,
+                        )
+                    }
+                    MessageType::VRCRequestRejected => {
+                        let Some(task_id) = unpacked_msg.thid else {
+                            println!(
+                                "{}",
+                                style(
+                                    "WARN: A VRC request rejection message was received, but has no `thid` header. Can't do anything with this..."
+                                )
+                            );
+                            continue;
+                        };
+
+                        let body: VRCRequestReject = match serde_json::from_value(unpacked_msg.body)
+                        {
+                            Ok(body) => body,
+                            Err(e) => {
+                                println!(
+                                    "{}",
+                                    style(format!(
+                                        "WARN: Invalid body receieved for VRC request rejection message. Reason: {}",
+                                        e
+                                    ))
+                                );
+                                continue;
+                            }
+                        };
+                        if let Err(e) = config.handle_vrc_reject(
+                            &Rc::new(task_id),
+                            body.reason.as_deref(),
+                            &from_did,
+                        ) {
+                            println!("{}", style(format!("WARN: An error occurred when processing a VRC request rejection response. Error: {}", e)).color256(CLI_ORANGE));
+                            continue;
+                        }
+                        (
+                            style("VRC request rejected".to_string()).color256(CLI_ORANGE),
+                            TaskType::VRCRequestRejected,
+                        )
+                    }
+                    MessageType::VRCIssued => {
+                        match handle_inbound_vrc_issued(tdk, config, &unpacked_msg).await {
+                            Ok(vrc) => (
+                                style(format!("Signed VRC received from({})", &from_did))
+                                    .color256(CLI_GREEN),
+                                TaskType::VRCIssued { vrc: Box::new(vrc) },
+                            ),
+                            Err(_) => {
+                                continue;
+                            }
+                        }
                     }
                 }
             } else {
@@ -258,10 +395,7 @@ pub async fn fetch_tasks(tdk: &TDK, config: &mut Config) -> Result<u32> {
 
     // Delete messages as we have retrieved them
     if !delete_list.message_ids.is_empty() {
-        match atm
-            .delete_messages_direct(&config.community_did.profile, &delete_list)
-            .await
-        {
+        match atm.delete_messages_direct(profile, &delete_list).await {
             Ok(_) => {}
             Err(e) => {
                 println!(

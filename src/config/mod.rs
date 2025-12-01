@@ -40,7 +40,7 @@ use ed25519_dalek_bip32::ExtendedSigningKey;
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::{collections::HashMap, fmt::Display, fs, sync::Arc};
+use std::{collections::HashMap, fmt::Display, fs, rc::Rc, sync::Arc};
 
 pub mod private_config;
 pub mod public_config;
@@ -86,6 +86,11 @@ pub struct Config {
 
     /// Unlock code if required
     pub unlock_code: Option<[u8; 32]>,
+
+    /// Holds ATM profiles for relationships
+    /// Key: Our local DID for the relationship
+    /// NOTE: Does not hold the community DID profile!
+    pub atm_profiles: HashMap<Rc<String>, Arc<ATMProfile>>,
 }
 
 /// Exported Configuration structure
@@ -184,6 +189,7 @@ impl Config {
         // Create keys from DID Document
         Config::regenerate_community_keys(tdk, &sc, &bip32_root, &rr.doc).await?;
 
+        // Create community profile
         let community_profile = ATMProfile::new(
             tdk.atm.as_ref().unwrap(),
             Some("Community DID".to_string()),
@@ -196,6 +202,17 @@ impl Config {
         // This allows it to send/receive messages directly to the Community DID
         let atm = tdk.atm.clone().unwrap();
         let community_profile = atm.profile_add(&community_profile, true).await?;
+
+        let atm_profiles = private_cfg
+            .relationships
+            .generate_profiles(
+                tdk,
+                &pc.community_did,
+                &pc.mediator_did,
+                &bip32_root,
+                &sc.key_info,
+            )
+            .await?;
 
         Ok(Config {
             bip32_root,
@@ -213,6 +230,7 @@ impl Config {
             token_user_pin,
             protection_method: sc.protection_method.clone(),
             unlock_code,
+            atm_profiles,
         })
     }
 

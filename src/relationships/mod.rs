@@ -9,21 +9,33 @@ use crate::{
         secured_config::{KeyInfoConfig, KeySourceMaterial},
     },
     contacts::Contacts,
+    log::LogFamily,
     relationships::messages::create_send_request,
+    setup::{KeyPurpose, bip32_bip39::Bip32Extension},
+    tasks::TaskType,
 };
 use affinidi_tdk::{
     TDK,
     did_peer::DIDPeerKeys,
+    didcomm::PackEncryptedOptions,
     dids::DID,
-    secrets_resolver::{SecretsResolver, secrets::Secret},
+    messaging::{profiles::ATMProfile, protocols::Protocols},
+    secrets_resolver::{
+        SecretsResolver, crypto::ed25519::ed25519_private_to_x25519_private_key, secrets::Secret,
+    },
 };
 use anyhow::{Result, bail};
 use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use console::style;
-use ed25519_dalek_bip32::DerivationPath;
+use ed25519_dalek_bip32::{DerivationPath, ExtendedSigningKey};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, fmt::Display, rc::Rc, sync::Mutex};
+use std::{
+    collections::HashMap,
+    fmt::Display,
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 
 pub mod inbound;
 pub mod messages;
@@ -68,20 +80,21 @@ impl Display for RelationshipState {
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RelationshipRequestBody {
     pub reason: Option<String>,
+    pub did: String,
 }
 
 /// DIDComm message body sent to the initiator of a relationship request when the request is
 /// rejected
-pub type RelationshipRejectBody = RelationshipRequestBody;
+#[derive(Clone, Debug, Deserialize, Serialize)]
+pub struct RelationshipRejectBody {
+    pub reason: Option<String>,
+}
 
 /// Body of a Relationship Rquest accept message
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct RelationshipAcceptBody {
     pub did: String,
 }
-
-/// Body of the final Relationship Request sequence
-pub type RelationshipFinalizeBody = RelationshipAcceptBody;
 
 // ****************************************************************************
 // Relationships
@@ -205,6 +218,96 @@ impl Relationships {
             .find(|f| &f.lock().unwrap().task_id == task_id)
             .cloned()
     }
+
+    /// Finds a relationship by it's remote DID (could be C-DID or R-DID)
+    pub fn find_by_remote_did(&self, did: &Rc<String>) -> Option<Rc<Mutex<Relationship>>> {
+        self.relationships
+            .values()
+            .find(|r| {
+                let lock = r.lock().unwrap();
+                lock.remote_did == *did || lock.remote_c_did == *did
+            })
+            .cloned()
+    }
+
+    /// Generates ATM Profiles for established relationships where the local r-did is different
+    /// than the local c-did
+    pub async fn generate_profiles(
+        &self,
+        tdk: &TDK,
+        our_c_did: &Rc<String>,
+        mediator: &str,
+        bip32_root: &ExtendedSigningKey,
+        key_info: &HashMap<String, KeyInfoConfig>,
+    ) -> Result<HashMap<Rc<String>, Arc<ATMProfile>>> {
+        let atm = tdk.atm.clone().unwrap();
+
+        let mut profiles: HashMap<Rc<String>, Arc<ATMProfile>> = HashMap::new();
+
+        for relationship in self.relationships.values() {
+            let (our_did, state) = {
+                let lock = relationship.lock().unwrap();
+                (lock.our_did.clone(), lock.state.clone())
+            };
+            if state == RelationshipState::Established && &our_did != our_c_did {
+                // Create an ATMProfile for this relationship
+                let profile =
+                    ATMProfile::new(&atm, None, our_did.to_string(), Some(mediator.to_string()))
+                        .await?;
+                profiles.insert(our_did.clone(), atm.profile_add(&profile, false).await?);
+
+                // Generate secrets for this DID
+                let secrets: Vec<Secret> = key_info
+                    .iter()
+                    .filter_map(|(k, v)| {
+                        if k.starts_with(our_did.as_str()) {
+                            if let KeySourceMaterial::Derived { path } = &v.path {
+                                if let Some(kp) = match v.purpose {
+                                    KeyTypes::RelationshipVerification => Some(KeyPurpose::Signing),
+                                    KeyTypes::RelationshipEncryption => {
+                                        Some(KeyPurpose::Encryption)
+                                    }
+                                    _ => None,
+                                } {
+                                    bip32_root.get_secret_from_path(path, kp).ok().map(|mut s| {
+                                        s.id = k.clone();
+                                        s
+                                    })
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+                tdk.get_shared_state()
+                    .secrets_resolver
+                    .insert_vec(&secrets)
+                    .await;
+            }
+        }
+
+        Ok(profiles)
+    }
+
+    /// Filters relationships and only returns those that are established
+    pub fn get_established_relationships(&self) -> Vec<Rc<Mutex<Relationship>>> {
+        self.relationships
+            .values()
+            .filter_map(|r| {
+                let lock = r.lock().unwrap();
+                if lock.state == RelationshipState::Established {
+                    Some(r.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -257,7 +360,7 @@ impl From<RelationshipsShadow> for Relationships {
         //let mut r_map: HashMap<Rc<String>, Vec<HashSet<Rc<Relationship>>>> = HashMap::new();
 
         for relationship in value.relationships {
-            let remote_did = relationship.lock().unwrap().remote_did.clone();
+            let remote_did = relationship.lock().unwrap().remote_c_did.clone();
             relationships.insert(remote_did.clone(), relationship.clone());
 
             /*
@@ -304,7 +407,16 @@ pub async fn relationships_entry(
                     );
                 bail!("Respondent alias or DID is required");
             };
-            let alias = sub_args.get_one::<String>("alias");
+            let alias = if let Some(alias) = sub_args.get_one::<String>("alias") {
+                alias.to_string()
+            } else {
+                println!(
+                    "{}",
+                    style("ERROR: Alias must be specified when requesting a Relationship!")
+                        .color256(CLI_RED)
+                );
+                bail!("Missing alias argument!");
+            };
             let reason = sub_args.get_one::<String>("reason");
             let generate_did = sub_args.get_flag("generate-did");
 
@@ -312,11 +424,80 @@ pub async fn relationships_entry(
                 &tdk,
                 config,
                 &respondent,
-                alias.map(|s| s.to_string()),
+                alias,
                 reason.map(|s| s.as_str()),
                 generate_did,
             )
             .await?;
+
+            config.save(profile)?;
+        }
+        Some(("ping", sub_args)) => {
+            let remote_did = if let Some(did) = sub_args.get_one::<String>("remote") {
+                did.to_string()
+            } else {
+                println!(
+                    "{}",
+                    style("ERROR: You must specify the remote alias or DID!").color256(CLI_RED)
+                );
+                bail!("Remote alias or DID is required");
+            };
+
+            remote_ping(&tdk, config, &remote_did).await?;
+
+            config.save(profile)?;
+        }
+        Some(("remove", sub_args)) => {
+            let remote_did = if let Some(did) = sub_args.get_one::<String>("remote") {
+                did.to_string()
+            } else {
+                println!(
+                    "{}",
+                    style("ERROR: You must specify the remote alias or DID!").color256(CLI_RED)
+                );
+                bail!("Remote Alias or DID is required");
+            };
+
+            let Some(contact) = config.private.contacts.find_contact(&remote_did) else {
+                println!(
+                    "{}{}",
+                    style("ERROR: Couldn't find a contact for: ").color256(CLI_RED),
+                    style(remote_did).color256(CLI_ORANGE)
+                );
+                bail!("Couldn't find contact");
+            };
+
+            let relationship = if let Some(r) = config
+                .private
+                .relationships
+                .find_by_remote_did(&contact.did)
+            {
+                r
+            } else {
+                println!(
+                    "{} {}",
+                    style("ERROR: No relationship found for remote DID/alias:").color256(CLI_RED),
+                    style(remote_did).color256(CLI_ORANGE)
+                );
+                bail!("No relationship found for remote DID/alias");
+            };
+
+            let remote_c_did = {
+                let lock = relationship.lock().unwrap();
+                lock.remote_c_did.clone()
+            };
+
+            config
+                .private
+                .relationships
+                .relationships
+                .remove(&remote_c_did);
+
+            println!(
+                "{} {}",
+                style("✅ Relationship with remote DID removed:").color256(CLI_GREEN),
+                style(remote_c_did).color256(CLI_GREEN)
+            );
 
             config.save(profile)?;
         }
@@ -380,7 +561,12 @@ pub async fn create_relationship_did(
         .derive(&e_path.parse::<DerivationPath>()?)?;
 
     let mut v_secret = Secret::generate_ed25519(None, Some(v_key.signing_key.as_bytes()));
-    let mut e_secret = Secret::generate_x25519(None, Some(e_key.signing_key.as_bytes()))?;
+    let mut e_secret = Secret::generate_x25519(
+        None,
+        Some(&ed25519_private_to_x25519_private_key(
+            e_key.signing_key.as_bytes(),
+        )),
+    )?;
 
     let mut keys = vec![
         (DIDPeerKeys::Verification, &mut v_secret),
@@ -427,4 +613,103 @@ pub async fn create_relationship_did(
         .await;
 
     Ok(r_did)
+}
+
+async fn remote_ping(tdk: &TDK, config: &mut Config, remote: &str) -> Result<()> {
+    let atm = tdk.atm.clone().unwrap();
+    let protocols = Protocols::new();
+
+    let Some(contact) = config.private.contacts.find_contact(remote) else {
+        println!(
+            "{}{}",
+            style("ERROR: Couldn't find a contact for: ").color256(CLI_RED),
+            style(remote).color256(CLI_ORANGE)
+        );
+        bail!("Couldn't find contact for remote address");
+    };
+
+    // Find the relationship
+    let relationship = if let Some(r) = config.private.relationships.get(&contact.did) {
+        r
+    } else {
+        println!(
+            "{} {}",
+            style("ERROR: No relationship found for remote DID/alias:").color256(CLI_RED),
+            style(remote).color256(CLI_ORANGE)
+        );
+        bail!("No relationship found for remote DID/alias");
+    };
+
+    let (our_did, remote_did) = {
+        let lock = relationship.lock().unwrap();
+        (lock.our_did.clone(), lock.remote_did.clone())
+    };
+
+    let profile = if our_did == config.public.community_did {
+        &config.community_did.profile
+    } else if let Some(profile) = config.atm_profiles.get(&our_did) {
+        profile
+    } else {
+        println!(
+            "{}{}",
+            style("ERROR: Couldn't find Messaging profile for DID: ").color256(CLI_RED),
+            style(&our_did).color256(CLI_ORANGE)
+        );
+        bail!("Missing Messaging Profile");
+    };
+
+    let ping_msg =
+        protocols
+            .trust_ping
+            .generate_ping_message(Some(our_did.as_str()), &remote_did, true)?;
+    let msg_id = ping_msg.id.clone();
+
+    // Pack the message
+    let (ping_msg, _) = ping_msg
+        .pack_encrypted(
+            &remote_did,
+            Some(&our_did),
+            Some(&our_did),
+            tdk.did_resolver(),
+            &tdk.get_shared_state().secrets_resolver,
+            &PackEncryptedOptions {
+                forward: false,
+                ..Default::default()
+            },
+        )
+        .await?;
+
+    atm.forward_and_send_message(
+        profile,
+        false,
+        &ping_msg,
+        None,
+        &config.public.mediator_did,
+        &remote_did,
+        None,
+        None,
+        false,
+    )
+    .await?;
+
+    config.public.logs.insert(
+        LogFamily::Relationship,
+        format!(
+            "Sent ping to remote DID: {} via local DID: {}",
+            remote_did, our_did
+        ),
+    );
+
+    config.private.tasks.new_task(
+        &Rc::new(msg_id),
+        TaskType::TrustPing {
+            from: our_did,
+            to: remote_did,
+            relationship,
+        },
+    );
+
+    println!("{}", style("✅ Ping Successfully sent... Run lkmv tasks interactive to check for pong response. NOTE: The remote recipient needs to check their messages first!").color256(CLI_GREEN));
+
+    Ok(())
 }
