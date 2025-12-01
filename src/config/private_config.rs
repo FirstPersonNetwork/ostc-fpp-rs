@@ -36,11 +36,11 @@ pub struct PrivateConfig {
 
     /// VRCs Issued
     /// key = remote C-DID
-    pub vrcs_issued: HashMap<Rc<String>, Vrc>,
+    pub vrcs_issued: HashMap<Rc<String>, Vec<Vrc>>,
 
     /// VRCs received
     /// key = remote C-DID
-    pub vrcs_received: HashMap<Rc<String>, Vrc>,
+    pub vrcs_received: HashMap<Rc<String>, Vec<Vrc>>,
 }
 
 impl PrivateConfig {

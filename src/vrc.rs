@@ -457,7 +457,7 @@ pub struct VRCRequestReject {
 }
 
 impl VRCRequestReject {
-    /// Creates a DIDCOmm message for the rejection
+    /// Creates a DIDComm message for the rejection
     pub fn create_message(
         to: &Rc<String>,
         from: &Rc<String>,

@@ -1,7 +1,7 @@
 use std::{rc::Rc, sync::Mutex};
 
 use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_WHITE,
+    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, CLI_WHITE,
     config::Config,
     log::LogFamily,
     relationships::Relationship,
@@ -10,7 +10,7 @@ use crate::{
 };
 use affinidi_data_integrity::DataIntegrityProof;
 use affinidi_tdk::{TDK, didcomm::PackEncryptedOptions};
-use anyhow::Result;
+use anyhow::{Result, bail};
 use chrono::{Local, prelude::*};
 use console::style;
 use dialoguer::{Confirm, Input, Select, theme::ColorfulTheme};
@@ -93,14 +93,27 @@ pub async fn interact_vrc_inbound_request(
                 .default(true)
                 .interact()?
             {
-                let msg = VRCRequestReject::create_message(&to, &from, &task_id, reason.clone())?;
+                let msg = VRCRequestReject::create_message(&from, &to, &task_id, reason.clone())?;
+
+                let profile = if to == config.public.community_did {
+                    &config.community_did.profile
+                } else if let Some(profile) = config.atm_profiles.get(&to) {
+                    profile
+                } else {
+                    println!(
+                        "{}{}",
+                        style("ERROR: Couldn't find Messaging profile for DID: ").color256(CLI_RED),
+                        style(to).color256(CLI_ORANGE)
+                    );
+                    bail!("Couldn't find messaging profile for DID");
+                };
 
                 // Pack the message
                 let (msg, _) = msg
                     .pack_encrypted(
-                        &to,
-                        Some(&from),
-                        Some(&from),
+                        &from,
+                        Some(&to),
+                        Some(&to),
                         tdk.did_resolver(),
                         &tdk.get_shared_state().secrets_resolver,
                         &PackEncryptedOptions {
@@ -112,12 +125,12 @@ pub async fn interact_vrc_inbound_request(
 
                 let atm = tdk.atm.clone().unwrap();
                 atm.forward_and_send_message(
-                    &config.community_did.profile,
+                    profile,
                     false,
                     &msg,
                     None,
                     &config.public.mediator_did,
-                    to.as_str(),
+                    from.as_str(),
                     None,
                     None,
                     false,
@@ -661,7 +674,13 @@ pub async fn handle_accept_vrcs_request(
         style(serde_json::to_string_pretty(&vrc)?).color256(CLI_WHITE)
     );
 
-    config.private.vrcs_issued.insert(their_c_did.clone(), vrc);
+    config
+        .private
+        .vrcs_issued
+        .entry(their_c_did.clone())
+        .and_modify(|v| v.push(vrc.clone()))
+        .or_insert(vec![vrc]);
+
     config.public.logs.insert(
         LogFamily::Task,
         format!(

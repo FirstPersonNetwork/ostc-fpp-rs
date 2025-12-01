@@ -3,7 +3,7 @@
 */
 
 use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
+    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, CLI_WHITE,
     config::Config,
     log::LogFamily,
     relationships::Relationship,
@@ -127,14 +127,15 @@ async fn vrcs_interactive_request(tdk: &TDK, config: &mut Config) -> Result<bool
         .await?;
 
         // Create Task to track response
-        config
+        let task = config
             .private
             .tasks
             .new_task(&msg_id, TaskType::VRCRequestOutbound { relationship });
+        let task_id = { task.lock().unwrap().id.clone() };
 
         config.public.logs.insert(
             LogFamily::Relationship,
-            format!("Requested a VRC from {}", to_c_did),
+            format!("Requested a VRC from ({}) Task ID ({})", to_c_did, task_id),
         );
 
         println!(
@@ -413,6 +414,10 @@ pub async fn handle_inbound_vrc_issued(
             lock.type_ = TaskType::VRCIssued {
                 vrc: Box::new(vrc.clone()),
             };
+            config.public.logs.insert(
+                LogFamily::Relationship,
+                format!("Inbound VRC issued updated Task ID({})", thid),
+            );
             return Ok(vrc);
         } else {
             println!(
@@ -441,4 +446,115 @@ pub async fn handle_inbound_vrc_issued(
     );
 
     Ok(vrc)
+}
+
+/// Handles the user interaction for an inbound VRC that has been issued to you
+pub fn interact_vrc_inbound(
+    config: &mut Config,
+    task: &Rc<Mutex<Task>>,
+    vrc: Box<Vrc>,
+) -> Result<bool> {
+    let (task_id, task_created) = {
+        let lock = task.lock().unwrap();
+        (lock.id.clone(), lock.created)
+    };
+
+    println!(
+        "{}{} {}{}",
+        style("Task ID: ").color256(CLI_BLUE),
+        style(&task_id).color256(CLI_GREEN),
+        style("Created: ").color256(CLI_BLUE),
+        style(task_created).color256(CLI_GREEN)
+    );
+    println!();
+    println!(
+        "{}{}",
+        style("VRC Issued By: ").color256(CLI_BLUE),
+        style(&vrc.issuer).color256(CLI_PURPLE)
+    );
+    println!(
+        "{}",
+        style("Issued VRC:").color256(CLI_BLUE).bold().underlined()
+    );
+    println!(
+        "{}",
+        style(serde_json::to_string_pretty(&vrc).unwrap()).color256(CLI_WHITE)
+    );
+    println!();
+
+    Ok(
+        match Select::with_theme(&ColorfulTheme::default())
+            .with_prompt("Task Action?")
+            .item("Accept this VRC")
+            .item("Delete this VRC")
+            .item("Return to previous menu?")
+            .interact()?
+        {
+            0 => {
+                // Accept the VRC
+
+                let relationship_c_did = if let Some(relationship) = config
+                    .private
+                    .relationships
+                    .find_by_remote_did(&Rc::new(vrc.issuer.clone()))
+                {
+                    relationship.lock().unwrap().remote_c_did.clone()
+                } else {
+                    println!(
+                        "{}{}",
+                        style("ERROR: Couldn't find relationship for Task ID: ").color256(CLI_RED),
+                        style(&task_id).color256(CLI_ORANGE)
+                    );
+                    bail!("Couldn't find relationship for VRC Task");
+                };
+                config
+                    .private
+                    .vrcs_received
+                    .entry(relationship_c_did)
+                    .and_modify(|v| v.push(*vrc.clone()))
+                    .or_insert(vec![*vrc]);
+
+                config.private.tasks.remove(&task_id);
+
+                config.public.logs.insert(
+                    LogFamily::Relationship,
+                    format!("User accepted inbound VRC issued Task ID({})", task_id),
+                );
+                config
+                    .public
+                    .logs
+                    .insert(LogFamily::Task, format!("Removing Task ID({})", task_id));
+
+                println!();
+                println!(
+                    "{}",
+                    style("✅ VRC accepted and stored locally.").color256(CLI_GREEN)
+                );
+                true
+            }
+            1 => {
+                // Delete the VRC
+                if Confirm::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Are you sure you want to DELETE this VRC?")
+                    .default(false)
+                    .interact()?
+                {
+                    config.private.tasks.remove(&task_id);
+                    config.public.logs.insert(
+                        LogFamily::Task,
+                        format!("User deleted inbound VRC issued Task ID({})", task_id),
+                    );
+                    println!(
+                        "{}",
+                        style("VRC deleted. No notification is sent to the issuer.")
+                            .color256(CLI_ORANGE)
+                    );
+                    true
+                } else {
+                    false
+                }
+            }
+            _ => false,
+        },
+    )
 }
