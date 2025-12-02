@@ -6,7 +6,10 @@ use crate::{
     log::LogFamily,
     relationships::{RelationshipRequestBody, messages::send_rejection},
     tasks::{Task, TaskType, Tasks},
-    vrc::{interact::interact_vrc_outbound_request, request::interact_vrc_inbound_request},
+    vrc::{
+        interact::{interact_vrc_inbound, interact_vrc_outbound_request},
+        request::interact_vrc_inbound_request,
+    },
 };
 use affinidi_tdk::TDK;
 use anyhow::Result;
@@ -37,6 +40,7 @@ impl Tasks {
             TaskType::VRCRequestOutbound { relationship } => {
                 interact_vrc_outbound_request(config, task, &relationship)?
             }
+            TaskType::VRCIssued { vrc } => interact_vrc_inbound(config, task, vrc)?,
             _ => {
                 // Do nothing
                 false

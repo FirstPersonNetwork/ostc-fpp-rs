@@ -134,7 +134,9 @@ pub async fn fetch_tasks(
                         )
                     }
                     MessageType::RelationshipRequestRejected => {
-                        let Some(task_id) = unpacked_msg.thid else {
+                        let task_id = if let Some(task_id) = &unpacked_msg.thid {
+                            Rc::new(task_id.to_string())
+                        } else {
                             println!(
                                 "{}",
                                 style(
@@ -159,8 +161,8 @@ pub async fn fetch_tasks(
                                 continue;
                             }
                         };
-                        if let Err(e) = config
-                            .handle_relationship_reject(&Rc::new(task_id), body.reason.as_deref())
+                        if let Err(e) =
+                            config.handle_relationship_reject(&task_id, body.reason.as_deref())
                         {
                             println!("{}", style(format!("WARN: An error occurred when processing a relationship request rejection response. Error: {}", e)).color256(CLI_ORANGE));
                             continue;
@@ -171,7 +173,9 @@ pub async fn fetch_tasks(
                         )
                     }
                     MessageType::RelationshipRequestAccepted => {
-                        let Some(task_id) = unpacked_msg.thid else {
+                        let task_id = if let Some(task_id) = &unpacked_msg.thid {
+                            Rc::new(task_id.to_string())
+                        } else {
                             println!(
                                 "{}",
                                 style(
@@ -197,12 +201,7 @@ pub async fn fetch_tasks(
                             }
                         };
                         if let Err(e) = config
-                            .handle_relationship_inbound_accept(
-                                tdk,
-                                &from_did,
-                                &Rc::new(task_id),
-                                &body.did,
-                            )
+                            .handle_relationship_inbound_accept(tdk, &from_did, &task_id, &body.did)
                             .await
                         {
                             println!("{}", style(format!("WARN: An error occurred when processing a relationship request accept response. Error: {}", e)).color256(CLI_ORANGE));
@@ -214,7 +213,9 @@ pub async fn fetch_tasks(
                         )
                     }
                     MessageType::RelationshipRequestFinalize => {
-                        let Some(task_id) = unpacked_msg.thid else {
+                        let task_id = if let Some(task_id) = &unpacked_msg.thid {
+                            Rc::new(task_id.to_string())
+                        } else {
                             println!(
                                 "{}",
                                 style(
@@ -223,7 +224,6 @@ pub async fn fetch_tasks(
                             );
                             continue;
                         };
-                        let task_id = Rc::new(task_id);
 
                         if let Err(e) = config
                             .handle_relationship_inbound_finalize(&from_did, &task_id)
@@ -261,7 +261,9 @@ pub async fn fetch_tasks(
                         }
                     }
                     MessageType::TrustPong => {
-                        let Some(task_id) = unpacked_msg.thid else {
+                        let task_id = if let Some(task_id) = &unpacked_msg.thid {
+                            Rc::new(task_id.to_string())
+                        } else {
                             println!(
                                 "{}",
                                 style(
@@ -271,7 +273,7 @@ pub async fn fetch_tasks(
                             continue;
                         };
 
-                        match handle_inbound_pong(config, &from_did, &to_did, &Rc::new(task_id)) {
+                        match handle_inbound_pong(config, &from_did, &to_did, &task_id) {
                             Ok(relationship) => (
                                 style(format!(
                                     "Relationship trust-ping received from({})",
@@ -310,7 +312,7 @@ pub async fn fetch_tasks(
                         )
                     }
                     MessageType::VRCRequestRejected => {
-                        let Some(task_id) = unpacked_msg.thid else {
+                        let Some(task_id) = &unpacked_msg.thid else {
                             println!(
                                 "{}",
                                 style(
@@ -335,7 +337,7 @@ pub async fn fetch_tasks(
                             }
                         };
                         if let Err(e) = config.handle_vrc_reject(
-                            &Rc::new(task_id),
+                            &Rc::new(task_id.to_string()),
                             body.reason.as_deref(),
                             &from_did,
                         ) {
@@ -372,7 +374,12 @@ pub async fn fetch_tasks(
             println!(
                 "{}{} {}{}",
                 style("Task Id: ").color256(CLI_BLUE),
-                style(&unpacked_msg.id).color256(CLI_PURPLE),
+                style(if let Some(thid) = unpacked_msg.thid.as_deref() {
+                    thid
+                } else {
+                    &unpacked_msg.id
+                })
+                .color256(CLI_PURPLE),
                 style("Type: ").color256(CLI_BLUE),
                 style(task_type_style).color256(CLI_PURPLE),
             );
@@ -381,7 +388,14 @@ pub async fn fetch_tasks(
                 LogFamily::Task,
                 format!(
                     "Fetched: Task ID({}) Type({}) From({}) To({})",
-                    &unpacked_msg.id, task_type, from_did, &to_did
+                    if let Some(thid) = unpacked_msg.thid.as_deref() {
+                        thid
+                    } else {
+                        &unpacked_msg.id
+                    },
+                    task_type,
+                    from_did,
+                    &to_did
                 ),
             );
         } else {
