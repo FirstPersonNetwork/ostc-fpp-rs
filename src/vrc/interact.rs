@@ -8,7 +8,11 @@ use crate::{
     log::LogFamily,
     relationships::Relationship,
     tasks::{Task, TaskType},
-    vrc::{Vrc, VrcRequest},
+    vrc::{
+        Vrc, VrcRequest,
+        remove::remove_vrc_by_id,
+        visual::{show_vrc_by_id, vrcs_show_all, vrcs_show_relationship},
+    },
 };
 use affinidi_tdk::{
     TDK,
@@ -18,7 +22,7 @@ use anyhow::{Result, bail};
 use clap::ArgMatches;
 use console::style;
 use dialoguer::{Confirm, Input, Select, theme::ColorfulTheme};
-use std::{rc::Rc, sync::Mutex};
+use std::{collections::HashMap, rc::Rc, sync::Mutex};
 
 /// Primary entry point for VRCs interactions
 pub async fn vrcs_entry(
@@ -33,11 +37,48 @@ pub async fn vrcs_entry(
                 config.save(profile)?;
             }
         }
+        Some(("list", sub_args)) => {
+            if let Some(remote) = sub_args.get_one::<String>("remote") {
+                if let Some(contact) = config.private.contacts.find_contact(&Rc::new(remote)) {
+                    vrcs_show_relationship(&contact.did, config);
+                } else {
+                    println!(
+                        "{}{}",
+                        style("WARN: Couldn't find any matching contact/relationship for: ")
+                            .color256(CLI_ORANGE),
+                        style(remote).color256(CLI_WHITE)
+                    );
+                }
+            } else {
+                vrcs_show_all(config);
+            }
+        }
+        Some(("show", sub_args)) => {
+            if let Some(id) = sub_args.get_one::<String>("id") {
+                show_vrc_by_id(config, id);
+            } else {
+                println!(
+                    "{}",
+                    style("WARN: You must specify a VRC ID!").color256(CLI_ORANGE)
+                );
+            }
+        }
+        Some(("remove", sub_args)) => {
+            if let Some(id) = sub_args.get_one::<String>("id") {
+                remove_vrc_by_id(config, id);
+                config.save(profile)?;
+            } else {
+                println!(
+                    "{}",
+                    style("WARN: You must specify a VRC ID!").color256(CLI_ORANGE)
+                );
+            }
+        }
         _ => {
             println!(
                 "{} {}",
                 style("ERROR:").color256(CLI_RED),
-                style("No vrcs subcommand was used. Use --help for more information.")
+                style("No valid vrcs subcommand was used. Use --help for more information.")
                     .color256(CLI_ORANGE)
             );
             bail!("Invalid CLI Options");
@@ -51,8 +92,7 @@ pub async fn vrcs_entry(
 async fn vrcs_interactive_request(tdk: &TDK, config: &mut Config) -> Result<bool> {
     println!(
         "{}",
-        style("Select a relationship to request a VRC:")
-            .color256(CLI_BLUE)
+        style("Select a relationship to request a VRC:").color256(CLI_BLUE)
     );
     let Some(relationship) = select_relationship(config) else {
         return Ok(false);
@@ -158,16 +198,11 @@ fn select_relationship(config: &Config) -> Option<Rc<Mutex<Relationship>>> {
     let mut items: Vec<String> = Vec::new();
     let relationships = config.private.relationships.get_established_relationships();
     if relationships.is_empty() {
-        println!(
-            "{}",
-            style("No relationships found.")
-                .color256(CLI_ORANGE)
-        );
+        println!("{}", style("No relationships found.").color256(CLI_ORANGE));
         println!();
         println!(
             "{} \n{}",
-            style("To create a relationship, run:")
-                .color256(CLI_BLUE),
+            style("To create a relationship, run:").color256(CLI_BLUE),
             style("lkmv relationships request --respondent <did> --alias <respondent-alias>")
                 .color256(CLI_BLUE)
         );
@@ -229,7 +264,11 @@ fn generate_vrc_request_body(
 
     let name = match Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Include your human-readable name in the VRC request?")
-        .items(["Yes, include my name", "Change my name", "Do not include a name"])
+        .items([
+            "Yes, include my name",
+            "Change my name",
+            "Do not include a name",
+        ])
         .default(0)
         .interact()?
     {
@@ -518,8 +557,14 @@ pub fn interact_vrc_inbound(
                     .private
                     .vrcs_received
                     .entry(relationship_c_did)
-                    .and_modify(|v| v.push(*vrc.clone()))
-                    .or_insert(vec![*vrc]);
+                    .and_modify(|hm| {
+                        hm.insert(Rc::new(vrc.get_hash().unwrap()), Rc::new(*vrc.clone()));
+                    })
+                    .or_insert({
+                        let mut hm = HashMap::new();
+                        hm.insert(Rc::new(vrc.get_hash().unwrap()), Rc::new(*vrc));
+                        hm
+                    });
 
                 config.private.tasks.remove(&task_id);
 

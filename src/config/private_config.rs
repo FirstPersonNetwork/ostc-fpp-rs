@@ -2,15 +2,13 @@
 *   but is not as critical as private key information which is stored in the OS Secure Store
 */
 
-use std::{collections::HashMap, rc::Rc};
-
 use crate::{
     CLI_ORANGE, CLI_RED,
     config::secured_config::{unlock_code_decrypt, unlock_code_encrypt},
     contacts::Contacts,
     relationships::Relationships,
     tasks::Tasks,
-    vrc::Vrc,
+    vrc::Vrcs,
 };
 use anyhow::Result;
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
@@ -36,11 +34,11 @@ pub struct PrivateConfig {
 
     /// VRCs Issued
     /// key = remote C-DID
-    pub vrcs_issued: HashMap<Rc<String>, Vec<Vrc>>,
+    pub vrcs_issued: Vrcs,
 
     /// VRCs received
     /// key = remote C-DID
-    pub vrcs_received: HashMap<Rc<String>, Vec<Vrc>>,
+    pub vrcs_received: Vrcs,
 }
 
 impl PrivateConfig {

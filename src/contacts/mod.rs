@@ -10,7 +10,7 @@ use crate::{
 use affinidi_tdk::TDK;
 use anyhow::{Result, bail};
 use clap::{ArgMatches, Id};
-use console::style;
+use console::{StyledObject, style};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, rc::Rc};
 
@@ -22,6 +22,17 @@ pub struct Contact {
 
     /// Optional alias for the DID
     pub alias: Option<String>,
+}
+
+impl Contact {
+    /// Returns Alias if it exists, otherwise returns "N/A"
+    pub fn alias(&self) -> StyledObject<String> {
+        if let Some(alias) = &self.alias {
+            style(alias.to_string()).color256(CLI_GREEN)
+        } else {
+            style("N/A".to_string()).color256(CLI_ORANGE)
+        }
+    }
 }
 
 // ****************************************************************************

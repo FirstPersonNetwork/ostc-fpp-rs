@@ -15,11 +15,18 @@ use anyhow::{Context, Result, bail};
 use chrono::{DateTime, Utc};
 use console::style;
 use serde::{Deserialize, Serialize, Serializer};
-use std::{rc::Rc, time::SystemTime};
+use serde_json_canonicalizer::to_string;
+use sha2::Digest;
+use std::{collections::HashMap, rc::Rc, time::SystemTime};
 use uuid::Uuid;
 
 pub mod interact;
+pub mod remove;
 pub mod request;
+pub mod visual;
+
+/// Collections of VRCS
+pub type Vrcs = HashMap<Rc<String>, HashMap<Rc<String>, Rc<Vrc>>>;
 
 /// Verifiable Relationship Credential Specification
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -122,6 +129,18 @@ impl Vrc {
         }
 
         Ok(message.finalize())
+    }
+
+    /// Returns a hash string representing this VRC
+    /// Strips the proof before using JCS and a SHA256 hash
+    pub fn get_hash(&self) -> Result<String> {
+        let tmp = Vrc {
+            proof: None,
+            ..self.clone()
+        };
+
+        let hash = sha2::Sha256::digest(to_string(&tmp)?);
+        Ok(format!("{hash:02x}"))
     }
 }
 
@@ -374,7 +393,6 @@ pub struct VrcRequest {
 impl VrcRequest {
     /// Create a new VRCRequest with default values
     pub fn print(&self) {
-
         println!();
         println!("{}", style("VRC request details: ").color256(CLI_BLUE));
 

@@ -172,7 +172,27 @@ pub fn cli() -> Command {
     let vrc_subcommand = Command::new("vrcs")
         .about("Manage Verified Relationship Credentials")
         .arg_required_else_help(true)
-        .subcommand(Command::new("request").about("Request a VRC for a relationship"));
+        .subcommand(Command::new("request").about("Request a VRC for a relationship"))
+        .subcommand(
+            Command::new("list")
+                .about("List Verifiable Relationship Credentials")
+                .arg(
+                    Arg::new("remote")
+                        .long("remote")
+                        .short('r')
+                        .help("Show VRC's for a remote DID/Alias relationship"),
+                ),
+        )
+        .subcommand(
+            Command::new("show")
+                .about("Show a Verifiable Relationship Credential")
+                .arg(Arg::new("id").help("VRC ID to show").required(true)),
+        )
+        .subcommand(
+            Command::new("remove")
+                .about("Remove a Verifiable Relationship Credential")
+                .arg(Arg::new("id").help("VRC ID to remove").required(true)),
+        );
 
     // Full CLI Set
     Command::new("lkmv")
