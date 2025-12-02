@@ -6,6 +6,7 @@ use dialoguer::{Confirm, theme::ColorfulTheme};
 use crate::{
     CLI_ORANGE, CLI_RED,
     config::Config,
+    log::LogFamily,
     vrc::{Vrcs, visual::vrc_show},
 };
 
@@ -21,6 +22,11 @@ pub fn remove_vrc_by_id(config: &mut Config, id: &str) -> bool {
         {
             remove_vrc(&mut config.private.vrcs_received, id);
             remove_vrc(&mut config.private.vrcs_issued, id);
+
+            config.public.logs.insert(
+                LogFamily::Relationship,
+                format!("User removed VRC ID: {id}"),
+            );
             true
         } else {
             println!("{}", style("Aborting VRC Removal").color256(CLI_ORANGE));
