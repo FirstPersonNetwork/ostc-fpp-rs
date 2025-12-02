@@ -146,7 +146,7 @@ pub fn vrc_show(vrc_id: &str, vrc: &Vrc) {
 
     if let Some(rel_type) = &vrc.credential_subject.relationship_type {
         println!(
-            "{}{}",
+            "\t  {}{}",
             style("Relationship Type: ").color256(CLI_BLUE).bold(),
             style(rel_type).color256(CLI_WHITE)
         );
