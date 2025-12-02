@@ -9,10 +9,12 @@
 - [Decentralised Communication](#decentralised-communication)
 - [Profiles and Configurations](#profiles-and-configurations)
   - [Public Configuration](#public-configuration)
+  - [Private Configuration](#private-configuration)
   - [Secured Configuration](#secured-configuration)
 - [Prerequisites](#prerequisites)
 - [Feature Flags](#feature-flags)
 - [Set Up Environment](#set-up-environment)
+  - [Hosting Your DID Document](#hosting-your-did-document)
   - [Same Domain with Multiple WebVH DIDs](#same-domain-with-multiple-webvh-dids)
 - [Check Environment Setup](#check-environment-setup)
 - [LKMV Commands](#lkmv-commands)
@@ -94,18 +96,28 @@ You can change the default location where the public configuration is saved by s
 export LKMV_CONFIG_PATH=~/.config/lkmv-tool
 ```
 
-Make sure that the new location exists before running the tool.
+### Private Configuration
+
+An encrypted configuration stored inside the public configuration file, containing sensitive information about:
+
+- List of contacts with their Community DIDs and Alias.
+- List of relationships with their:
+  - Remote and local Relationship DIDs (R-DIDs)
+  - Remove and local Community DIDs (C-DIDs)
+  - Relationship aliases
+
+
 
 ### Secured Configuration
 
-Stored in the operating system’s secure storage, e.g., macOS Keychain or Linux Keyring.
+A sensitive information stored in the operating system’s secure storage, e.g., macOS Keychain or Linux Keyring.
 
 The secured configuration includes:
 
 - Private key materials.
 - Encrypted Session Key (ESK), if using a hardware token.
 
-If your profile uses both a hardware token and unlock code, the secured data is encrypted using the ESK.
+If your profile uses a hardware token, the secured data is encrypted using the ESK.
 
 For more details about secured configuration, refer to the [Handling Secured Configuration](./docs/handling-secured-configuration.md) documentation.
 
@@ -126,6 +138,10 @@ For more details about secured configuration, refer to the [Handling Secured Con
 LKMV currently support two feature flags: 
 
 - **default:** Currently set to `openpgp-card`. To disable default features, use `--no-default-features` flag on the setup command. 
+
+    ```bash
+    lkmv --no-default-features setup
+    ```
 
 - **openpgp-card:** Enables support for openpgp-card compatible devices. Set as the default feature. 
 
@@ -153,6 +169,31 @@ lkmv -p profile-1 setup
 
 Follow the setup steps to create the configuration, generate your Community DID, and connect to a DIDComm mediator server. 
 
+### Hosting Your DID Document
+
+After running the lkmv setup command, the tool generates a `did.jsonl` file for your Community DID. This DID uses the `did:webvh` method, which requires the DID document to be hosted at a specific URL that matches the DID you configured.
+
+The `did:webvh` method resolves your DID by fetching the DID document from a well-known location on the web. If the document is not hosted at the correct URL, the DID cannot be verified or used.
+
+**For example:**
+
+- If your configured URL is `https://mydomain.com`, you must host the file at:
+  
+  ```
+  https://mydomain.com/.well-known/did.jsonl
+  ```
+
+- If your configured URL is `https://mydomain.com/profile1`, you must host the file at: 
+
+  ```
+  https://mydomain.com/profile1/did.jsonl
+  ```
+
+**Important Note:** 
+
+- The URL must be publicly accessible so the tool can resolve your Community DID using the `did:webvh` method.
+- Ensure the file name and path match exactly as shown above.
+
 ### Same Domain with Multiple WebVH DIDs
 
 To create different WebVH DIDs for the same domain name, set the URL during setup to:
@@ -164,8 +205,10 @@ To create different WebVH DIDs for the same domain name, set the URL during setu
 The setup wizard creates a WebVH DID with the following value:
 
 ```bash
-did:webvh:QmeQawCuEQFF28UNKxGcue4tKx3Vyc2bgknCPKKY61gCgh:mydomain.io:profile1
+did:webvh:QmeQawCuEQFF28UNKxGcue4tKx3Vyc2bgknCPKKY61gCgh:mydomain.com:profile1
 ```
+
+The `did:webvh` will resolve into `https://mydomain.com/profile1/did.jsonl` to parse the DID document.
 
 This is helpful when you want to setup multiple profiles with different WebVH DIDs for the same domain hosting the DID documents or when doing testing.
 
@@ -186,7 +229,13 @@ If you wish to check the status for a specific profile, run the following the co
 lkmv -p profile-1 status 
 ```
 
-It displays the tool version, along with the DIDs configured, and whether your Community DID is resolvable. 
+When successful, it displays
+
+- The tool version.
+- Your Community DIDs, and whether your Community DID is resolvable. 
+- Configured keys for authentication, encryption, and signing related to the Community and Relationship DIDs.
+- List of requested and established relationships.
+- Connectivity to the configured DIDComm mediator for sending private messages, such as Relationship and VRC requests.
 
 ## LKMV Commands
 
