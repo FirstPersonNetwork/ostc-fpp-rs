@@ -25,6 +25,7 @@ use crate::{
     setup::{
         CommunityDIDKeys, KeyInfo, KeyPurpose, bip32_bip39::Bip32Extension, create_unlock_code,
     },
+    vrc::Vrc,
 };
 use affinidi_tdk::{
     TDK,
@@ -91,6 +92,10 @@ pub struct Config {
     /// Key: Our local DID for the relationship
     /// NOTE: Does not hold the community DID profile!
     pub atm_profiles: HashMap<Rc<String>, Arc<ATMProfile>>,
+
+    /// All VRC's issued and received by VRC ID
+    /// Key: VRC ID
+    pub vrcs: HashMap<Rc<String>, Rc<Vrc>>,
 }
 
 /// Exported Configuration structure
@@ -214,6 +219,19 @@ impl Config {
             )
             .await?;
 
+        // Add all VRC's to the top level list
+        let mut vrcs = HashMap::new();
+        for relationship in private_cfg.vrcs_issued.values() {
+            for (vrc_id, vrc) in relationship.iter() {
+                vrcs.insert(vrc_id.clone(), vrc.clone());
+            }
+        }
+        for relationship in private_cfg.vrcs_received.values() {
+            for (vrc_id, vrc) in relationship.iter() {
+                vrcs.insert(vrc_id.clone(), vrc.clone());
+            }
+        }
+
         Ok(Config {
             bip32_root,
             community_did: CommunityDID {
@@ -231,6 +249,7 @@ impl Config {
             protection_method: sc.protection_method.clone(),
             unlock_code,
             atm_profiles,
+            vrcs,
         })
     }
 
@@ -390,9 +409,12 @@ impl Config {
             println!();
         }
 
-        self.private
-            .relationships
-            .status(&self.private.contacts, &self.public.community_did);
+        self.private.relationships.status(
+            &self.private.contacts,
+            &self.public.community_did,
+            &self.private.vrcs_issued,
+            &self.private.vrcs_received,
+        );
     }
 
     /// Exports the configuration settings to an encrypted file

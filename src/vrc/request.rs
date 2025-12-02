@@ -1,4 +1,4 @@
-use std::{rc::Rc, sync::Mutex};
+use std::{collections::HashMap, rc::Rc, sync::Mutex};
 
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, CLI_WHITE,
@@ -209,12 +209,7 @@ pub async fn handle_accept_vrcs_request(
     let task_id = { task.lock().unwrap().id.clone() };
 
     println!();
-    println!(
-        "{}",
-        style("Your Information")
-            .color256(CLI_BLUE)
-            .bold()
-    );
+    println!("{}", style("Your Information").color256(CLI_BLUE).bold());
     println!("{}", style("=================").bold().color256(CLI_BLUE));
     println!();
 
@@ -226,14 +221,20 @@ pub async fn handle_accept_vrcs_request(
 
     let from_name = match Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Change your human-readable name in this VRC?")
-        .items(["No, keep my name", "Change my name", "Do not include a name"])
+        .items([
+            "No, keep my name",
+            "Change my name",
+            "Do not include a name",
+        ])
         .default(0)
         .interact()?
     {
         0 => Some(config.public.friendly_name.to_string()),
         1 => Some(
             Input::with_theme(&ColorfulTheme::default())
-                .with_prompt("Enter the name to include in this VRC (leave blank for no issuer name): ")
+                .with_prompt(
+                    "Enter the name to include in this VRC (leave blank for no issuer name): ",
+                )
                 .allow_empty(true)
                 .interact_text()
                 .unwrap(),
@@ -243,10 +244,7 @@ pub async fn handle_accept_vrcs_request(
     };
 
     if from_name.clone().unwrap().trim().is_empty() {
-        println!(
-            "{}",
-            style("No issuer name included.").color256(CLI_ORANGE)
-        );
+        println!("{}", style("No issuer name included.").color256(CLI_ORANGE));
     }
 
     let our_also_known_as = if our_r_did != config.public.community_did {
@@ -308,15 +306,20 @@ pub async fn handle_accept_vrcs_request(
     println!();
     println!(
         "{}",
-        style("Requestor Information")
-            .color256(CLI_BLUE)
-            .bold()
+        style("Requestor Information").color256(CLI_BLUE).bold()
     );
-    println!("{}", style("======================").bold().color256(CLI_BLUE));
+    println!(
+        "{}",
+        style("======================").bold().color256(CLI_BLUE)
+    );
     println!();
 
     let their_name = if let Some(name) = &request.name {
-        println!("{}{}", style("The requestor suggested a name for themselves: ").color256(CLI_BLUE), style(name).color256(CLI_ORANGE));
+        println!(
+            "{}{}",
+            style("The requestor suggested a name for themselves: ").color256(CLI_BLUE),
+            style(name).color256(CLI_ORANGE)
+        );
         if Confirm::with_theme(&ColorfulTheme::default())
             .with_prompt("Use the requestor's suggested name?")
             .default(true)
@@ -402,12 +405,7 @@ pub async fn handle_accept_vrcs_request(
     };
 
     println!();
-    println!(
-        "{}",
-        style("VRC Configuration")
-            .color256(CLI_BLUE)
-            .bold()
-    );
+    println!("{}", style("VRC Configuration").color256(CLI_BLUE).bold());
     println!("{}", style("=================").bold().color256(CLI_BLUE));
     println!();
 
@@ -436,20 +434,21 @@ pub async fn handle_accept_vrcs_request(
     };
 
     println!();
-    println!("{}", style("A human-readable name can help others understand the purpose or reason for this VRC.").color256(CLI_BLUE));
-    let name: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt(
-            "Include a human-readable name for this VRC (optional, press Enter to skip):",
+    println!(
+        "{}",
+        style(
+            "A human-readable name can help others understand the purpose or reason for this VRC."
         )
+        .color256(CLI_BLUE)
+    );
+    let name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Include a human-readable name for this VRC (optional, press Enter to skip):")
         .allow_empty(true)
         .interact_text()
         .unwrap();
 
     let name = if name.trim().is_empty() {
-        println!(
-            "{}",
-            style("No VRC name included.").color256(CLI_ORANGE)
-        );
+        println!("{}", style("No VRC name included.").color256(CLI_ORANGE));
         println!();
         None
     } else {
@@ -690,8 +689,14 @@ pub async fn handle_accept_vrcs_request(
         .private
         .vrcs_issued
         .entry(their_c_did.clone())
-        .and_modify(|v| v.push(vrc.clone()))
-        .or_insert(vec![vrc]);
+        .and_modify(|hm| {
+            hm.insert(Rc::new(vrc.get_hash().unwrap()), Rc::new(vrc.clone()));
+        })
+        .or_insert({
+            let mut hm = HashMap::new();
+            hm.insert(Rc::new(vrc.get_hash().unwrap()), Rc::new(vrc));
+            hm
+        });
 
     config.public.logs.insert(
         LogFamily::Task,

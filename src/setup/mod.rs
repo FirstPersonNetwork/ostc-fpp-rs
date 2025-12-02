@@ -259,6 +259,7 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
         protection_method: ProtectionMethod::default(),
         unlock_code,
         atm_profiles: HashMap::new(),
+        vrcs: HashMap::new(),
     };
 
     config.save(profile)?;

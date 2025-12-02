@@ -13,6 +13,7 @@ use crate::{
     relationships::messages::create_send_request,
     setup::{KeyPurpose, bip32_bip39::Bip32Extension},
     tasks::TaskType,
+    vrc::Vrcs,
 };
 use affinidi_tdk::{
     TDK,
@@ -116,7 +117,13 @@ pub struct Relationships {
 
 impl Relationships {
     /// Prints Relationship status to the console
-    pub fn status(&self, contacts: &Contacts, our_c_did: &Rc<String>) {
+    pub fn status(
+        &self,
+        contacts: &Contacts,
+        our_c_did: &Rc<String>,
+        vrcs_sent: &Vrcs,
+        vrcs_received: &Vrcs,
+    ) {
         println!("{}", style("Relationships").bold().color256(CLI_BLUE));
         println!("{}", style("=============").bold().color256(CLI_BLUE));
 
@@ -135,23 +142,27 @@ impl Relationships {
         }
 
         println!("{}", style("Relationships").color256(CLI_BLUE));
-        self.print_relationships(contacts, our_c_did);
+        self.print_relationships(contacts, our_c_did, vrcs_sent, vrcs_received);
     }
 
-    pub fn print_relationships(&self, contacts: &Contacts, our_c_did: &Rc<String>) {
+    pub fn print_relationships(
+        &self,
+        contacts: &Contacts,
+        our_c_did: &Rc<String>,
+        vrcs_sent: &Vrcs,
+        vrcs_received: &Vrcs,
+    ) {
         if self.relationships.is_empty() {
             println!("{}", style("No relationships exist").color256(CLI_ORANGE));
         } else {
             for r in self.relationships.values() {
                 let r = r.lock().unwrap();
-                let remote_c_did_alias = if let Some(contact) =
-                    contacts.find_contact(&r.remote_c_did)
-                    && let Some(alias) = &contact.alias
-                {
-                    style(alias.to_string()).color256(CLI_GREEN)
-                } else {
-                    style("N/A".to_string()).color256(CLI_ORANGE)
-                };
+                let remote_c_did_alias =
+                    if let Some(contact) = contacts.find_contact(&r.remote_c_did) {
+                        contact.alias()
+                    } else {
+                        style("N/A".to_string()).color256(CLI_ORANGE)
+                    };
 
                 println!(
                     "  {}{}{}{}",
@@ -184,6 +195,31 @@ impl Relationships {
                     style(r.created).color256(CLI_GREEN),
                     style(" Task ID: ").color256(CLI_BLUE),
                     style(&r.task_id).color256(CLI_GREEN)
+                );
+
+                // Show VRC's
+                println!(
+                    "    {}{} {}{}",
+                    style("VRCs Sent: ").color256(CLI_BLUE).bold(),
+                    if let Some(vrcs) = vrcs_sent.get(&r.remote_c_did) {
+                        if vrcs.is_empty() {
+                            style("0".to_string()).color256(CLI_ORANGE)
+                        } else {
+                            style(vrcs.len().to_string()).color256(CLI_GREEN)
+                        }
+                    } else {
+                        style("N/A".to_string()).color256(CLI_ORANGE)
+                    },
+                    style("VRCs Sent: ").color256(CLI_BLUE).bold(),
+                    if let Some(vrcs) = vrcs_received.get(&r.remote_c_did) {
+                        if vrcs.is_empty() {
+                            style("0".to_string()).color256(CLI_ORANGE)
+                        } else {
+                            style(vrcs.len().to_string()).color256(CLI_GREEN)
+                        }
+                    } else {
+                        style("N/A".to_string()).color256(CLI_ORANGE)
+                    },
                 );
                 println!();
             }
@@ -310,7 +346,7 @@ impl Relationships {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub struct Relationship {
     /// Task ID that this relationship may be attached to
     pub task_id: Rc<String>,
@@ -392,10 +428,12 @@ pub async fn relationships_entry(
 ) -> Result<()> {
     match args.subcommand() {
         Some(("list", _)) => {
-            config
-                .private
-                .relationships
-                .print_relationships(&config.private.contacts, &config.public.community_did);
+            config.private.relationships.print_relationships(
+                &config.private.contacts,
+                &config.public.community_did,
+                &config.private.vrcs_issued,
+                &config.private.vrcs_received,
+            );
         }
         Some(("request", sub_args)) => {
             let respondent = if let Some(respondent) = sub_args.get_one::<String>("respondent") {
