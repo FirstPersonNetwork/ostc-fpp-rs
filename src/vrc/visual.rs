@@ -75,7 +75,7 @@ pub fn vrcs_show_relationship(remote: &Rc<String>, config: &Config) {
 
     println!(
         "{}{}",
-        style("--> ").color256(CLI_BLUE).bold(),
+        style("<-- ").color256(CLI_BLUE).bold(),
         style("You have issued the following VRC's to this Relationship:")
             .color256(CLI_BLUE)
             .bold()
@@ -98,7 +98,7 @@ pub fn vrcs_show_relationship(remote: &Rc<String>, config: &Config) {
 
     println!(
         "{}{}",
-        style("<-- ").color256(CLI_BLUE).bold(),
+        style("--> ").color256(CLI_BLUE).bold(),
         style("You have received the following VRC's for this Relationship:")
             .color256(CLI_BLUE)
             .bold()
