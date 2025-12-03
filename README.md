@@ -163,16 +163,14 @@ For more details, refer to the [Secured Configuration Management](./docs/secured
 1. Rust version 1.88 or higher (Install [Rust](https://rust-lang.org/learn/get-started/))
 2. Publicly accessible domain to host your DID document.
 3. **Optional:** DIDComm mediator to send messages. LKMV provides a default DIDComm mediator.
-4. **Optional:** Set any environment variables.
+4. **Optional:** Set environment variables.
    - `LKMV_CONFIG_PATH`: Path to lkmv configuration files (default:
      `~/.config/lkmv/config.json`).
    - `LKMV_CONFIG_PROFILE`: Set a specific configuration profile (defaults to `default`).
-    
-      **NOTE:** Setting the `LKMV_CONFIG_PROFILE` overrides any value set using the `-p/--profile` option.
 
 ## Feature Flags 
 
-LKMV currently supports `openpgp-card` as an option to perform cryptographic operations, such as signing, and authentication. 
+LKMV currently supports `openpgp-card` as an option to perform cryptographic operations, such as signing and authentication. 
 
 Flag | Description |	Default |
 -----|-------------|----------|
@@ -190,23 +188,23 @@ lkmv --no-default-features setup
 
 1. Install locally from the source. 
 
-```bash
-cargo install --path . 
-```
+   ```bash
+   cargo install --path . 
+   ```
 
-> **Note:** This will change once the tool is published. 
+   > **Note:** This will change once the tool is published. 
 
 2. Run the setup wizard. 
 
-```bash
-lkmv setup 
-```
+   ```bash
+   lkmv setup 
+   ```
 
-To set up a named profile instead of **default**, set the `-p/--profile` option.
+   To set up a named profile instead of **default**, set the `-p/--profile` option.
 
-```bash
-lkmv -p profile-1 setup 
-```
+   ```bash
+   lkmv -p profile-1 setup 
+   ```
 
 Follow the prompts to:
 

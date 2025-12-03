@@ -138,7 +138,7 @@ A VRC is a peer-to-peer credential that attests to verifiable trust relationship
 
 ### Prerequisite
 
-You must establish a relationship before requesting a VRC. To request for relationship, refer to '\\' Establish Relationship section.
+You must establish a relationship before requesting a VRC. To request for relationship, refer to the [Establish Relationship](#establish-relationship) section.
 
 ### 1. Request VRC Issuance (Requestor)
 
