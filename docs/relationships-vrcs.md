@@ -234,6 +234,8 @@ Issued VRC
 }
 ```
 
+For more details, see the [draft specification](https://github.com/trustoverip/dtgwg-cred-tf/blob/1-provide-draft-vrc-rcard-and-witnessed-exchange-flow/vrc.md) of the VRC.
+
 ### 3. Claim and Store VRC (Requestor)
 
 After the VRC is issued, claim it:
