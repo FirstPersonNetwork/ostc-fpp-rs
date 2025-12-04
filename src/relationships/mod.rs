@@ -210,7 +210,7 @@ impl Relationships {
                     } else {
                         style("N/A".to_string()).color256(CLI_ORANGE)
                     },
-                    style("VRCs Sent: ").color256(CLI_BLUE).bold(),
+                    style("VRCs Received: ").color256(CLI_BLUE).bold(),
                     if let Some(vrcs) = vrcs_received.get(&r.remote_p_did) {
                         if vrcs.is_empty() {
                             style("0".to_string()).color256(CLI_ORANGE)
