@@ -53,7 +53,7 @@ Follow these steps to establish a relationship with another Persona DID.
 Send a relationship request to another DID:
 
 ```bash
-lkmv relationships request --respondent <Community_DID> --alias <Respondent_Alias>
+lkmv relationships request --respondent <Persona_DID> --alias <Respondent_Alias>
 ```
 
 This command sends a relationship request and sets an alias for the relationship.
@@ -61,7 +61,7 @@ This command sends a relationship request and sets an alias for the relationship
 **Optional:** Generate a local Relationship DID (R-DID) for private communication:
 
 ```bash
-lkmv relationships request --respondent <Community_DID> --alias <Respondent_Alias> --generate-did
+lkmv relationships request --respondent <Persona_DID> --alias <Respondent_Alias> --generate-did
 ```
 
 When an R-DID is present, subsequent communication uses the R-DID for privacy; otherwise, it uses your P-DID.
