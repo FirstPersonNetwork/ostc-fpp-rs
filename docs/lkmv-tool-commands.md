@@ -10,6 +10,7 @@ Complete command reference for the LKMV Tool CLI.
 - [Commands](#commands)
   - [setup](#lkmv-setup)
   - [status](#lkmv-status)
+  - [logs](#lkmv-logs)
   - [export](#lkmv-export)
   - [contacts](#lkmv-contacts)
   - [relationships](#lkmv-relationships)
@@ -22,6 +23,7 @@ Complete command reference for the LKMV Tool CLI.
 |---------|-------------|
 | `lkmv setup` | Initialise environment and create profile |
 | `lkmv status` | View current configuration |
+| `lkmv logs` | Display log history |
 | `lkmv export` | Export settings or PGP keys |
 | `lkmv contacts` | Manage known contacts |
 | `lkmv relationships` | Manage relationships with other DIDs |
@@ -164,6 +166,31 @@ lkmv status
 Check specific profile status:
 ```bash
 lkmv -p profile-1 status
+```
+
+---
+
+## lkmv logs
+
+Display log history of actions and events within LKMV. Logs include relationship events, contact changes, task operations, vrc operations, and configuration updates.
+
+**Usage:**
+```bash
+lkmv logs
+```
+
+> **Note:** By default, the log maintains up to 100 most recent entries. Older entries are automatically removed. You can update this number by updating the public configuration `limit` property.
+
+**Examples:**
+
+View all log entries:
+```bash
+lkmv logs
+```
+
+View logs for a specific profile:
+```bash
+lkmv -p profile-1 logs
 ```
 
 ---
@@ -328,6 +355,8 @@ Manage relationships with other DIDs for secure communication and VRC issuance.
 **Usage:**
 ```bash
 lkmv relationships request [OPTIONS]
+lkmv relationships ping [OPTIONS]
+lkmv relationships remove [OPTIONS]
 lkmv relationships list
 ```
 
@@ -352,22 +381,70 @@ Send a relationship request to another DID.
 
 Send basic relationship request:
 ```bash
-lkmv relationships request -d did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com -a "John Doe"
+lkmv relationships request -d did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com -a "JohnD"
 ```
 
 Send with reason:
 ```bash
-lkmv relationships request -d did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com -a "John Doe" -r "Coworker connection"
+lkmv relationships request -d did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com -a "JohnD" -r "Coworker connection"
 ```
 
 Send with R-DID generation:
 ```bash
-lkmv relationships request -d did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com -a "John Doe" -g
+lkmv relationships request -d did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com -a "JohnD" -g
 ```
 
 Use contact alias:
 ```bash
 lkmv relationships request -d "JohnD" -a "John Doe" -r "Conference attendee"
+```
+
+### lkmv relationships ping
+
+Send a trust ping message to test connectivity with an established relationship. The remote recipient must check their messages to respond with a pong.
+
+**Options:**
+
+| Flag | Description | Required |
+|------|-------------|----------|
+| `-r, --remote <DID>` | Remote DID or alias | Yes |
+
+> **Note:** This command requires an established relationship. Check for pong responses using `lkmv tasks interact`.
+
+**Examples:**
+
+Ping by DID:
+```bash
+lkmv relationships ping -r did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com
+```
+
+Ping by alias:
+```bash
+lkmv relationships ping -r "JohnD"
+```
+
+### lkmv relationships remove
+
+Remove an existing relationship and all associated VRCs (both issued and received).
+
+**Options:**
+
+| Flag | Description | Required |
+|------|-------------|----------|
+| `-r, --remote <DID>` | Remote DID or alias | Yes |
+
+> **Warning:** This action cannot be undone. All VRCs associated with this relationship will be permanently deleted.
+
+**Examples:**
+
+Remove by DID:
+```bash
+lkmv relationships remove -r did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com
+```
+
+Remove by alias:
+```bash
+lkmv relationships remove -r "JohnD"
 ```
 
 ### lkmv relationships list
@@ -511,7 +588,7 @@ Manage Verifiable Relationship Credentials (VRCs).
 **Usage:**
 ```bash
 lkmv vrcs request
-lkmv vrcs list
+lkmv vrcs list [OPTIONS]
 lkmv vrcs show <ID>
 lkmv vrcs remove <ID>
 ```
@@ -538,11 +615,17 @@ lkmv vrcs request
 
 ### lkmv vrcs list
 
-Display all VRCs (both issued and received).
+Display all VRCs (both issued and received). Optionally filter by relationship.
+
+**Options:**
+
+| Flag | Description | Required |
+|------|-------------|----------|
+| `-r, --remote <DID>` | Show VRCs for a specific remote DID or alias | No |
 
 **Usage:**
 ```bash
-lkmv vrcs list
+lkmv vrcs list [OPTIONS]
 ```
 
 **Examples:**
@@ -550,6 +633,16 @@ lkmv vrcs list
 List all VRCs:
 ```bash
 lkmv vrcs list
+```
+
+List VRCs for a specific relationship by DID:
+```bash
+lkmv vrcs list -r did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com
+```
+
+List VRCs for a specific relationship by alias:
+```bash
+lkmv vrcs list -r "JohnD"
 ```
 
 ### lkmv vrcs show
