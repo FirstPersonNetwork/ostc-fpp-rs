@@ -17,7 +17,14 @@ use console::style;
 use serde::{Deserialize, Serialize, Serializer};
 use serde_json_canonicalizer::to_string;
 use sha2::Digest;
-use std::{collections::HashMap, rc::Rc, time::SystemTime};
+use std::{
+    collections::{
+        HashMap,
+        hash_map::{Keys, Values},
+    },
+    rc::Rc,
+    time::SystemTime,
+};
 use uuid::Uuid;
 
 pub mod interact;
@@ -25,8 +32,61 @@ pub mod remove;
 pub mod request;
 pub mod visual;
 
-/// Collections of VRCS
-pub type Vrcs = HashMap<Rc<String>, HashMap<Rc<String>, Rc<Vrc>>>;
+/// Collection of VRCs
+/// Often used side-by-side with a set for issued and 2nd set for received
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct Vrcs {
+    /// Hashmap of VRCs
+    /// key = remote P-DID
+    /// secondary key is the VRC-ID
+    vrcs: HashMap<Rc<String>, HashMap<Rc<String>, Rc<Vrc>>>,
+}
+
+impl Vrcs {
+    /// Get all VRC Values
+    pub fn values(&self) -> Values<'_, Rc<String>, HashMap<Rc<String>, Rc<Vrc>>> {
+        self.vrcs.values()
+    }
+
+    /// Get all the remote P-DID keys that exist with a VRC
+    pub fn keys(&self) -> Keys<'_, Rc<String>, HashMap<Rc<String>, Rc<Vrc>>> {
+        self.vrcs.keys()
+    }
+
+    /// Get all VRCs for a specific P-DID
+    pub fn get(&self, id: &Rc<String>) -> Option<&HashMap<Rc<String>, Rc<Vrc>>> {
+        self.vrcs.get(id)
+    }
+
+    /// Insert a new VRC for the given remote P-DID
+    pub fn insert(&mut self, remote_p_did: &Rc<String>, vrc: Rc<Vrc>) {
+        let hash = Rc::new(vrc.get_hash().unwrap());
+
+        self.vrcs
+            .entry(remote_p_did.clone())
+            .and_modify(|hm| {
+                hm.insert(hash.clone(), vrc.clone());
+            })
+            .or_insert({
+                let mut hm = HashMap::new();
+                hm.insert(hash, vrc);
+                hm
+            });
+    }
+
+    /// Removes a VRC using the VRC ID from the list of VRCs
+    pub fn remove_vrc(&mut self, vrc_id: &Rc<String>) {
+        for r in self.vrcs.values_mut() {
+            r.retain(|vrc_id_key, _| vrc_id_key != vrc_id);
+        }
+    }
+
+    /// Removes a relationship (which drops all the VRC's associated with it)
+    /// returns true if a value was removed
+    pub fn remove_relationship(&mut self, remote_p_did: &Rc<String>) -> bool {
+        self.vrcs.remove(remote_p_did).is_some()
+    }
+}
 
 /// Verifiable Relationship Credential Specification
 #[derive(Serialize, Deserialize, Debug, Clone)]

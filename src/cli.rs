@@ -21,7 +21,7 @@ pub fn cli() -> Command {
                     .help("PGP User Id 'name <email_address>' format")
                     .value_name("first_name last_name <email@domain>")
             ])
-            .about("Exports first set of keys used in your Community DID for Signing, Authentication and Decryption"),
+            .about("Exports first set of keys used in your Persona DID for Signing, Authentication and Decryption"),
             Command::new("settings").args([
                 Arg::new("passphrase")
                     .short('p')

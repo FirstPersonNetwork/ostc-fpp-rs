@@ -4,7 +4,7 @@
 
 use crate::{
     CLI_BLUE, CLI_GREEN,
-    setup::{CommunityDIDKeys, KeyInfo, KeyPurpose},
+    setup::{PersonaDIDKeys, KeyInfo, KeyPurpose},
 };
 use anyhow::{Result, bail};
 use chrono::Utc;
@@ -27,7 +27,7 @@ use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret};
 pub fn write_keys_to_card(
     term: &Term,
     card: &mut Card<Open>,
-    keys: &CommunityDIDKeys,
+    keys: &PersonaDIDKeys,
     admin_pin: &SecretString,
 ) -> Result<()> {
     // Try unlocking the card with the admin PIN

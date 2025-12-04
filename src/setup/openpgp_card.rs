@@ -1,5 +1,5 @@
 /*!
-*   Stores the Community DID Secrets on an OpenPGP compatible card (E.g. Nitrokey)
+*   Stores the Persona DID Secrets on an OpenPGP compatible card (E.g. Nitrokey)
 */
 
 use crate::{
@@ -8,7 +8,7 @@ use crate::{
         cards, factory_reset, print_cards, set_cardholder_name, set_signing_touch_policy,
         ui::AdminPin, write::write_keys_to_card,
     },
-    setup::CommunityDIDKeys,
+    setup::PersonaDIDKeys,
 };
 use anyhow::{Result, bail};
 use console::{Term, style};
@@ -25,7 +25,7 @@ use dialoguer::{Confirm, Select, theme::ColorfulTheme};
 pub fn setup_hardware_token(
     term: &Term,
     admin_pin: &mut AdminPin,
-    keys: &CommunityDIDKeys,
+    keys: &PersonaDIDKeys,
 ) -> Result<Option<String>> {
     println!();
 

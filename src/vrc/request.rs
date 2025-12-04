@@ -1,4 +1,4 @@
-use std::{collections::HashMap, rc::Rc, sync::Mutex};
+use std::{rc::Rc, sync::Mutex};
 
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, CLI_WHITE,
@@ -25,18 +25,18 @@ pub async fn interact_vrc_inbound_request(
 ) -> Result<bool> {
     // Show details of the VRC Request
     println!();
-    let (from, from_c_did, to) = {
+    let (from, from_p_did, to) = {
         let lock = relationship.lock().unwrap();
         (
             lock.remote_did.clone(),
-            lock.remote_c_did.clone(),
+            lock.remote_p_did.clone(),
             lock.our_did.clone(),
         )
     };
 
     let task_id = { task.lock().unwrap().id.clone() };
 
-    let alias = if let Some(contact) = config.private.contacts.find_contact(&from_c_did)
+    let alias = if let Some(contact) = config.private.contacts.find_contact(&from_p_did)
         && let Some(alias) = &contact.alias
     {
         style(alias.to_string()).color256(CLI_GREEN)
@@ -48,8 +48,8 @@ pub async fn interact_vrc_inbound_request(
         "{}{} {}{}",
         style("From: alias: ").color256(CLI_BLUE),
         alias,
-        style(" C-DID: ").color256(CLI_BLUE),
-        style(&from_c_did).color256(CLI_PURPLE)
+        style(" P-DID: ").color256(CLI_BLUE),
+        style(&from_p_did).color256(CLI_PURPLE)
     );
     println!(
         "{}{}",
@@ -95,8 +95,8 @@ pub async fn interact_vrc_inbound_request(
             {
                 let msg = VRCRequestReject::create_message(&from, &to, &task_id, reason.clone())?;
 
-                let profile = if to == config.public.community_did {
-                    &config.community_did.profile
+                let profile = if to == config.public.persona_did {
+                    &config.persona_did.profile
                 } else if let Some(profile) = config.atm_profiles.get(&to) {
                     profile
                 } else {
@@ -174,7 +174,7 @@ pub async fn interact_vrc_inbound_request(
                     LogFamily::Task,
                     format!(
                         "Deleted VRC request from remote DID({}) Task ID({})",
-                        from_c_did, task_id
+                        from_p_did, task_id
                     ),
                 );
                 Ok(true)
@@ -197,11 +197,11 @@ pub async fn handle_accept_vrcs_request(
     relationship: &Rc<Mutex<Relationship>>,
 ) -> Result<bool> {
     // Start collecting data for VRC Response
-    let (our_r_did, their_c_did, their_r_did, r_created) = {
+    let (our_r_did, their_p_did, their_r_did, r_created) = {
         let lock = relationship.lock().unwrap();
         (
             lock.our_did.clone(),
-            lock.remote_c_did.clone(),
+            lock.remote_p_did.clone(),
             lock.remote_did.clone(),
             lock.created,
         )
@@ -247,7 +247,7 @@ pub async fn handle_accept_vrcs_request(
         println!("{}", style("No issuer name included.").color256(CLI_ORANGE));
     }
 
-    let our_also_known_as = if our_r_did != config.public.community_did {
+    let our_also_known_as = if our_r_did != config.public.persona_did {
         println!(
             "{}{}",
             style("This relationship is using private Relationship DIDs (R-DID): ")
@@ -366,7 +366,7 @@ pub async fn handle_accept_vrcs_request(
         }
     };
 
-    let to_also_known_as = if their_r_did != their_c_did {
+    let to_also_known_as = if their_r_did != their_p_did {
         if request.include_r_did {
             println!(
                 "{}{}",
@@ -619,14 +619,14 @@ pub async fn handle_accept_vrcs_request(
 
     let credential_subject = CredentialSubject {
         from: FromSubject::new(
-            config.public.community_did.to_string(),
-            their_c_did.to_string(),
+            config.public.persona_did.to_string(),
+            their_p_did.to_string(),
             from_name,
             our_also_known_as,
             &tdk.get_shared_state().secrets_resolver,
         )
         .await?,
-        to: ToSubject::new(their_c_did.to_string(), their_name, to_also_known_as),
+        to: ToSubject::new(their_p_did.to_string(), their_name, to_also_known_as),
         relationship_type,
         start_date,
         end_date,
@@ -634,7 +634,7 @@ pub async fn handle_accept_vrcs_request(
     };
 
     let mut vrc = Vrc {
-        issuer: config.public.community_did.to_string(),
+        issuer: config.public.persona_did.to_string(),
         valid_from: valid_from.to_utc(),
         name,
         description,
@@ -642,7 +642,7 @@ pub async fn handle_accept_vrcs_request(
         ..Default::default()
     };
 
-    let secret = config.get_community_keys(tdk).await?.signing.secret;
+    let secret = config.get_persona_keys(tdk).await?.signing.secret;
 
     let proof = DataIntegrityProof::sign_jcs_data(&vrc, None, &secret, None)?;
     vrc.proof = Some(proof);
@@ -667,7 +667,7 @@ pub async fn handle_accept_vrcs_request(
 
     let atm = tdk.atm.clone().unwrap();
     atm.forward_and_send_message(
-        &config.community_did.profile,
+        &config.persona_did.profile,
         false,
         &msg,
         None,
@@ -688,21 +688,13 @@ pub async fn handle_accept_vrcs_request(
     config
         .private
         .vrcs_issued
-        .entry(their_c_did.clone())
-        .and_modify(|hm| {
-            hm.insert(Rc::new(vrc.get_hash().unwrap()), Rc::new(vrc.clone()));
-        })
-        .or_insert({
-            let mut hm = HashMap::new();
-            hm.insert(Rc::new(vrc.get_hash().unwrap()), Rc::new(vrc));
-            hm
-        });
+        .insert(&their_p_did, Rc::new(vrc));
 
     config.public.logs.insert(
         LogFamily::Task,
         format!(
-            "Issued VRC for remote C-DID({}) Task ID({})",
-            their_c_did, task_id
+            "Issued VRC for remote P-DID({}) Task ID({})",
+            their_p_did, task_id
         ),
     );
 

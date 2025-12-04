@@ -16,7 +16,7 @@ use anyhow::{Result, bail};
 use console::style;
 
 /// Pings the mediator to check connectivity
-/// uses the community-DID as the TDK/ATM Profile
+/// uses the persona-DID as the TDK/ATM Profile
 pub async fn ping_mediator(tdk: &mut TDK, config: &Config) -> Result<()> {
     let atm = tdk.atm.clone().unwrap();
 
@@ -26,7 +26,7 @@ pub async fn ping_mediator(tdk: &mut TDK, config: &Config) -> Result<()> {
         .trust_ping
         .send_ping(
             &atm,
-            &config.community_did.profile,
+            &config.persona_did.profile,
             &config.public.mediator_did,
             true,
             true,
@@ -92,8 +92,8 @@ pub async fn handle_inbound_ping(
             )
             .await?;
 
-        let profile = if to == &config.public.community_did {
-            &config.community_did.profile
+        let profile = if to == &config.public.persona_did {
+            &config.persona_did.profile
         } else if let Some(profile) = config.atm_profiles.get(to) {
             profile
         } else {

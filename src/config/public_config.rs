@@ -24,8 +24,8 @@ pub struct PublicConfig {
     /// false: Plain text retrieval from the OS Secure Store
     pub unlock_code: bool,
 
-    /// Community DID
-    pub community_did: Rc<String>,
+    /// Persona DID
+    pub persona_did: Rc<String>,
 
     /// Mediator DID
     pub mediator_did: String,
@@ -156,8 +156,8 @@ impl PublicConfig {
 
         println!(
             "{} {}",
-            style("Community DID:").color256(CLI_BLUE),
-            style(&self.community_did).color256(CLI_PURPLE)
+            style("Persona DID:").color256(CLI_BLUE),
+            style(&self.persona_did).color256(CLI_PURPLE)
         );
         print!("{} ", style("Mediator DID:").color256(CLI_BLUE));
         if self.mediator_did == LF_PUBLIC_MEDIATOR_DID {

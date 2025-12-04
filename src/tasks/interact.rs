@@ -225,7 +225,7 @@ async fn interact_relationship_accepted(
             return Ok(true);
         };
 
-    let from = { relationship.lock().unwrap().remote_c_did.clone() };
+    let from = { relationship.lock().unwrap().remote_p_did.clone() };
     // Show relationship request info
     println!();
     println!(

@@ -77,19 +77,19 @@ pub async fn create_send_request(
         );
         r_did
     } else {
-        config.public.community_did.clone()
+        config.public.persona_did.clone()
     };
 
     // Create the Relationship Request Message
-    let msg = create_message_request(&config.public.community_did, &contact.did, reason, &r_did)?;
+    let msg = create_message_request(&config.public.persona_did, &contact.did, reason, &r_did)?;
     let msg_id = Rc::new(msg.id.clone());
 
     // Pack the message
     let (msg, _) = msg
         .pack_encrypted(
             &contact.did,
-            Some(&config.public.community_did),
-            Some(&config.public.community_did),
+            Some(&config.public.persona_did),
+            Some(&config.public.persona_did),
             tdk.did_resolver(),
             &tdk.get_shared_state().secrets_resolver,
             &PackEncryptedOptions {
@@ -100,7 +100,7 @@ pub async fn create_send_request(
         .await?;
 
     atm.forward_and_send_message(
-        &config.community_did.profile,
+        &config.persona_did.profile,
         false,
         &msg,
         None,
@@ -117,7 +117,7 @@ pub async fn create_send_request(
         Rc::new(Mutex::new(Relationship {
             task_id: msg_id.clone(),
             our_did: r_did.clone(),
-            remote_c_did: contact.did.clone(),
+            remote_p_did: contact.did.clone(),
             remote_did: contact.did.clone(),
             created: Utc::now(),
             state: RelationshipState::RequestSent,
@@ -148,10 +148,10 @@ pub async fn create_send_request(
 }
 
 /// Creates the initial relationship request message
-/// from: initiator C-DID
-/// to: Respondent C-DID
+/// from: initiator P-DID
+/// to: Respondent P-DID
 /// reason: Optional reason for the relationship request
-/// our_did: What DID to use for this relationship after creation (C-DID or R-DID
+/// our_did: What DID to use for this relationship after creation (P-DID or R-DID
 fn create_message_request(
     from: &str,
     to: &str,
@@ -191,14 +191,14 @@ pub async fn send_rejection(
     let atm = tdk.atm.clone().unwrap();
 
     // Create the Relationship Request rejection Message
-    let msg = create_message_rejected(&config.public.community_did, respondent, reason, task_id)?;
+    let msg = create_message_rejected(&config.public.persona_did, respondent, reason, task_id)?;
 
     // Pack the message
     let (msg, _) = msg
         .pack_encrypted(
             respondent,
-            Some(&config.public.community_did),
-            Some(&config.public.community_did),
+            Some(&config.public.persona_did),
+            Some(&config.public.persona_did),
             tdk.did_resolver(),
             &tdk.get_shared_state().secrets_resolver,
             &PackEncryptedOptions {
@@ -209,7 +209,7 @@ pub async fn send_rejection(
         .await?;
 
     atm.forward_and_send_message(
-        &config.community_did.profile,
+        &config.persona_did.profile,
         false,
         &msg,
         None,

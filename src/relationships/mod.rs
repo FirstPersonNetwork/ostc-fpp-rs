@@ -104,8 +104,8 @@ pub struct RelationshipAcceptBody {
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 #[serde(from = "RelationshipsShadow", into = "RelationshipsShadow")]
 pub struct Relationships {
-    /// Mapping relationships by the remote C-DID
-    pub relationships: HashMap<Rc<String>, Rc<Mutex<Relationship>>>,
+    /// Mapping relationships by the remote P-DID
+    relationships: HashMap<Rc<String>, Rc<Mutex<Relationship>>>,
 
     /*
     /// Mapping relationships by our R-DIDs
@@ -120,7 +120,7 @@ impl Relationships {
     pub fn status(
         &self,
         contacts: &Contacts,
-        our_c_did: &Rc<String>,
+        our_p_did: &Rc<String>,
         vrcs_sent: &Vrcs,
         vrcs_received: &Vrcs,
     ) {
@@ -142,13 +142,13 @@ impl Relationships {
         }
 
         println!("{}", style("Relationships").color256(CLI_BLUE));
-        self.print_relationships(contacts, our_c_did, vrcs_sent, vrcs_received);
+        self.print_relationships(contacts, our_p_did, vrcs_sent, vrcs_received);
     }
 
     pub fn print_relationships(
         &self,
         contacts: &Contacts,
-        our_c_did: &Rc<String>,
+        our_p_did: &Rc<String>,
         vrcs_sent: &Vrcs,
         vrcs_received: &Vrcs,
     ) {
@@ -157,8 +157,8 @@ impl Relationships {
         } else {
             for r in self.relationships.values() {
                 let r = r.lock().unwrap();
-                let remote_c_did_alias =
-                    if let Some(contact) = contacts.find_contact(&r.remote_c_did) {
+                let remote_p_did_alias =
+                    if let Some(contact) = contacts.find_contact(&r.remote_p_did) {
                         contact.alias()
                     } else {
                         style("N/A".to_string()).color256(CLI_ORANGE)
@@ -167,12 +167,12 @@ impl Relationships {
                 println!(
                     "  {}{}{}{}",
                     style("Remote DID: Alias: ").color256(CLI_BLUE),
-                    remote_c_did_alias,
-                    style(" Community DID: ").color256(CLI_BLUE),
-                    style(&r.remote_c_did).color256(CLI_GREEN),
+                    remote_p_did_alias,
+                    style(" Persona DID: ").color256(CLI_BLUE),
+                    style(&r.remote_p_did).color256(CLI_GREEN),
                 );
 
-                if &r.our_did != our_c_did {
+                if &r.our_did != our_p_did {
                     println!(
                         "    {}{}",
                         style("Using local r-did: ").color256(CLI_BLUE),
@@ -180,7 +180,7 @@ impl Relationships {
                     );
                 }
 
-                if r.remote_did != r.remote_c_did {
+                if r.remote_did != r.remote_p_did {
                     println!(
                         "    {}{}",
                         style("Using remote r-did: ").color256(CLI_BLUE),
@@ -201,7 +201,7 @@ impl Relationships {
                 println!(
                     "    {}{} {}{}",
                     style("VRCs Sent: ").color256(CLI_BLUE).bold(),
-                    if let Some(vrcs) = vrcs_sent.get(&r.remote_c_did) {
+                    if let Some(vrcs) = vrcs_sent.get(&r.remote_p_did) {
                         if vrcs.is_empty() {
                             style("0".to_string()).color256(CLI_ORANGE)
                         } else {
@@ -211,7 +211,7 @@ impl Relationships {
                         style("N/A".to_string()).color256(CLI_ORANGE)
                     },
                     style("VRCs Sent: ").color256(CLI_BLUE).bold(),
-                    if let Some(vrcs) = vrcs_received.get(&r.remote_c_did) {
+                    if let Some(vrcs) = vrcs_received.get(&r.remote_p_did) {
                         if vrcs.is_empty() {
                             style("0".to_string()).color256(CLI_ORANGE)
                         } else {
@@ -227,22 +227,48 @@ impl Relationships {
     }
 
     /// Removes a relationship by it's task_id
-    pub fn remove_by_task_id(&mut self, id: &Rc<String>) -> Option<Rc<Mutex<Relationship>>> {
+    pub fn remove_by_task_id(
+        &mut self,
+        id: &Rc<String>,
+        vrcs_issued: &mut Vrcs,
+        vrcs_recieved: &mut Vrcs,
+    ) -> Option<Rc<Mutex<Relationship>>> {
         if let Some(relationship) = self
             .relationships
             .values()
             .find(|f| f.lock().unwrap().task_id == *id)
             .cloned()
         {
-            self.relationships
-                .remove(&relationship.lock().unwrap().remote_did);
-            Some(relationship)
+            self.remove(
+                &relationship.lock().unwrap().remote_did,
+                vrcs_issued,
+                vrcs_recieved,
+            )
         } else {
             None
         }
     }
 
-    /// Gets a relationship using the remote C-DID key
+    /// Removes a relationship by it's key, removes associated information tagged to the
+    /// relationship such as VRCs
+    /// Returns
+    /// relationship removed if successful
+    /// None if not found
+    /// Error if something went wrong
+    pub fn remove(
+        &mut self,
+        key: &Rc<String>,
+        vrcs_issued: &mut Vrcs,
+        vrcs_recieved: &mut Vrcs,
+    ) -> Option<Rc<Mutex<Relationship>>> {
+        // Find and remove any VRCs associated with this relationship
+        vrcs_issued.remove_relationship(key);
+        vrcs_recieved.remove_relationship(key);
+
+        self.relationships.remove(key)
+    }
+
+    /// Gets a relationship using the remote P-DID key
     pub fn get(&self, c_did: &Rc<String>) -> Option<Rc<Mutex<Relationship>>> {
         self.relationships.get(c_did).cloned()
     }
@@ -255,23 +281,23 @@ impl Relationships {
             .cloned()
     }
 
-    /// Finds a relationship by it's remote DID (could be C-DID or R-DID)
+    /// Finds a relationship by it's remote DID (could be P-DID or R-DID)
     pub fn find_by_remote_did(&self, did: &Rc<String>) -> Option<Rc<Mutex<Relationship>>> {
         self.relationships
             .values()
             .find(|r| {
                 let lock = r.lock().unwrap();
-                lock.remote_did == *did || lock.remote_c_did == *did
+                lock.remote_did == *did || lock.remote_p_did == *did
             })
             .cloned()
     }
 
     /// Generates ATM Profiles for established relationships where the local r-did is different
-    /// than the local c-did
+    /// than the local p-did
     pub async fn generate_profiles(
         &self,
         tdk: &TDK,
-        our_c_did: &Rc<String>,
+        our_p_did: &Rc<String>,
         mediator: &str,
         bip32_root: &ExtendedSigningKey,
         key_info: &HashMap<String, KeyInfoConfig>,
@@ -285,7 +311,7 @@ impl Relationships {
                 let lock = relationship.lock().unwrap();
                 (lock.our_did.clone(), lock.state.clone())
             };
-            if state == RelationshipState::Established && &our_did != our_c_did {
+            if state == RelationshipState::Established && &our_did != our_p_did {
                 // Create an ATMProfile for this relationship
                 let profile =
                     ATMProfile::new(&atm, None, our_did.to_string(), Some(mediator.to_string()))
@@ -357,9 +383,9 @@ pub struct Relationship {
     /// What is the DID of the remote party in this relationship?
     pub remote_did: Rc<String>,
 
-    /// What is the remote end community DID?
+    /// What is the remote end persona DID?
     /// NOTE: This may be the same as the remote did itself, or it may be a random r-did
-    pub remote_c_did: Rc<String>,
+    pub remote_p_did: Rc<String>,
 
     /// When was this relationship created?
     pub created: DateTime<Utc>,
@@ -396,7 +422,7 @@ impl From<RelationshipsShadow> for Relationships {
         //let mut r_map: HashMap<Rc<String>, Vec<HashSet<Rc<Relationship>>>> = HashMap::new();
 
         for relationship in value.relationships {
-            let remote_did = relationship.lock().unwrap().remote_c_did.clone();
+            let remote_did = relationship.lock().unwrap().remote_p_did.clone();
             relationships.insert(remote_did.clone(), relationship.clone());
 
             /*
@@ -430,7 +456,7 @@ pub async fn relationships_entry(
         Some(("list", _)) => {
             config.private.relationships.print_relationships(
                 &config.private.contacts,
-                &config.public.community_did,
+                &config.public.persona_did,
                 &config.private.vrcs_issued,
                 &config.private.vrcs_received,
             );
@@ -520,21 +546,21 @@ pub async fn relationships_entry(
                 bail!("No relationship found for remote DID/alias");
             };
 
-            let remote_c_did = {
+            let remote_p_did = {
                 let lock = relationship.lock().unwrap();
-                lock.remote_c_did.clone()
+                lock.remote_p_did.clone()
             };
 
-            config
-                .private
-                .relationships
-                .relationships
-                .remove(&remote_c_did);
+            config.private.relationships.remove(
+                &remote_p_did,
+                &mut config.private.vrcs_issued,
+                &mut config.private.vrcs_received,
+            );
 
             println!(
                 "{} {}",
                 style("✅ Relationship with remote DID removed:").color256(CLI_GREEN),
-                style(remote_c_did).color256(CLI_GREEN)
+                style(remote_p_did).color256(CLI_GREEN)
             );
 
             config.save(profile)?;
@@ -683,8 +709,8 @@ async fn remote_ping(tdk: &TDK, config: &mut Config, remote: &str) -> Result<()>
         (lock.our_did.clone(), lock.remote_did.clone())
     };
 
-    let profile = if our_did == config.public.community_did {
-        &config.community_did.profile
+    let profile = if our_did == config.public.persona_did {
+        &config.persona_did.profile
     } else if let Some(profile) = config.atm_profiles.get(&our_did) {
         profile
     } else {

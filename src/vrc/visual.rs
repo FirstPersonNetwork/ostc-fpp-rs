@@ -25,13 +25,23 @@ pub fn vrcs_show_all(config: &Config) {
             .collect::<HashSet<Rc<String>>>(),
     );
 
+    if keys.is_empty() {
+        println!(
+            "{}{}{}",
+            style("No Verifiable Relationship Credentials exist yet... Run ").color256(CLI_ORANGE),
+            style("lkmv vrcs request").color256(CLI_WHITE),
+            style(" to create a VRC request to someone").color256(CLI_ORANGE)
+        );
+        return;
+    }
+
     for remote in keys {
         vrcs_show_relationship(&remote, config);
     }
 }
 
 /// Shows all VRC's for a relationship
-/// remote: Must be the remote DID of the relationship (can be R-DID or C-DID)
+/// remote: Must be the remote DID of the relationship (can be R-DID or P-DID)
 pub fn vrcs_show_relationship(remote: &Rc<String>, config: &Config) {
     let relationship: Relationship =
         if let Some(relationship) = config.private.relationships.find_by_remote_did(remote) {
@@ -49,12 +59,12 @@ pub fn vrcs_show_relationship(remote: &Rc<String>, config: &Config) {
     let Some(contact) = config
         .private
         .contacts
-        .find_contact(&relationship.remote_c_did)
+        .find_contact(&relationship.remote_p_did)
     else {
         println!(
             "{}{}",
             style("ERROR: Missing contact record for DID: ").color256(CLI_RED),
-            style(&relationship.remote_c_did).color256(CLI_ORANGE)
+            style(&relationship.remote_p_did).color256(CLI_ORANGE)
         );
         return;
     };
@@ -68,8 +78,8 @@ pub fn vrcs_show_relationship(remote: &Rc<String>, config: &Config) {
         } else {
             style("<No Alias>").color256(CLI_ORANGE).italic()
         },
-        style("Community DID: ").color256(CLI_BLUE).bold(),
-        style(&relationship.remote_c_did).color256(CLI_PURPLE)
+        style("Persona DID: ").color256(CLI_BLUE).bold(),
+        style(&relationship.remote_p_did).color256(CLI_PURPLE)
     );
     println!();
 

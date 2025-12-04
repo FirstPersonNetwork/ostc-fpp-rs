@@ -81,7 +81,7 @@ impl Tasks {
 async fn delete_remote(atm: &ATM, config: &Config) -> Result<usize> {
     let msgs = atm
         .fetch_messages(
-            &config.community_did.profile,
+            &config.persona_did.profile,
             &FetchOptions {
                 limit: 100,
                 start_id: None,

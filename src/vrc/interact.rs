@@ -22,7 +22,7 @@ use anyhow::{Result, bail};
 use clap::ArgMatches;
 use console::style;
 use dialoguer::{Confirm, Input, Select, theme::ColorfulTheme};
-use std::{collections::HashMap, rc::Rc, sync::Mutex};
+use std::{rc::Rc, sync::Mutex};
 
 /// Primary entry point for VRCs interactions
 pub async fn vrcs_entry(
@@ -65,7 +65,7 @@ pub async fn vrcs_entry(
         }
         Some(("remove", sub_args)) => {
             if let Some(id) = sub_args.get_one::<String>("id") {
-                remove_vrc_by_id(config, id);
+                remove_vrc_by_id(config, &Rc::new(id.to_string()));
                 config.save(profile)?;
             } else {
                 println!(
@@ -100,7 +100,7 @@ async fn vrcs_interactive_request(tdk: &TDK, config: &mut Config) -> Result<bool
 
     let request_body = generate_vrc_request_body(
         &relationship,
-        &config.public.community_did,
+        &config.public.persona_did,
         &config.public.friendly_name,
     )?;
 
@@ -111,17 +111,17 @@ async fn vrcs_interactive_request(tdk: &TDK, config: &mut Config) -> Result<bool
         .default(true)
         .interact()?
     {
-        let (from, to, to_c_did) = {
+        let (from, to, to_p_did) = {
             let lock = relationship.lock().unwrap();
             (
                 lock.our_did.clone(),
                 lock.remote_did.clone(),
-                lock.remote_c_did.clone(),
+                lock.remote_p_did.clone(),
             )
         };
 
-        let profile = if from == config.public.community_did {
-            &config.community_did.profile
+        let profile = if from == config.public.persona_did {
+            &config.persona_did.profile
         } else if let Some(profile) = config.atm_profiles.get(&from) {
             profile
         } else {
@@ -175,7 +175,7 @@ async fn vrcs_interactive_request(tdk: &TDK, config: &mut Config) -> Result<bool
 
         config.public.logs.insert(
             LogFamily::Relationship,
-            format!("Requested a VRC from ({}) Task ID ({})", to_c_did, task_id),
+            format!("Requested a VRC from ({}) Task ID ({})", to_p_did, task_id),
         );
 
         println!(
@@ -211,7 +211,7 @@ fn select_relationship(config: &Config) -> Option<Rc<Mutex<Relationship>>> {
 
     for r in &relationships {
         let lock = r.lock().unwrap();
-        let alias = if let Some(contact) = config.private.contacts.contacts.get(&lock.remote_c_did)
+        let alias = if let Some(contact) = config.private.contacts.contacts.get(&lock.remote_p_did)
             && let Some(alias) = &contact.alias
         {
             alias.to_string()
@@ -219,7 +219,7 @@ fn select_relationship(config: &Config) -> Option<Rc<Mutex<Relationship>>> {
             "N/A".to_string()
         };
 
-        items.push(format!("{} :: {}", alias, lock.remote_c_did));
+        items.push(format!("{} :: {}", alias, lock.remote_p_did));
     }
 
     let selected = Select::with_theme(&ColorfulTheme::default())
@@ -241,7 +241,7 @@ fn select_relationship(config: &Config) -> Option<Rc<Mutex<Relationship>>> {
 
 fn generate_vrc_request_body(
     relationship: &Rc<Mutex<Relationship>>,
-    our_c_did: &Rc<String>,
+    our_p_did: &Rc<String>,
     friendly_name: &str,
 ) -> Result<VrcRequest> {
     let reason: String = Input::with_theme(&ColorfulTheme::default())
@@ -284,7 +284,7 @@ fn generate_vrc_request_body(
     };
 
     let lock = relationship.lock().unwrap();
-    let include_r_did = if &lock.our_did != our_c_did {
+    let include_r_did = if &lock.our_did != our_p_did {
         println!(
             "{}{}",
             style("You are using an R-DID for this relationship: ").color256(CLI_BLUE),
@@ -335,7 +335,7 @@ pub fn interact_vrc_outbound_request(
     task: &Rc<Mutex<Task>>,
     relationship: &Rc<Mutex<Relationship>>,
 ) -> Result<bool> {
-    let to_c_did = { relationship.lock().unwrap().remote_c_did.clone() };
+    let to_p_did = { relationship.lock().unwrap().remote_p_did.clone() };
     let (task_id, task_created) = {
         let lock = task.lock().unwrap();
         (lock.id.clone(), lock.created)
@@ -351,7 +351,7 @@ pub fn interact_vrc_outbound_request(
     println!(
         "{}{}",
         style("VRC Request Sent To: ").color256(CLI_BLUE),
-        style(&to_c_did).color256(CLI_PURPLE)
+        style(&to_p_did).color256(CLI_PURPLE)
     );
     println!();
 
@@ -374,7 +374,7 @@ pub fn interact_vrc_outbound_request(
                     LogFamily::Task,
                     format!(
                         "Deleted VRC request to remote DID({}) Task ID({})",
-                        to_c_did, task_id
+                        to_p_did, task_id
                     ),
                 );
                 Ok(true)
@@ -532,12 +532,12 @@ pub fn interact_vrc_inbound(
             0 => {
                 // Accept the VRC
 
-                let relationship_c_did = if let Some(relationship) = config
+                let relationship_p_did = if let Some(relationship) = config
                     .private
                     .relationships
                     .find_by_remote_did(&Rc::new(vrc.issuer.clone()))
                 {
-                    relationship.lock().unwrap().remote_c_did.clone()
+                    relationship.lock().unwrap().remote_p_did.clone()
                 } else {
                     println!(
                         "{}{}",
@@ -549,15 +549,7 @@ pub fn interact_vrc_inbound(
                 config
                     .private
                     .vrcs_received
-                    .entry(relationship_c_did)
-                    .and_modify(|hm| {
-                        hm.insert(Rc::new(vrc.get_hash().unwrap()), Rc::new(*vrc.clone()));
-                    })
-                    .or_insert({
-                        let mut hm = HashMap::new();
-                        hm.insert(Rc::new(vrc.get_hash().unwrap()), Rc::new(*vrc));
-                        hm
-                    });
+                    .insert(&relationship_p_did, Rc::new(*vrc));
 
                 config.private.tasks.remove(&task_id);
 

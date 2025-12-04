@@ -6,7 +6,7 @@ use crate::{
     cli::cli,
     config::Config,
     relationships::relationships_entry,
-    setup::{cli_setup, pgp_export::ask_export_community_did_keys},
+    setup::{cli_setup, pgp_export::ask_export_persona_did_keys},
     tasks::tasks_entry,
     vrc::interact::vrcs_entry,
 };
@@ -315,9 +315,9 @@ async fn lkmv(term: &Term, profile: &str) -> Result<()> {
                     let user_id = sub_args.get_one::<String>("user-id");
                     let passphrase = sub_args.get_one::<String>("passphrase");
 
-                    ask_export_community_did_keys(
+                    ask_export_persona_did_keys(
                         term,
-                        &config.get_community_keys(&tdk).await?,
+                        &config.get_persona_keys(&tdk).await?,
                         user_id.map(|s| s.as_str()),
                         passphrase.map(|s| SecretString::new(s.to_string())),
                         false, // Not running in wizard mode

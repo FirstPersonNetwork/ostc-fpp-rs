@@ -19,7 +19,6 @@ List of commands and options available from the LKMV Tool.
 - [lkmv relationships](#lkmv-relationships)
   - [lkmv relationships request](#lkmv-relationships-request)
 
-
 ## Global Options
 
 ### -p, --profile
@@ -74,7 +73,7 @@ Prints the main help information for the setup command, including available subc
 
 ## lkmv setup
 
-Run the setup wizard to set up your environment. It creates configuration profiles, generates a Community DID, and a cryptographic key pair.
+Run the setup wizard to set up your environment. It creates configuration profiles, generates a Persona DID, and a cryptographic key pair.
 
 ```bash
 lkmv setup
@@ -96,11 +95,11 @@ Imports LKMV settings exported from a specific profile into a new profile or mac
 
 - `-f, --file <path_to_file>`
 
-    File containing exported settings [default: export.lkmv].
+  File containing exported settings [default: export.lkmv].
 
 - `-p, --passphrase <passphrase>`
 
-    Passphrase to decrypt the exported settings.
+  Passphrase to decrypt the exported settings.
 
 #### Examples
 
@@ -142,17 +141,16 @@ Exports settings and other information from the current environment.
 
 ### lkmv export pgp-keys
 
-Exports the first set of keys used in your Community DID for signing, authentication, and decryption operations.
+Exports the first set of keys used in your Persona DID for signing, authentication, and decryption operations.
 
 #### Options
 
 - `-p, --passphrase <passphrase>`
 
-    Passphrase to protect the exported PGP secrets.
+  Passphrase to protect the exported PGP secrets.
 
 - `-u, --user-id <first_name last_name <email@domain>>`
-    
-    PGP User ID using the 'NAME <EMAIL_ADDRESS>' format.
+  PGP User ID using the 'NAME <EMAIL_ADDRESS>' format.
 
 #### Examples
 
@@ -182,11 +180,11 @@ Exports settings that you can import into another machine with LKMV installed.
 
 - `-p, --passphrase <passphrase>`
 
-    Passphrase to encrypt the exported settings.
+  Passphrase to encrypt the exported settings.
 
 - `-f, --file <file_to_save>`
 
-    File to save the settings [default: export.lkmv].
+  File to save the settings [default: export.lkmv].
 
 #### Examples
 
@@ -222,15 +220,15 @@ Add a known DID contact to the list. Replaces an existing contact if the same DI
 
 - `-d, --did <did>`
 
-    DID of the contact to add.
+  DID of the contact to add.
 
 - `-a, --alias <alias>`
 
-    Optional alias for the contact.
+  Optional alias for the contact.
 
 - `-s, --skip`
 
-    Skips verifying if the DID is valid.
+  Skips verifying if the DID is valid.
 
 #### Examples
 
@@ -260,11 +258,11 @@ Removes an existing contact from the list.
 
 - `-d, --did <did>`
 
-    DID of the contact to remove.
+  DID of the contact to remove.
 
 - `-a, --alias <alias>`
 
-    Alias of the contact to remove.
+  Alias of the contact to remove.
 
 #### Examples
 
@@ -320,19 +318,19 @@ Request for a new verifiable relationship.
 
 - `-d, --respondent <respondent>`
 
-    A valid DID or alias of your known contacts as the respondent to this relationship request.
+  A valid DID or alias of your known contacts as the respondent to this relationship request.
 
 - `-a, --alias <alias>`
 
-    Optional alias for the respondent's DID.
+  Optional alias for the respondent's DID.
 
 - `-r, --reason <reason>`
 
-    Optional reason for requesting a new verifiable relationship.
+  Optional reason for requesting a new verifiable relationship.
 
 - `-g, --generate-did`
 
-    Generates a new local relationship DID for the relationship request.
+  Generates a new local relationship DID for the relationship request.
 
 #### Examples
 
@@ -346,4 +344,4 @@ Sends a relationship request to the DID using the default or current profile (`L
 lkmv -p profile-1 relationships request -d did:webvh:... -r "I want to connect."
 ```
 
-Sends a relationship request to the DID from a specific profile. 
+Sends a relationship request to the DID from a specific profile.
