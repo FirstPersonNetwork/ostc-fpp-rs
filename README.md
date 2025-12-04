@@ -1,69 +1,113 @@
-# Linux Kernel Maintainer Verification
+# Linux Kernel Maintainer Verification (LKMV) Tool
 
 [![Rust](https://img.shields.io/badge/rust-1.88.0%2B-blue.svg?maxAge=3600)](https://github.com/FirstPersonNetwork/lkmv)
 
+A CLI tool for establishing verifiable trust relationships within developer communities using Decentralised Identifiers (DIDs) and Verifiable Credentials (VCs).
+
+LKMV implements open standards and protocols to enable *"Know Your Developer"* capabilities, following the [First Person Project white paper](https://www.firstperson.network/white-paper) for establishing and verifying **first-person trust relationships** using Personhood Credentials (PHCs) and Verifiable Relationship Credentials (VRCs).
+
 ## Table of Contents
 
+- [Quickstart](#quickstart)
 - [Core Concepts](#core-concepts)
 - [Decentralised Identity](#decentralised-identity)
 - [Decentralised Communication](#decentralised-communication)
 - [Profiles and Configurations](#profiles-and-configurations)
   - [Public Configuration](#public-configuration)
+  - [Private Configuration](#private-configuration)
   - [Secured Configuration](#secured-configuration)
 - [Prerequisites](#prerequisites)
-- [Set Up Environment](#set-up-environment)
-  - [Same Domain with Multiple WebVH DIDs](#same-domain-with-multiple-webvh-dids)
-- [Check Environment Setup](#check-environment-setup)
 - [Feature Flags](#feature-flags)
-- [LKMV Commands](#lkmv-commands)
+- [Getting Started](#getting-started)
+  - [Initial Setup](#initial-setup)
+  - [Host Your DID Document](#host-your-did-document)
+- [Check Setup Status](#check-setup-status)
+- [Usage](#usage)
+- [Additional Resources](#additional-resources)
+
+## Quickstart
+
+Install from source.
+
+```bash
+cargo install --path .
+```
+
+Run setup wizard.
+
+```bash
+lkmv setup
+```
+
+Check status.
+
+```bash
+lkmv status
+```
+
+View available commands.
+
+```bash
+lkmv --help
+```
 
 ## Core Concepts
 
 - **Decentralised Identifiers (DIDs)** - A globally unique identifier that enables secure digital interactions. The DID is the cornerstone of Self-Sovereign Identity (SSI), a concept that aims to put individuals or entities in control of their digital identities. DID is usually associated with a cryptographic key pair and represented with different DID methods, each with its own benefits.
 
-- **DIDComm Messaging Protocol** - An open standard for decentralised communication. Built on the foundation of Decentralised Identifiers (DIDs), it enables parties to exchange verifiable data such as credentials and establishes secure communication channels between parties without relying on centralised servers.
+- **Verifiable Credentials (VCs)** - A digital representation of a claim attested by a trusted issuer about the subject (e.g., Individual or Organisation). VC is cryptographically signed and verifiable using cryptographic keys associated with the DID of the issuer. 
 
-- **Verifiable Credentials (VCs)** - A digital representation of a claim attested by a trusted issuer about the subject (e.g., Individual or Organisation). VC is cryptographically signed and verifiable using cryptographic keys associated with the DID of the issuer.
+- **Personhood Credentials (PHCs)** – A type of verifiable credential issued by any ecosystem (any qualified entity such as a company, university, nonprofit community, government, etc.) that can attest to the credential holder being a real, unique person within that ecosystem. Part of PHC issuance is providing a verified identity verifiable credential issued by a trusted issuer. [Read more](https://docs.google.com/document/d/1RtS86BqyVn3i3mXm48VhC-SRaYvW2W_MvR4w6x9KQWY/edit?tab=t.0#heading=h.i544xd6ocqhm).
 
-- **Personhood Credential (PHC)** – A type of verifiable credential issued by any ecosystem (any qualified entity such as a company, university, nonprofit persona, government, etc.) that can attest to the credential holder being a real, unique person within that ecosystem. Part of PHC issuance is providing a verified identity verifiable credential issued by a trusted issuer.
+- **Verifiable Relationship Credentials (VRCs)** - A type of verifiable credential issued peer-to-peer between holders of personhood credentials to attest to verifiable first-person trust relationships. The verifiable relationship credential validates your personhood credential. [Read more](https://docs.google.com/document/d/1RtS86BqyVn3i3mXm48VhC-SRaYvW2W_MvR4w6x9KQWY/edit?tab=t.0#heading=h.siks62ntn9c5).
 
-- **Verifiable Relationship Credential (VRC)** - A type of verifiable credential issued peer-to-peer between holders of personhood credentials to attest to verifiable first-person trust relationships. The verifiable relationship credential validates your personhood credential.
+- **DIDComm Messaging Protocol** - An open standard for decentralised communication. Built on the foundation of Decentralised Identifiers (DIDs), it enables parties to exchange verifiable data such as credentials and establishes secure communication channels between parties without relying on centralised servers. 
 
 ## Decentralised Identity
 
 The LKMV tool uses the did:webvh to create your Persona DID. WebVH is a DID method that enhances the existing did:web method, introducing:
 
-- Verifiable history, providing a full history of DID document changes.
+The LKMV tool uses the `did:webvh` to create your **Persona DID (P-DID)**. It enhances the existing `did:web` method, providing:  
 
 - Portability with a self-certifying identifier (SCID), allowing you to move to a different domain.
 
 - Robust security by introducing a pre-rotation key and witness proof that approves changes to the DID.
 
-To use the DID method, you must have a publicly available domain name that can host the DID log entries (did.jsonl) to resolve the DID successfully and retrieve the public key information and service endpoints for safe, secure, and private interaction with the persona.
+- Robust security by introducing a pre-rotation key and witness proof that approves changes to the DID.  
+
+**Requirements:** A publicly accessible domain to host DID log entries (`did.jsonl`) for successful DID resolution and public key/service endpoint retrieval.
+
+*Sample did:webvh identifier:*
 
 ![Sample WebVH DID Method](./docs/assets/didwebvh-sample.png)
 
 ## Decentralised Communication
 
-The LKMV tool seamlessly integrates with any DIDComm-compatible mediator, facilitating secure, private, and decentralised communication using your Persona DID.
+LKMV seamlessly integrates with DIDComm-compatible mediators for secure, private communication using your **Persona DID (P-DID)** or **Relationship DID (R-DID)**. 
 
-A DIDComm mediator plays a crucial role in message delivery while preserving privacy. It handles message routing and storage without ever accessing the message content, which remains encrypted end-to-end between sender and recipient.
+DIDComm mediators handle message routing and storage while preserving privacy through end-to-end encryption. Messages are structured in multiple "envelope" layers providing:
 
-![Sample WebVH DID Method](./docs/assets/didcomm-envelopes.png)
+- Confidentiality
+- Sender authenticity
+- Non-repudiation
+- Sender anonymity
+ 
+*Sample DIDComm message envelopes.*
 
-When sending a message, it is structured in multiple layers called “envelopes” that provides robust security features, such as confidentiality, sender authenticity, non-repudiation, and sender anonymity.
+![Sample DIDComm Message Envelopes](./docs/assets/didcomm-envelopes.png)
+
 
 ## Profiles and Configurations
 
-The tool supports multiple profiles, allowing you to represent different identities across various contexts within your environment.
+LKMV supports multiple profiles, allowing you to represent different identities across various contexts.
 
-To use a specific profile when running the tool, set the env variable `LKMV_CONFIG_PROFILE` with the name of your profile, for example:
+To use a specific profile when running the tool, set the environment variable `LKMV_CONFIG_PROFILE` with the name of your profile. For example:
 
 ```bash
 export LKMV_CONFIG_PROFILE=profile-1
 ```
 
-Setting the `LKMV_CONFIG_PROFILE` overrides any value set using the `-p/--profile` option.
+> **Tip:** Add `LKMV_CONFIG_PROFILE` variable to ~/.zshrc or ~/.bashrc to persist across terminal sessions.
 
 Each profile manages two types of configurations:
 
@@ -74,86 +118,125 @@ Stored in JSON format, the public configuration contains environment-specific de
 - Persona DID.
 - Mediator DID.
 - Security mode (e.g., Unlock Codes or Hardware Token).
+- Encrypted private data containing known contacts, relationships, and VRCs.
 
 Config file location:
 
 - Default profile: `~/.config/lkmv/config.json`
 - Named profiles: `~/.config/lkmv/config-<PROFILE_NAME>.json`
 
-You can change the default location where the public configuration is saved by setting the env variable `LKMV_CONFIG_PATH` with the new path, for example.
+You can change the default location where the public configuration is saved by setting the environment variable `LKMV_CONFIG_PATH` with the new path. For example:
 
 ```bash
 export LKMV_CONFIG_PATH=~/.config/lkmv-tool
 ```
 
-Make sure that the new location exists before running the tool.
+> **Tip:** Add `LKMV_CONFIG_PATH` variable to ~/.zshrc or ~/.bashrc to persist across terminal sessions.
+
+### Private Configuration
+
+An encrypted configuration stored inside the public configuration file, containing sensitive information about:
+
+- List of known contacts with their Persona DIDs and Alias.
+- List of known relationships with their:
+  - Remote and local Relationship DIDs (R-DIDs)
+  - Remove and local Persona DIDs (P-DIDs)
+  - Relationship aliases
+- Verifiable Relationship Credentials (VRCs)
+
+The private configuration uses the same encryption method as the [secured configuration](#secured-configuration).
 
 ### Secured Configuration
 
-Stored in the operating system’s secure storage, e.g., macOS Keychain or Linux Keyring.
+Sensitive information is stored in the operating system's secure storage, e.g., macOS Keychain or Linux Keyring.
 
 The secured configuration includes:
 
-- Private key material.
-- Known contact DIDs.
+- Private key materials.
 - Encrypted Session Key (ESK), if using a hardware token.
 
-If your profile uses both a hardware token and unlock code, the secured data is encrypted using the ESK.
-
-For more details about secured configuration, refer to the [Handling Secured Configuration](./docs/handling-secured-configuration.md) documentation.
+For more details, refer to the [Secured Configuration Management](./docs/secured-configuration-management.md).
 
 ## Prerequisites
 
-1. Rust version 1.88 or higher (Install [Rust](https://rust-lang.org/learn/get-started/)
-   if needed)
-2. Set any environment variables as needed
+1. Rust version 1.88 or higher (Install [Rust](https://rust-lang.org/learn/get-started/))
+2. Publicly accessible domain to host your DID document.
+3. **Optional:** DIDComm mediator to send messages. LKMV provides a default DIDComm mediator.
+4. **Optional:** Set environment variables.
    - `LKMV_CONFIG_PATH`: Path to lkmv configuration files (default:
      `~/.config/lkmv/config.json`).
    - `LKMV_CONFIG_PROFILE`: Set a specific configuration profile (defaults to `default`).
 
-     **NOTE:** Setting the `LKMV_CONFIG_PROFILE` overrides any value set using the `-p/--profile` option.
+## Feature Flags 
 
-## Set Up Environment
+LKMV currently supports `openpgp-card` as an option to perform cryptographic operations, such as signing and authentication. 
 
-1. Install the tool locally from the source.
+Flag | Description |	Default |
+-----|-------------|----------|
+`openpgp-card` |	OpenPGP-compatible hardware token support |	Enabled |
+
+To turn off default features, use `--no-default-features` flag on the setup command. 
 
 ```bash
-cargo install –path .
+lkmv --no-default-features setup
 ```
 
-> **NOTE:** This will change once the tool is published.
+## Getting Started
+
+### Initial Setup
+
+1. Install locally from the source. 
+
+   ```bash
+   cargo install --path . 
+   ```
+
+   > **Note:** This will change once the tool is published. 
 
 2. Run the setup wizard.
 
-```bash
-lkmv setup
-```
+   ```bash
+   lkmv setup 
+   ```
 
-If you wish to setup a different profile instead of **default**, set the `-p/--profile` option when running the setup.
+   To set up a named profile instead of **default**, set the `-p/--profile` option.
 
-```bash
-lkmv -p profile-1 setup
-```
+   ```bash
+   lkmv -p profile-1 setup 
+   ```
 
-Follow the setup steps to create the configuration, generate your Persona DID, and connect to a DIDComm mediator server.
+Follow the prompts to:
 
-### Same Domain with Multiple WebVH DIDs
+- Create the configuration.
+- Generate cryptographic keys.
+- Generate Persona DID.
+- Connect to DIDComm mediator server. 
 
-To create different WebVH DIDs for the same domain name, set the URL during setup to:
+### Host Your DID Document
 
-```bash
-✔ Enter the URL that will host your DID document (e.g., https://<your-domain>.com): https://affrncsp.github.io/profile1
-```
+After setup, LKMV generates `did.jsonl` file for your Persona DID. The file must be hosted at a specific URL matching your configured DID.
 
-The setup wizard creates a WebVH DID with the following value:
+The `did:webvh` method resolves your DID by fetching the DID document from a well-known location on the web. If the document is not hosted at the correct URL, the DID cannot be resolved or used.
 
-```bash
-did:webvh:QmeQawCuEQFF28UNKxGcue4tKx3Vyc2bgknCPKKY61gCgh:mydomain.io:profile1
-```
+**For example:**
 
-This is helpful when you want to setup multiple profiles with different WebVH DIDs for the same domain hosting the DID documents or when doing testing.
+- If your configured URL is `https://mydomain.com`, you must host the file at:
+  
+  ```
+  https://mydomain.com/.well-known/did.jsonl
+  ```
 
-## Check Environment Setup
+- If your configured URL is `https://mydomain.com/profile1`, you must host the file at: 
+
+  ```
+  https://mydomain.com/profile1/did.jsonl
+  ```
+
+> **Important:** The URL must be publicly accessible for DID resolution.
+
+To set up multiple profiles for the same domain, see the [Multiple DIDs on Same Domain](./docs/multiple-didweb-same-domain.md).
+
+## Check Setup Status
 
 The LKMV configures your environment to ensure your setup is safe, secure, and private when running the tool.
 
@@ -169,28 +252,37 @@ If you wish to check the status for a specific profile, run the following the co
 lkmv -p profile-1 status
 ```
 
-It displays the tool version, along with the DIDs configured, and whether your Persona DID is resolvable.
+When successful, it displays the following info:
 
-## Feature Flags
+- Tool version.
+- Your Persona DIDs, and whether your Persona DID is resolvable. 
+- Configured keys for authentication, encryption, and signing.
+- List of requested and established relationships.
+- DIDComm mediator connectivity.
 
-LKMV currently support two feature flags:
+## Usage
 
-- **default:** Currently set to `openpgp-card`. To disable default features, use `--no-default-features` flag on the setup command.
-
-- **openpgp-card:** Enables support for openpgp-card compatible devices. Set as the default feature.
-
-## LKMV Commands
-
-To run commands from an installed binary:
+To run commands from installed binary:
 
 ```bash
-lkmv contacts list
+lkmv status
 ```
 
-To run commands from the source without building and installing the binary:
+To run commands from the source:
 
 ```bash
-cargo run -- contacts list
+cargo run -- status
 ```
 
-Refer to the list of [LKMV Tool Commands](./docs/lkmv-tool-commands.md) documentation for all available commands and options.
+Refer to the complete [command reference](./docs/lkmv-tool-commands.md).
+
+## Additional Resources
+
+Additional resources to learn more about the Linux Kernel Maintainer Verification (LKMV) Tool.
+
+- [First Person Project White Paper](https://www.firstperson.network/white-paper)
+- [Relationships and VRCs Guide](./docs/relationships-vrcs.md)
+- [Secure Key Management](./docs/secure-key-management.md)
+- [Secured Configuration Management](./docs/secured-configuration-management.md)
+- [Backup and Restore](./docs/backup-restore.md)
+- [Multiple Profiles Setup](./docs/multiple-didweb-same-domain.md)

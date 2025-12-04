@@ -1,347 +1,680 @@
 # LKMV Tool Commands
 
-List of commands and options available from the LKMV Tool.
+Complete command reference for the LKMV Tool CLI.
 
+## Table of Contents
+
+- [Quick Reference](#quick-reference)
+- [Common Patterns](#common-patterns)
 - [Global Options](#global-options)
-  - [-p, --profile](#-p---profile)
-  - [-u, --unlock-code](#-u---unlock-code)
-  - [-h, --help](#-h---help)
-- [lkmv setup](#lkmv-setup)
-  - [lkmv setup import](#lkmv-setup-import)
-- [lkmv status](#lkmv-status)
-- [lkmv export](#lkmv-export)
-  - [lkmv export pgp-keys](#lkmv-export-pgp-keys)
-  - [lkmv export settings](#lkmv-export-settings)
-- [lkmv contacts](#lkmv-contacts)
-  - [lkmv contacts add](#lkmv-contacts-add)
-  - [lkmv contacts remove](#lkmv-contacts-remove)
-  - [lkmv contacts list](#lkmv-contacts-list)
-- [lkmv relationships](#lkmv-relationships)
-  - [lkmv relationships request](#lkmv-relationships-request)
+- [Commands](#commands)
+  - [setup](#lkmv-setup)
+  - [status](#lkmv-status)
+  - [logs](#lkmv-logs)
+  - [export](#lkmv-export)
+  - [contacts](#lkmv-contacts)
+  - [relationships](#lkmv-relationships)
+  - [tasks](#lkmv-tasks)
+  - [vrcs](#lkmv-vrcs)
 
-## Global Options
+## Quick Reference
 
-### -p, --profile
+| Command | Description |
+|---------|-------------|
+| `lkmv setup` | Initialise environment and create profile |
+| `lkmv status` | View current configuration |
+| `lkmv logs` | Display log history |
+| `lkmv export` | Export settings or PGP keys |
+| `lkmv contacts` | Manage known contacts |
+| `lkmv relationships` | Manage relationships with other DIDs |
+| `lkmv tasks` | Handle outstanding tasks and messages |
+| `lkmv vrcs` | Manage Verifiable Relationship Credentials |
 
-Sets the profile configuration used by the CLI. Use this flag when running the setup wizard to create a new profile.
+## Common Patterns
 
-**IMPORTANT:** `LKMV_CONFIG_PROFILE` overrides the `-p, --prorfile` option if set on your CLI.
+### Profile Management
 
-```bash
-lkmv -p profile-1 setup
-```
-
-The setup wizard sets up your environment with the new profile called `profile-1`.
-
-To check the environment status from a specific profile.
+All commands support the `-p, --profile` flag to specify which profile to use:
 
 ```bash
-lkmv -p profile-1 status
+lkmv -p <profile-name> <command>
 ```
 
-To add a new contact to a specific profile.
+**Environment Variable:** Set `LKMV_CONFIG_PROFILE` to override the default profile globally.
+
+### Unlock Code
+
+When using an unlock code to protect secured configuration, use `-u, --unlock-code` to avoid repeated prompts:
 
 ```bash
-lkmv -p profile-1 contacts add --did did:webvh:...
+lkmv -u <unlock-code> <command>
 ```
 
-### -u, --unlock-code
+> **Warning:** This exposes your unlock code to the command line history. Avoid using this unless you are using test profile.
 
-If you are using an unlock code to protect your secured configuration, use this flag to specify your unlock codes and skip the prompts that ask for your unlock code each time.
+### DID Formats
 
-```bash
-lkmv -u MyUnlockCodes! status
-```
+DIDs should follow the format: `did:webvh:<scid>:<domain>`
 
-### -h, --help
-
-Prints help information about the command.
-
-```bash
-lkmv --help
-```
-
-Prints the main help information about lkmv, including available commands.
-
-```bash
-lkmv setup --help
-```
-
-Prints the main help information for the setup command, including available subcommands and flags.
+Example: `did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com`
 
 ---
 
+## Global Options
+
+These options work with all commands:
+
+| Flag | Description |
+|------|-------------|
+| `-p, --profile <NAME>` | Use a specific profile configuration |
+| `-u, --unlock-code <CODE>` | Provide unlock code to skip prompts |
+| `-h, --help` | Display help information |
+
+**Examples:**
+
+```bash
+# View help for main command
+lkmv --help
+
+# View help for specific command
+lkmv setup --help
+
+# Use specific profile
+lkmv -p profile-1 status
+
+# Use unlock code
+lkmv -u MyUnlockCode status
+```
+
+---
+
+## Commands
+
 ## lkmv setup
 
-Run the setup wizard to set up your environment. It creates configuration profiles, generates a Persona DID, and a cryptographic key pair.
+Initialise your LKMV environment by creating a profile, generating a Persona DID, and setting up cryptographic keys.
 
+**Usage:**
+```bash
+lkmv setup
+lkmv setup import [OPTIONS]
+```
+
+**Examples:**
+
+Setup a default profile:
 ```bash
 lkmv setup
 ```
 
-Runs the setup wizard using the default profile.
-
+Create a named profile:
 ```bash
 lkmv -p profile-1 setup
 ```
 
-Runs the setup wizard and creates a `profile-1` profile to save the configurations.
-
 ### lkmv setup import
 
-Imports LKMV settings exported from a specific profile into a new profile or machine.
+Import previously exported LKMV settings into a new profile or machine.
 
-#### Options
+**Options:**
 
-- `-f, --file <path_to_file>`
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-f, --file <PATH>` | Path to exported settings file | `export.lkmv` |
+| `-p, --passphrase <PASS>` | Passphrase to decrypt settings | Prompted |
 
-  File containing exported settings [default: export.lkmv].
+**Examples:**
 
-- `-p, --passphrase <passphrase>`
-
-  Passphrase to decrypt the exported settings.
-
-#### Examples
-
+Import with default filename from the current directory:
 ```bash
-lkmv setup import -f ~/Download/export.lkmv
+lkmv setup import
 ```
 
-Runs the setup wizard and uses exported settings from a specific path.
-
+Import from specific file:
 ```bash
-lkmv -p profile-1 setup import -f ~/Download/export.lkmv
+lkmv setup import -f ~/Downloads/backup.lkmv
 ```
 
-Runs the setup wizard with the `profile-1` profile and imports the settings from a specific path.
+Import with passphrase:
+```bash
+lkmv setup import -f ~/Downloads/backup.lkmv -p MyPassphrase
+```
+
+Import to named profile:
+```bash
+lkmv -p new-profile setup import -f ~/Downloads/backup.lkmv
+```
 
 ---
 
 ## lkmv status
 
-Prints information about the environment configuration.
+Display current environment and configuration information.
 
+**Usage:**
 ```bash
 lkmv status
 ```
 
-Prints information about the environment from the default or current profile (`LKMV_CONFIG_PROFILE`) of the CLI.
+**Examples:**
 
+Check default profile status:
+```bash
+lkmv status
+```
+
+Check specific profile status:
 ```bash
 lkmv -p profile-1 status
 ```
 
-Prints information about the environments using the `profile-1` profile.
+---
+
+## lkmv logs
+
+Display log history of actions and events within LKMV. Logs include relationship events, contact changes, task operations, vrc operations, and configuration updates.
+
+**Usage:**
+```bash
+lkmv logs
+```
+
+> **Note:** By default, the log maintains up to 100 most recent entries. Older entries are automatically removed. You can update this number by updating the public configuration `limit` property.
+
+**Examples:**
+
+View all log entries:
+```bash
+lkmv logs
+```
+
+View logs for a specific profile:
+```bash
+lkmv -p profile-1 logs
+```
 
 ---
 
 ## lkmv export
 
-Exports settings and other information from the current environment.
+Export settings or cryptographic keys from your environment.
+
+**Usage:**
+```bash
+lkmv export pgp-keys [OPTIONS]
+lkmv export settings [OPTIONS]
+```
 
 ### lkmv export pgp-keys
 
-Exports the first set of keys used in your Persona DID for signing, authentication, and decryption operations.
+Export the primary PGP keys used in your Persona DID for signing, authentication, and decryption.
 
-#### Options
+**Options:**
 
-- `-p, --passphrase <passphrase>`
+| Flag | Description | Required |
+|------|-------------|----------|
+| `-p, --passphrase <PASS>` | Passphrase to protect exported keys | Yes |
+| `-u, --user-id <ID>` | PGP User ID: `"Name <email@domain>"` | Yes |
 
-  Passphrase to protect the exported PGP secrets.
+**Examples:**
 
-- `-u, --user-id <first_name last_name <email@domain>>`
-  PGP User ID using the 'NAME <EMAIL_ADDRESS>' format.
-
-#### Examples
-
+Export with interactive prompts:
 ```bash
 lkmv export pgp-keys
 ```
 
-Exports PGP keys from the default or current profile (`LKMV_CONFIG_PROFILE`) of the CLI.
+Export with inline parameters:
+```bash
+lkmv export pgp-keys -p SecurePass123 -u "John Doe <john@example.com>"
+```
 
+Export from specific profile:
 ```bash
 lkmv -p profile-1 export pgp-keys
 ```
 
-Exports PGP keys from a specific profile.
-
-```bash
-lkmv -p profile-1 export pgp-keys -p ExportPassphrase -u '<First Last <email@email.com>>'
-```
-
-Exports PGP keys from a specific profile and provides the additional details required to export the PGP keys.
-
 ### lkmv export settings
 
-Exports settings that you can import into another machine with LKMV installed.
+Export settings for importing into another profile or machine.
 
-#### Options
+**Options:**
 
-- `-p, --passphrase <passphrase>`
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-p, --passphrase <PASS>` | Passphrase to encrypt settings | Prompted |
+| `-f, --file <PATH>` | Output file path | `export.lkmv` |
 
-  Passphrase to encrypt the exported settings.
+**Examples:**
 
-- `-f, --file <file_to_save>`
-
-  File to save the settings [default: export.lkmv].
-
-#### Examples
-
+Export to default file:
 ```bash
 lkmv export settings
 ```
 
-Exports settings from the default or current profile (`LKMV_CONFIG_PROFILE`) of the CLI.
-
+Export to specific location:
 ```bash
-lkmv -p profile-1 settings
+lkmv export settings -f ~/backups/profile-backup.lkmv
 ```
 
-Exports settings from a specific profile.
-
+Export with inline passphrase:
 ```bash
-lkmv -p profile-1 export -p ExportPassphrase -f ~/Downloads/profile-1-settings.lkmv
+lkmv export settings -p SecurePass123 -f ~/backups/profile-backup.lkmv
 ```
-
-Exports settings from a specific profile and provides the additional parameters to save the information.
 
 ---
 
 ## lkmv contacts
 
-Manage known contacts with their DIDs.
+Manage your list of known DIDs and their aliases.
+
+**Usage:**
+```bash
+lkmv contacts add [OPTIONS]
+lkmv contacts remove [OPTIONS]
+lkmv contacts list
+```
 
 ### lkmv contacts add
 
-Add a known DID contact to the list. Replaces an existing contact if the same DID exists.
+Add a new contact or update an existing one. If the DID already exists, it will be replaced.
 
-#### Options
+**Options:**
 
-- `-d, --did <did>`
+| Flag | Description | Required |
+|------|-------------|----------|
+| `-d, --did <DID>` | DID of the contact | Yes |
+| `-a, --alias <NAME>` | Human-readable alias | No |
+| `-s, --skip` | Skip DID validation | No |
 
-  DID of the contact to add.
+> **Note:** By default, DIDs are verified before adding. Use `--skip` to bypass validation.
 
-- `-a, --alias <alias>`
+**Examples:**
 
-  Optional alias for the contact.
-
-- `-s, --skip`
-
-  Skips verifying if the DID is valid.
-
-#### Examples
-
+Add contact with verification:
 ```bash
-lkmv contacts add -d did:webvh:... -a "John Doe"
+lkmv contacts add -d did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com -a "John Doe"
 ```
 
-Adds John Doe to the list and verifies if the DID is valid for the default or current profile (`LKMV_CONFIG_PROFILE`) of the CLI.
-
+Add contact without verification:
 ```bash
-lkmv contacts add -d did:webvh:... -a "John Doe" -s
+lkmv contacts add -d did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com -a "John Doe" -s
 ```
 
-Adds John Doe to the list but skips DID verification to the default or current profile (`LKMV_CONFIG_PROFILE`) of the CLI.
-
+Add contact without alias:
 ```bash
-lkmv -p profile-1 contacts add -d did:webvh:... -a "John Doe"
+lkmv contacts add -d did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com
 ```
-
-Adds John Doe to the specific profile contacts list.
 
 ### lkmv contacts remove
 
-Removes an existing contact from the list.
+Remove a contact by DID or alias.
 
-#### Options
+**Options:**
 
-- `-d, --did <did>`
+| Flag | Description | Required |
+|------|-------------|----------|
+| `-d, --did <DID>` | Remove by DID | One required |
+| `-a, --alias <NAME>` | Remove by alias | One required |
 
-  DID of the contact to remove.
+> **Note:** Provide either `--did` or `--alias` to remove contact.
 
-- `-a, --alias <alias>`
+**Examples:**
 
-  Alias of the contact to remove.
-
-#### Examples
-
+Remove by DID:
 ```bash
-lkmv contacts remove -d did:webvh:...
+lkmv contacts remove -d did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com
 ```
 
-Removes a contact with a given DID from the default or current profile (`LKMV_CONFIG_PROFILE`) of the CLI.
-
+Remove by alias:
 ```bash
-lkmv contacts remove -a 'John Doe'
+lkmv contacts remove -a "John Doe"
 ```
-
-Removes a contact with a given alias from the default or current profile (`LKMV_CONFIG_PROFILE`) of the CLI.
-
-```bash
-lkmv -p profile-1 contacts remove -a 'John Doe'
-```
-
-Removes a contact with a given alias from a specific profile.
 
 ### lkmv contacts list
 
-List all known contacts.
+Display all contacts in the current profile.
 
-#### Examples
-
-Removes a contact with a given DID.
-
+**Usage:**
 ```bash
 lkmv contacts list
 ```
 
-List all contacts from the default or current profile (`LKMV_CONFIG_PROFILE`) of the CLI.
+**Examples:**
 
+List all contacts:
 ```bash
-lkmv -p profile-1 contacts list
+lkmv contacts list
 ```
-
-List all contacts from a specific profile.
 
 ---
 
 ## lkmv relationships
 
-Manage relationships with other DIDs.
+Manage relationships with other DIDs for secure communication and VRC issuance.
+
+**Usage:**
+```bash
+lkmv relationships request [OPTIONS]
+lkmv relationships ping [OPTIONS]
+lkmv relationships remove [OPTIONS]
+lkmv relationships list
+```
+
+> **See also:** [Relationships and VRCs Guide](./relationships-vrcs.md)
 
 ### lkmv relationships request
 
-Request for a new verifiable relationship.
+Send a relationship request to another DID.
 
-#### Options
+**Options:**
 
-- `-d, --respondent <respondent>`
+| Flag | Description | Required |
+|------|-------------|----------|
+| `-d, --respondent <DID>` | Respondent's DID or alias | Yes |
+| `-a, --alias <NAME>` | Alias for the respondent | Yes |
+| `-r, --reason <TEXT>` | Reason for the relationship | No |
+| `-g, --generate-did` | Generate a local R-DID | No |
 
-  A valid DID or alias of your known contacts as the respondent to this relationship request.
+> **Tip:** Use `--generate-did` to create a Relationship DID (R-DID) for private channel communication. Without it, your Persona DID (P-DID) will be used.
 
-- `-a, --alias <alias>`
+**Examples:**
 
-  Optional alias for the respondent's DID.
-
-- `-r, --reason <reason>`
-
-  Optional reason for requesting a new verifiable relationship.
-
-- `-g, --generate-did`
-
-  Generates a new local relationship DID for the relationship request.
-
-#### Examples
-
+Send basic relationship request:
 ```bash
-lkmv relationships request -d did:webvh:... -r "I want to connect."
+lkmv relationships request -d did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com -a "JohnD"
 ```
 
-Sends a relationship request to the DID using the default or current profile (`LKMV_CONFIG_PROFILE`) of the CLI.
-
+Send with reason:
 ```bash
-lkmv -p profile-1 relationships request -d did:webvh:... -r "I want to connect."
+lkmv relationships request -d did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com -a "JohnD" -r "Coworker connection"
 ```
 
-Sends a relationship request to the DID from a specific profile.
+Send with R-DID generation:
+```bash
+lkmv relationships request -d did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com -a "JohnD" -g
+```
+
+Use contact alias:
+```bash
+lkmv relationships request -d "JohnD" -a "John Doe" -r "Conference attendee"
+```
+
+### lkmv relationships ping
+
+Send a trust ping message to test connectivity with an established relationship. The remote recipient must check their messages to respond with a pong.
+
+**Options:**
+
+| Flag | Description | Required |
+|------|-------------|----------|
+| `-r, --remote <DID>` | Remote DID or alias | Yes |
+
+> **Note:** This command requires an established relationship. Check for pong responses using `lkmv tasks interact`.
+
+**Examples:**
+
+Ping by DID:
+```bash
+lkmv relationships ping -r did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com
+```
+
+Ping by alias:
+```bash
+lkmv relationships ping -r "JohnD"
+```
+
+### lkmv relationships remove
+
+Remove an existing relationship and all associated VRCs (both issued and received).
+
+**Options:**
+
+| Flag | Description | Required |
+|------|-------------|----------|
+| `-r, --remote <DID>` | Remote DID or alias | Yes |
+
+> **Warning:** This action cannot be undone. All VRCs associated with this relationship will be permanently deleted.
+
+**Examples:**
+
+Remove by DID:
+```bash
+lkmv relationships remove -r did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com
+```
+
+Remove by alias:
+```bash
+lkmv relationships remove -r "JohnD"
+```
+
+### lkmv relationships list
+
+Display all relationships and their status.
+
+**Usage:**
+```bash
+lkmv relationships list
+```
+
+**Examples:**
+
+List all relationships:
+```bash
+lkmv relationships list
+```
+
+---
+
+## lkmv tasks
+
+Manage outstanding tasks including messages from the mediator, relationship requests, and VRC requests.
+
+**Usage:**
+```bash
+lkmv tasks list
+lkmv tasks fetch
+lkmv tasks remove [OPTIONS]
+lkmv tasks interact [OPTIONS]
+lkmv tasks clear [OPTIONS]
+```
+
+### lkmv tasks list
+
+Display all outstanding tasks.
+
+**Usage:**
+```bash
+lkmv tasks list
+```
+
+**Examples:**
+
+List all tasks:
+```bash
+lkmv tasks list
+```
+
+### lkmv tasks fetch
+
+Retrieve new messages and tasks from the mediator.
+
+**Usage:**
+```bash
+lkmv tasks fetch
+```
+
+**Examples:**
+
+Fetch new tasks:
+```bash
+lkmv tasks fetch
+```
+
+### lkmv tasks remove
+
+Remove a specific task by ID.
+
+**Options:**
+
+| Flag | Description | Required |
+|------|-------------|----------|
+| `-i, --id <UUID>` | Task ID to remove | Yes |
+
+**Examples:**
+
+Remove specific task:
+```bash
+lkmv tasks remove --id 50ff0179-6d82-4424-8dab-bdf3b0c24b44
+```
+
+### lkmv tasks interact
+
+Interactive CLI manager for fetching and processing tasks (relationship requests, VRC requests, etc.).
+
+**Options:**
+
+| Flag | Description | Required |
+|------|-------------|----------|
+| `-i, --id <UUID>` | Specific task ID to interact with | No |
+
+**Examples:**
+
+Enter interactive mode to fetch and process all tasks:
+```bash
+lkmv tasks interact
+```
+
+Interact with specific task:
+```bash
+lkmv tasks interact --id 50ff0179-6d82-4424-8dab-bdf3b0c24b44
+```
+
+### lkmv tasks clear
+
+Clear all local tasks and optionally remote messages from the mediator.
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--force` | Skip confirmation prompt |
+| `--remote` | Remove remote messages from LKMV Task Queue on mediator |
+
+> **Warning:** This action cannot be undone. All tasks and messages will be permanently deleted.
+
+**Examples:**
+
+Clear with confirmation:
+```bash
+lkmv tasks clear
+```
+
+Force clear without confirmation:
+```bash
+lkmv tasks clear --force
+```
+
+Clear all tasks including remote messages:
+```bash
+lkmv tasks clear --remote
+```
+
+---
+
+## lkmv vrcs
+
+Manage Verifiable Relationship Credentials (VRCs).
+
+**Usage:**
+```bash
+lkmv vrcs request
+lkmv vrcs list [OPTIONS]
+lkmv vrcs show <ID>
+lkmv vrcs remove <ID>
+```
+
+> **See also:** [Relationships and VRCs Guide](./relationships-vrcs.md#request-verifiable-relationship-credential-vrc)
+
+### lkmv vrcs request
+
+Request a VRC from an established relationship.
+
+**Usage:**
+```bash
+lkmv vrcs request
+```
+
+> **Note:** You must have an [established relationship](./relationships-vrcs.md#establish-relationship) before requesting a VRC. Use interactive prompts to select the relationship and provide credential details.
+
+**Examples:**
+
+Request VRC interactively:
+```bash
+lkmv vrcs request
+```
+
+### lkmv vrcs list
+
+Display all VRCs (both issued and received). Optionally filter by relationship.
+
+**Options:**
+
+| Flag | Description | Required |
+|------|-------------|----------|
+| `-r, --remote <DID>` | Show VRCs for a specific remote DID or alias | No |
+
+**Usage:**
+```bash
+lkmv vrcs list [OPTIONS]
+```
+
+**Examples:**
+
+List all VRCs:
+```bash
+lkmv vrcs list
+```
+
+List VRCs for a specific relationship by DID:
+```bash
+lkmv vrcs list -r did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com
+```
+
+List VRCs for a specific relationship by alias:
+```bash
+lkmv vrcs list -r "JohnD"
+```
+
+### lkmv vrcs show
+
+Display a specific VRC by ID.
+
+**Usage:**
+```bash
+lkmv vrcs show <ID>
+```
+
+**Examples:**
+
+View specific VRC:
+```bash
+lkmv vrcs show be85696ebea0e947bde696754be67d640a36b63e1ff9da0c7637c933a6cb469f
+```
+
+### lkmv vrcs remove
+
+Remove a VRC from local storage.
+
+**Usage:**
+```bash
+lkmv vrcs remove <ID>
+```
+
+**Examples:**
+
+Remove specific VRC:
+```bash
+lkmv vrcs remove be85696ebea0e947bde696754be67d640a36b63e1ff9da0c7637c933a6cb469f
+```
+
+---
