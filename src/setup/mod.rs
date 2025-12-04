@@ -4,7 +4,7 @@
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_PURPLE, LF_PUBLIC_MEDIATOR_DID,
     config::{
-        PersonaDID, Config, KeyTypes,
+        Config, KeyTypes, PersonaDID,
         private_config::PrivateConfig,
         public_config::PublicConfig,
         secured_config::{KeyInfoConfig, KeySourceMaterial, ProtectionMethod},
