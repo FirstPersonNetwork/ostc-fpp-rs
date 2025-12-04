@@ -422,14 +422,7 @@ pub async fn handle_inbound_vrc_issued(
     };
 
     // Check the proof of the VRC
-    match affinidi_data_integrity::verification_proof::verify_data(
-        tdk.did_resolver(),
-        &check_vrc,
-        None,
-        &proof,
-    )
-    .await
-    {
+    match tdk.verify_data(&check_vrc, None, &proof).await {
         Ok(r) => {
             if r.verified {
                 println!(
