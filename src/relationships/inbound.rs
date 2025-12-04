@@ -26,7 +26,7 @@ impl Config {
     /// Accepts an incoming relationship request from a remote party and sends the acceptance
     /// message back to them
     /// tdk: Trust Development Kit instance
-    /// from: The remote party's C-DID
+    /// from: The remote party's P-DID
     /// task_id: what task_id should be used for this relationship request?
     /// their_did:What DID is the initiator requesting to use for the relationship after setup?
     pub async fn handle_relationship_request_send_accept(
@@ -37,7 +37,7 @@ impl Config {
         their_did: &str,
     ) -> Result<()> {
         let (their_did, use_r_did) = if their_did == from.as_str() {
-            // Using C-DID as relationship DID
+            // Using P-DID as relationship DID
             (from.clone(), false)
         } else {
             // Using a random DID for the R-DID
@@ -65,7 +65,7 @@ impl Config {
             self.public.logs.insert(LogFamily::Relationship, format!("Created new r-did ({}) for relationhip from ({}) task ID ({})", r_did, from, task_id));
             r_did
         } else {
-            self.public.community_did.clone()
+            self.public.persona_did.clone()
         };
 
         // Contact Management
@@ -87,7 +87,7 @@ impl Config {
         }
 
         // Create the DIDComm message
-        let msg = create_message_accepted(&self.public.community_did, from, &r_did, task_id)?;
+        let msg = create_message_accepted(&self.public.persona_did, from, &r_did, task_id)?;
 
         let atm = tdk.atm.clone().unwrap();
 
@@ -95,8 +95,8 @@ impl Config {
         let (msg, _) = msg
             .pack_encrypted(
                 from,
-                Some(&self.public.community_did),
-                Some(&self.public.community_did),
+                Some(&self.public.persona_did),
+                Some(&self.public.persona_did),
                 tdk.did_resolver(),
                 &tdk.get_shared_state().secrets_resolver,
                 &PackEncryptedOptions {
@@ -107,7 +107,7 @@ impl Config {
             .await?;
 
         atm.forward_and_send_message(
-            &self.community_did.profile,
+            &self.persona_did.profile,
             false,
             &msg,
             None,
@@ -131,7 +131,7 @@ impl Config {
             Rc::new(Mutex::new(Relationship {
                 task_id: task_id.clone(),
                 remote_did: their_did.clone(),
-                remote_c_did: from.clone(),
+                remote_p_did: from.clone(),
                 our_did: r_did.clone(),
                 created: Utc::now(),
                 state: RelationshipState::RequestAccepted,
@@ -156,7 +156,11 @@ impl Config {
         reason: Option<&str>,
     ) -> Result<()> {
         // Remove the relationship entry
-        let Some(relationship) = self.private.relationships.remove_by_task_id(task_id) else {
+        let Some(relationship) = self.private.relationships.remove_by_task_id(
+            task_id,
+            &mut self.private.vrcs_issued,
+            &mut self.private.vrcs_received,
+        ) else {
             println!(
                 "{}{}{}",
                 style("WARN: Couldn't find relationship with task ID(").color256(CLI_ORANGE),
@@ -213,7 +217,7 @@ impl Config {
                 self.public.logs.insert(
                     LogFamily::Relationship,
                     format!(
-                        "Changing remote DID to a r-did of ({}) for c-did ({}) task ID ({})",
+                        "Changing remote DID to a r-did of ({}) for p-did ({}) task ID ({})",
                         r_did, from, task_id
                     ),
                 );
@@ -230,7 +234,7 @@ impl Config {
         }
 
         // Create the DIDComm message
-        let msg = create_message_finalize(&self.public.community_did, from, task_id)?;
+        let msg = create_message_finalize(&self.public.persona_did, from, task_id)?;
 
         let atm = tdk.atm.clone().unwrap();
 
@@ -238,8 +242,8 @@ impl Config {
         let (msg, _) = msg
             .pack_encrypted(
                 from,
-                Some(&self.public.community_did),
-                Some(&self.public.community_did),
+                Some(&self.public.persona_did),
+                Some(&self.public.persona_did),
                 tdk.did_resolver(),
                 &tdk.get_shared_state().secrets_resolver,
                 &PackEncryptedOptions {
@@ -250,7 +254,7 @@ impl Config {
             .await?;
 
         atm.forward_and_send_message(
-            &self.community_did.profile,
+            &self.persona_did.profile,
             false,
             &msg,
             None,
@@ -314,11 +318,11 @@ impl Config {
         let lock = relationship.lock().unwrap();
         print!(
             "  {}{}{}",
-            style("Remote: c-did(").color256(CLI_BLUE),
-            style(&lock.remote_c_did).color256(CLI_GREEN),
+            style("Remote: p-did(").color256(CLI_BLUE),
+            style(&lock.remote_p_did).color256(CLI_GREEN),
             style(")").color256(CLI_BLUE)
         );
-        if lock.remote_c_did == lock.remote_did {
+        if lock.remote_p_did == lock.remote_did {
             println!(
                 " {}{}{}",
                 style("r-did(").color256(CLI_BLUE),
@@ -336,11 +340,11 @@ impl Config {
 
         print!(
             "  {}{}{}",
-            style("Local: c-did(").color256(CLI_BLUE),
-            style(&self.public.community_did).color256(CLI_GREEN),
+            style("Local: p-did(").color256(CLI_BLUE),
+            style(&self.public.persona_did).color256(CLI_GREEN),
             style(")").color256(CLI_BLUE)
         );
-        if lock.our_did == self.public.community_did {
+        if lock.our_did == self.public.persona_did {
             println!(
                 " {}{}{}",
                 style("r-did(").color256(CLI_BLUE),

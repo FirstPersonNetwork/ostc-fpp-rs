@@ -3,7 +3,7 @@
 The lkmv CLI tool requires the use of many secret keys for it to work, at a minimum
 the following keys are required:
 
-- **Community DID**
+- **Persona DID**
   - `SIGNING_KEY`: Primary signing key used to sign Verified Credentials (VCs) and
     Verifiable Presentations (VPs).
   - `AUTHENTICATION_KEY`: Proof of ownership of the private key associated with
@@ -19,7 +19,7 @@ the following keys are required:
   - As you create relationships with other entities, a specific relationship DID
     is created for each relationship with it's own separate set of keys
 
-All of the above is linked back to the `Community DID`.
+All of the above is linked back to the `Persona DID`.
 
 The lkmv tool is designed to be used with physical hardware tokens, such as Nitrokey, Yubikey.
 
@@ -30,8 +30,8 @@ These tokens **MUST** support the openpgp-card protocol.
 | Path          | Description                                      |
 | ------------- | ------------------------------------------------ |
 | `m/0'/0'/`    | Reserved for lkmv management keys                |
-| `m/1'/0'/`    | Reserved for Community DID Keys                  |
-| `m/2'/1'/`    | Reserved for Community DID WebVH Management keys |
+| `m/1'/0'/`    | Reserved for Persona DID Keys                  |
+| `m/2'/1'/`    | Reserved for Persona DID WebVH Management keys |
 | `m/3'/1'/1'/` | Reserved for Relationship DID keys               |
 
 ## Initial `Public Identity` Secure Key Setup
@@ -91,10 +91,10 @@ flowchart TB
 
 `lkmv` derives key paths from a BIP32 root. Common starting key paths are:
 
-- Community DID Path `m/1'/0'/`
-  - `m/1'/0'/0'` :: Community DID Signing Key
-  - `m/1'/0'/1'` :: Community DID Authentication Key
-  - `m/1'/0'/2'` :: Community DID Decryption Key
+- Persona DID Path `m/1'/0'/`
+  - `m/1'/0'/0'` :: Persona DID Signing Key
+  - `m/1'/0'/1'` :: Persona DID Authentication Key
+  - `m/1'/0'/2'` :: Persona DID Decryption Key
 
 - WebVH DID Management Path `m/2'/1'`
   - `m/2'/1'/<n>'` :: Pre-rolled update keys for WebVH LogEntries

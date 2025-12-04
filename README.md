@@ -51,10 +51,9 @@ View available commands.
 lkmv --help
 ```
 
-
 ## Core Concepts
 
-- **Decentralised Identifiers (DIDs)** - A globally unique identifier that enables secure digital interactions. The DID is the cornerstone of Self-Sovereign Identity (SSI), a concept that aims to put individuals or entities in control of their digital identities. DID is usually associated with a cryptographic key pair and represented with different DID methods, each with its own benefits. 
+- **Decentralised Identifiers (DIDs)** - A globally unique identifier that enables secure digital interactions. The DID is the cornerstone of Self-Sovereign Identity (SSI), a concept that aims to put individuals or entities in control of their digital identities. DID is usually associated with a cryptographic key pair and represented with different DID methods, each with its own benefits.
 
 - **Verifiable Credentials (VCs)** - A digital representation of a claim attested by a trusted issuer about the subject (e.g., Individual or Organisation). VC is cryptographically signed and verifiable using cryptographic keys associated with the DID of the issuer. 
 
@@ -64,14 +63,15 @@ lkmv --help
 
 - **DIDComm Messaging Protocol** - An open standard for decentralised communication. Built on the foundation of Decentralised Identifiers (DIDs), it enables parties to exchange verifiable data such as credentials and establishes secure communication channels between parties without relying on centralised servers. 
 
+## Decentralised Identity
 
-## Decentralised Identity 
+The LKMV tool uses the did:webvh to create your Persona DID. WebVH is a DID method that enhances the existing did:web method, introducing:
 
-The LKMV tool uses the `did:webvh` to create your **Community DID (C-DID)**. It enhances the existing `did:web` method, providing:  
+The LKMV tool uses the `did:webvh` to create your **Persona DID (P-DID)**. It enhances the existing `did:web` method, providing:  
 
-- Verifiable history, providing a full history of DID document changes. 
+- Portability with a self-certifying identifier (SCID), allowing you to move to a different domain.
 
-- Portability with a self-certifying identifier (SCID), allowing you to move to a different domain. 
+- Robust security by introducing a pre-rotation key and witness proof that approves changes to the DID.
 
 - Robust security by introducing a pre-rotation key and witness proof that approves changes to the DID.  
 
@@ -81,9 +81,9 @@ The LKMV tool uses the `did:webvh` to create your **Community DID (C-DID)**. It 
 
 ![Sample WebVH DID Method](./docs/assets/didwebvh-sample.png)
 
-## Decentralised Communication 
+## Decentralised Communication
 
-LKMV seamlessly integrates with DIDComm-compatible mediators for secure, private communication using your **Community DID (C-DID)** or **Relationship DID (R-DID)**. 
+LKMV seamlessly integrates with DIDComm-compatible mediators for secure, private communication using your **Persona DID (P-DID)** or **Relationship DID (R-DID)**. 
 
 DIDComm mediators handle message routing and storage while preserving privacy through end-to-end encryption. Messages are structured in multiple "envelope" layers providing:
 
@@ -115,7 +115,7 @@ Each profile manages two types of configurations:
 
 Stored in JSON format, the public configuration contains environment-specific details such as:
 
-- Community DID.
+- Persona DID.
 - Mediator DID.
 - Security mode (e.g., Unlock Codes or Hardware Token).
 - Encrypted private data containing known contacts, relationships, and VRCs.
@@ -137,10 +137,10 @@ export LKMV_CONFIG_PATH=~/.config/lkmv-tool
 
 An encrypted configuration stored inside the public configuration file, containing sensitive information about:
 
-- List of known contacts with their Community DIDs and Alias.
+- List of known contacts with their Persona DIDs and Alias.
 - List of known relationships with their:
   - Remote and local Relationship DIDs (R-DIDs)
-  - Remove and local Community DIDs (C-DIDs)
+  - Remove and local Persona DIDs (P-DIDs)
   - Relationship aliases
 - Verifiable Relationship Credentials (VRCs)
 
@@ -156,7 +156,6 @@ The secured configuration includes:
 - Encrypted Session Key (ESK), if using a hardware token.
 
 For more details, refer to the [Secured Configuration Management](./docs/secured-configuration-management.md).
-
 
 ## Prerequisites
 
@@ -194,7 +193,7 @@ lkmv --no-default-features setup
 
    > **Note:** This will change once the tool is published. 
 
-2. Run the setup wizard. 
+2. Run the setup wizard.
 
    ```bash
    lkmv setup 
@@ -210,12 +209,12 @@ Follow the prompts to:
 
 - Create the configuration.
 - Generate cryptographic keys.
-- Generate Community DID.
+- Generate Persona DID.
 - Connect to DIDComm mediator server. 
 
 ### Host Your DID Document
 
-After setup, LKMV generates `did.jsonl` file for your Community DID. The file must be hosted at a specific URL matching your configured DID.
+After setup, LKMV generates `did.jsonl` file for your Persona DID. The file must be hosted at a specific URL matching your configured DID.
 
 The `did:webvh` method resolves your DID by fetching the DID document from a well-known location on the web. If the document is not hosted at the correct URL, the DID cannot be resolved or used.
 
@@ -239,24 +238,24 @@ To set up multiple profiles for the same domain, see the [Multiple DIDs on Same 
 
 ## Check Setup Status
 
-The LKMV configures your environment to ensure your setup is safe, secure, and private when running the tool. 
+The LKMV configures your environment to ensure your setup is safe, secure, and private when running the tool.
 
-To check the status or health of your current environment, run the following command. 
+To check the status or health of your current environment, run the following command.
 
 ```bash
-lkmv status 
+lkmv status
 ```
 
 If you wish to check the status for a specific profile, run the following the command.
 
 ```bash
-lkmv -p profile-1 status 
+lkmv -p profile-1 status
 ```
 
 When successful, it displays the following info:
 
 - Tool version.
-- Your Community DIDs, and whether your Community DID is resolvable. 
+- Your Persona DIDs, and whether your Persona DID is resolvable. 
 - Configured keys for authentication, encryption, and signing.
 - List of requested and established relationships.
 - DIDComm mediator connectivity.

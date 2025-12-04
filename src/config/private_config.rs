@@ -33,11 +33,11 @@ pub struct PrivateConfig {
     pub tasks: Tasks,
 
     /// VRCs Issued
-    /// key = remote C-DID
+    /// key = remote P-DID
     pub vrcs_issued: Vrcs,
 
     /// VRCs received
-    /// key = remote C-DID
+    /// key = remote P-DID
     pub vrcs_received: Vrcs,
 }
 

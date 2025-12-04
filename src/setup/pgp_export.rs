@@ -1,9 +1,9 @@
 /*!
-*   As lkmv is designed to work alongside legacy PGP environments, exporting your community DID
+*   As lkmv is designed to work alongside legacy PGP environments, exporting your persona DID
 *   keys can be useful
 */
 
-use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, setup::CommunityDIDKeys};
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, setup::PersonaDIDKeys};
 use anyhow::Result;
 use chrono::Utc;
 use console::{Term, style};
@@ -24,17 +24,17 @@ use pgp::{
 use secrecy::{ExposeSecret, SecretString};
 use x25519_dalek::StaticSecret;
 
-/// Prompts the user if they want to export their community DID keys for PGP Use
+/// Prompts the user if they want to export their persona DID keys for PGP Use
 /// term: Terminal Console to help with formatting
-/// keys: Community DID Keys struct
+/// keys: Persona DID Keys struct
 /// user_id: Optional PGP User ID String (name <email address>)
 ///            - if not provided, then user is promoted for it
 /// passphrase: Optional passphrase to unlock PGP Armor export
 ///            - if not provided, then user is promoted for it
 /// wizard: True if this is called from the setup wizard (shows extra help)
-pub fn ask_export_community_did_keys(
+pub fn ask_export_persona_did_keys(
     term: &Term,
-    keys: &CommunityDIDKeys,
+    keys: &PersonaDIDKeys,
     user_id: Option<&str>,
     passphrase: Option<SecretString>,
     wizard: bool,
@@ -43,7 +43,7 @@ pub fn ask_export_community_did_keys(
         println!();
         println!(
             "{}",
-            style("You can export your Community DID keys for use in PGP-compatible applications.")
+            style("You can export your Persona DID keys for use in PGP-compatible applications.")
                 .color256(CLI_BLUE)
         );
         println!(
@@ -91,7 +91,7 @@ pub fn ask_export_community_did_keys(
     };
 
     // Export the keys
-    match export_community_did_keys(term, keys, &user_id, passphrase, wizard) {
+    match export_persona_did_keys(term, keys, &user_id, passphrase, wizard) {
         Ok(ssk) => {
             // Display to screen
             let ssk_str = ssk.to_armored_string(ArmorOptions::default()).unwrap();
@@ -101,7 +101,7 @@ pub fn ask_export_community_did_keys(
         Err(e) => {
             println!(
                 "{} {}",
-                style("ERROR: Unable to create PGP export of Community DID keys. Reason:")
+                style("ERROR: Unable to create PGP export of Persona DID keys. Reason:")
                     .color256(CLI_RED),
                 style(e).color256(CLI_ORANGE)
             );
@@ -109,16 +109,16 @@ pub fn ask_export_community_did_keys(
     }
 }
 
-/// Exports the community DID keys in a PGP Armored ASCII payload
+/// Exports the persona DID keys in a PGP Armored ASCII payload
 /// Signing Key is the primary key
 /// Inputs:
 /// - term: Console Terminal manipulation
 /// - keys: Keys that will be exported
 /// - user_id: PGP User ID string (name <email address>)
 /// - wizard: If true, will print status to STDIO
-pub fn export_community_did_keys(
+pub fn export_persona_did_keys(
     term: &Term,
-    keys: &CommunityDIDKeys,
+    keys: &PersonaDIDKeys,
     user_id: &str,
     passphrase: SecretString,
     wizard: bool,

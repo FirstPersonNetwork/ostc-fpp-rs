@@ -2,7 +2,7 @@
 *   DID Setup methods
 */
 
-use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, setup::CommunityDIDKeys};
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, setup::PersonaDIDKeys};
 use affinidi_tdk::{
     TDK,
     common::config::TDKConfigBuilder,
@@ -30,21 +30,21 @@ pub struct DIDConfig {
     pub document: Document,
 }
 
-/// Creates an initial DID representing the Community DID
+/// Creates an initial DID representing the Persona DID
 /// bip32_root: BIP32 root node for derived keys
-/// keys: Community Keys that will be used in the DID (Mutable as key ID's get updated)
+/// keys: Persona Keys that will be used in the DID (Mutable as key ID's get updated)
 /// mediator_did: What mediator to use for this DID?
 /// imported_keys: True if keys have been imported
 ///   - True: Ask if you want to reuse an existing DID
 ///   - False: Create a new DID
 pub async fn did_setup(
     bip32_root: ExtendedSigningKey,
-    keys: &mut CommunityDIDKeys,
+    keys: &mut PersonaDIDKeys,
     mediator_did: &str,
     imported_keys: bool,
 ) -> Result<DIDConfig> {
     println!();
-    println!("{}", style("Community DID Setup").color256(CLI_BLUE));
+    println!("{}", style("Persona DID Setup").color256(CLI_BLUE));
     println!("{}", style("========================").color256(CLI_BLUE));
 
     if imported_keys {
@@ -115,7 +115,7 @@ pub async fn did_setup(
 
     println!(
         "{}\n",
-        style("A WebVH DID method will be created to represent your Community DID.")
+        style("A WebVH DID method will be created to represent your Persona DID.")
             .color256(CLI_BLUE)
     );
     println!(
@@ -148,7 +148,7 @@ pub async fn did_setup(
 
     println!(
         "\n{}\n",
-        style("Creating WebVH DID method for your Community DID...").color256(CLI_BLUE)
+        style("Creating WebVH DID method for your Persona DID...").color256(CLI_BLUE)
     );
     println!(
         "{} {}",
@@ -216,13 +216,13 @@ pub async fn did_setup(
         .key_agreement
         .push(VerificationRelationship::Reference(key_id.clone()));
 
-    // Add a service endpoint for this community
+    // Add a service endpoint for this persona
     // NOTE: This will use the public mediator
 
     let endpoint = Endpoint::Map(json!([{"accept": ["didcomm/v2"], "uri": mediator_did}]));
     did_document.service.push(Service {
         id: Some(Url::parse(
-            &[did_url.to_string(), "#public-didcomm".to_string()].concat(),
+            &[did_url.to_string(), "#publip-didcomm".to_string()].concat(),
         )?),
         type_: vec!["DIDCommMessaging".to_string()],
         property_set: HashMap::new(),

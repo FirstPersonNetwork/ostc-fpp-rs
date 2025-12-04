@@ -4,7 +4,7 @@
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_PURPLE, LF_PUBLIC_MEDIATOR_DID,
     config::{
-        CommunityDID, Config, KeyTypes,
+        PersonaDID, Config, KeyTypes,
         private_config::PrivateConfig,
         public_config::PublicConfig,
         secured_config::{KeyInfoConfig, KeySourceMaterial, ProtectionMethod},
@@ -15,7 +15,7 @@ use crate::{
             Bip32Extension, generate_bip39_mnemonic, get_bip32_root, mnemonic_from_recovery_phrase,
         },
         did::did_setup,
-        pgp_export::ask_export_community_did_keys,
+        pgp_export::ask_export_persona_did_keys,
         pgp_import::{PGPKeys, terminal_input_pgp_key},
     },
 };
@@ -97,9 +97,9 @@ pub struct KeyInfo {
     pub created: DateTime<Utc>,
 }
 
-/// Secrets for the Community DID
+/// Secrets for the Persona DID
 #[derive(Debug)]
-pub struct CommunityDIDKeys {
+pub struct PersonaDIDKeys {
     pub signing: KeyInfo,
     pub authentication: KeyInfo,
     pub decryption: KeyInfo,
@@ -140,12 +140,12 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
         PGPKeys::default()
     };
 
-    // Creating new Secrets for the Community DID
+    // Creating new Secrets for the Persona DID
     let mut c_did_keys = create_keys(&mnemonic, &imported_keys)?;
 
     // Export this as an armored PGP Keyfile?
     if imported_keys.is_empty() {
-        ask_export_community_did_keys(term, &c_did_keys, None, None, true);
+        ask_export_persona_did_keys(term, &c_did_keys, None, None, true);
     }
 
     // Use hardware token?
@@ -169,7 +169,7 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
     // Use a different Mediator?
     let mediator_did = change_mediator();
 
-    // Create a DID - will also rename the C-DID Keys with the right key-IDS
+    // Create a DID - will also rename the P-DID Keys with the right key-IDS
     let c_did = did_setup(
         get_bip32_root(mnemonic.to_entropy().as_slice())?,
         &mut c_did_keys,
@@ -185,7 +185,7 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
         KeyInfoConfig {
             path: c_did_keys.signing.source.clone(),
             create_time: c_did_keys.signing.created,
-            purpose: KeyTypes::CommunitySigning,
+            purpose: KeyTypes::PersonaSigning,
         },
     );
     key_info.insert(
@@ -193,7 +193,7 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
         KeyInfoConfig {
             path: c_did_keys.authentication.source.clone(),
             create_time: c_did_keys.authentication.created,
-            purpose: KeyTypes::CommunityAuthentication,
+            purpose: KeyTypes::PersonaAuthentication,
         },
     );
     key_info.insert(
@@ -201,7 +201,7 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
         KeyInfoConfig {
             path: c_did_keys.decryption.source.clone(),
             create_time: c_did_keys.decryption.created,
-            purpose: KeyTypes::CommunityEncryption,
+            purpose: KeyTypes::PersonaEncryption,
         },
     );
 
@@ -224,7 +224,7 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
         bip32_seed: SecretString::new(BASE64_URL_SAFE_NO_PAD.encode(mnemonic.to_entropy())),
         public: PublicConfig {
             token_id,
-            community_did: c_did.did.clone(),
+            persona_did: c_did.did.clone(),
             unlock_code: unlock_code.is_some(),
             mediator_did: mediator_did.clone(),
             private: None,
@@ -239,12 +239,12 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
             friendly_name,
         },
         private: PrivateConfig::default(),
-        community_did: CommunityDID {
+        persona_did: PersonaDID {
             document: c_did.document,
             profile: Arc::new(
                 ATMProfile::new(
                     tdk.atm.as_ref().unwrap(),
-                    Some("Community DID".to_string()),
+                    Some("Persona DID".to_string()),
                     c_did.did.to_string(),
                     Some(mediator_did.clone()),
                 )
@@ -282,7 +282,7 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
 
 /// Creates the Secret Key Material required
 /// Returns the created Secrets and their source material
-fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<CommunityDIDKeys> {
+fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<PersonaDIDKeys> {
     let bip32_root = get_bip32_root(mnemonic.to_entropy().as_slice())?;
 
     println!(
@@ -369,7 +369,7 @@ fn create_keys(mnemonic: &Mnemonic, imported_keys: &PGPKeys) -> Result<Community
         }
     };
 
-    Ok(CommunityDIDKeys {
+    Ok(PersonaDIDKeys {
         signing,
         authentication,
         decryption: encryption,

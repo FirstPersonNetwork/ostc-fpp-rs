@@ -225,16 +225,16 @@ impl Tasks {
                         let lock = relationship.lock().unwrap();
                         print!(
                             " {} {}",
-                            style("Remote C-DID:").color256(CLI_BLUE),
-                            style(&lock.remote_c_did).color256(CLI_PURPLE)
+                            style("Remote P-DID:").color256(CLI_BLUE),
+                            style(&lock.remote_p_did).color256(CLI_PURPLE)
                         );
                     }
                     TaskType::VRCRequestOutbound { relationship } => {
                         let lock = relationship.lock().unwrap();
                         print!(
                             " {} {}",
-                            style("Remote C-DID:").color256(CLI_BLUE),
-                            style(&lock.remote_c_did).color256(CLI_PURPLE)
+                            style("Remote P-DID:").color256(CLI_BLUE),
+                            style(&lock.remote_p_did).color256(CLI_PURPLE)
                         );
                     }
                     _ => {}
@@ -286,7 +286,7 @@ impl Tasks {
         let mut change_flag = false; // set to true if config changed
         loop {
             // fetch tasks in case there are new ones
-            if fetch_tasks(tdk, config, term, &config.community_did.profile.clone()).await? > 0 {
+            if fetch_tasks(tdk, config, term, &config.persona_did.profile.clone()).await? > 0 {
                 change_flag = true;
             }
 
@@ -376,7 +376,7 @@ pub async fn tasks_entry(
         }
         Some(("fetch", _)) => {
             let mut change_flag = false;
-            if fetch_tasks(&tdk, config, term, &config.community_did.profile.clone()).await? > 0 {
+            if fetch_tasks(&tdk, config, term, &config.persona_did.profile.clone()).await? > 0 {
                 change_flag = true;
             }
             let profiles: Vec<Arc<ATMProfile>> = config.atm_profiles.values().cloned().collect();

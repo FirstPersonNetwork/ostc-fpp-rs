@@ -23,7 +23,7 @@ use crate::{
     },
     get_unlock_code,
     setup::{
-        CommunityDIDKeys, KeyInfo, KeyPurpose, bip32_bip39::Bip32Extension, create_unlock_code,
+        PersonaDIDKeys, KeyInfo, KeyPurpose, bip32_bip39::Bip32Extension, create_unlock_code,
     },
     vrc::Vrc,
 };
@@ -69,8 +69,8 @@ pub struct Config {
     /// Where did the key values come from? Derived or Imported?
     pub key_info: HashMap<String, KeyInfoConfig>,
 
-    /// Community DID and Document
-    pub community_did: CommunityDID,
+    /// Persona DID and Document
+    pub persona_did: PersonaDID,
 
     // *********************************************
     // Temporary Config values
@@ -90,7 +90,7 @@ pub struct Config {
 
     /// Holds ATM profiles for relationships
     /// Key: Our local DID for the relationship
-    /// NOTE: Does not hold the community DID profile!
+    /// NOTE: Does not hold the persona DID profile!
     pub atm_profiles: HashMap<Rc<String>, Arc<ATMProfile>>,
 
     /// All VRC's issued and received by VRC ID
@@ -105,9 +105,9 @@ pub struct ExportedConfig {
     pub sc: SecuredConfig,
 }
 
-/// Our public Community DID used to identify ourselves within the Linux Foundation ecosystem
+/// Our public Persona DID used to identify ourselves within the Linux Foundation ecosystem
 #[derive(Debug)]
-pub struct CommunityDID {
+pub struct PersonaDID {
     /// Resolved DID Document for this DID
     pub document: Document,
 
@@ -187,32 +187,32 @@ impl Config {
         // All config info has been loaded, load DID Document and regenerate keys
         let rr = tdk
             .did_resolver()
-            .resolve(&pc.community_did)
+            .resolve(&pc.persona_did)
             .await
-            .context("Couldn't resolve Community DID")?;
+            .context("Couldn't resolve Persona DID")?;
 
         // Create keys from DID Document
-        Config::regenerate_community_keys(tdk, &sc, &bip32_root, &rr.doc).await?;
+        Config::regenerate_persona_keys(tdk, &sc, &bip32_root, &rr.doc).await?;
 
-        // Create community profile
-        let community_profile = ATMProfile::new(
+        // Create persona profile
+        let persona_profile = ATMProfile::new(
             tdk.atm.as_ref().unwrap(),
-            Some("Community DID".to_string()),
-            pc.community_did.to_string(),
+            Some("Persona DID".to_string()),
+            pc.persona_did.to_string(),
             Some(pc.mediator_did.clone()),
         )
         .await?;
 
-        // Add the community profile to the TDK ATM Service
-        // This allows it to send/receive messages directly to the Community DID
+        // Add the persona profile to the TDK ATM Service
+        // This allows it to send/receive messages directly to the Persona DID
         let atm = tdk.atm.clone().unwrap();
-        let community_profile = atm.profile_add(&community_profile, true).await?;
+        let persona_profile = atm.profile_add(&persona_profile, true).await?;
 
         let atm_profiles = private_cfg
             .relationships
             .generate_profiles(
                 tdk,
-                &pc.community_did,
+                &pc.persona_did,
                 &pc.mediator_did,
                 &bip32_root,
                 &sc.key_info,
@@ -234,9 +234,9 @@ impl Config {
 
         Ok(Config {
             bip32_root,
-            community_did: CommunityDID {
+            persona_did: PersonaDID {
                 document: rr.doc,
-                profile: community_profile,
+                profile: persona_profile,
             },
             bip32_seed: SecretString::new(sc.bip32_seed.clone()),
             public: pc,
@@ -253,14 +253,14 @@ impl Config {
         })
     }
 
-    /// Returns the first matching set of keys for the community DID
+    /// Returns the first matching set of keys for the persona DID
     /// This will pick the first:
     /// - Signing Key (assertion method)
     /// - Authentication (authentication)
     /// - Encryption (key agreement)
     ///
-    pub async fn get_community_keys(&self, tdk: &TDK) -> Result<CommunityDIDKeys> {
-        let signing = if let Some(signing) = self.community_did.document.assertion_method.first() {
+    pub async fn get_persona_keys(&self, tdk: &TDK) -> Result<PersonaDIDKeys> {
+        let signing = if let Some(signing) = self.persona_did.document.assertion_method.first() {
             let Some(secret) = tdk
                 .get_shared_state()
                 .secrets_resolver
@@ -286,7 +286,7 @@ impl Config {
         };
 
         let authentication =
-            if let Some(authentication) = self.community_did.document.authentication.first() {
+            if let Some(authentication) = self.persona_did.document.authentication.first() {
                 let Some(secret) = tdk
                     .get_shared_state()
                     .secrets_resolver
@@ -314,7 +314,7 @@ impl Config {
                 bail!("DID Document does not contain any authentication methods!");
             };
 
-        let decryption = if let Some(decryption) = self.community_did.document.key_agreement.first()
+        let decryption = if let Some(decryption) = self.persona_did.document.key_agreement.first()
         {
             let Some(secret) = tdk
                 .get_shared_state()
@@ -339,15 +339,15 @@ impl Config {
         } else {
             bail!("DID Document does not contain any key agreements!");
         };
-        Ok(CommunityDIDKeys {
+        Ok(PersonaDIDKeys {
             signing,
             authentication,
             decryption,
         })
     }
 
-    /// Private function that regenerates the Community DID keys from secured config
-    async fn regenerate_community_keys(
+    /// Private function that regenerates the Persona DID keys from secured config
+    async fn regenerate_persona_keys(
         tdk: &mut TDK,
         sc: &SecuredConfig,
         bip32_root: &ExtendedSigningKey,
@@ -411,7 +411,7 @@ impl Config {
 
         self.private.relationships.status(
             &self.private.contacts,
-            &self.public.community_did,
+            &self.public.persona_did,
             &self.private.vrcs_issued,
             &self.private.vrcs_received,
         );
@@ -583,10 +583,10 @@ impl Config {
 /// Key Types used within lkmv
 #[derive(Clone, Serialize, Default, Deserialize, Debug)]
 pub enum KeyTypes {
-    CommunitySigning,
-    CommunityAuthentication,
-    CommunityEncryption,
-    CommunityOther,
+    PersonaSigning,
+    PersonaAuthentication,
+    PersonaEncryption,
+    PersonaOther,
     RelationshipVerification,
     RelationshipEncryption,
     WebVHManagement,
@@ -597,10 +597,10 @@ pub enum KeyTypes {
 impl Display for KeyTypes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            KeyTypes::CommunitySigning => "Community Signing Key",
-            KeyTypes::CommunityAuthentication => "Community Authentication Key",
-            KeyTypes::CommunityEncryption => "Community Encryption Key",
-            KeyTypes::CommunityOther => "Community Other Key",
+            KeyTypes::PersonaSigning => "Persona Signing Key",
+            KeyTypes::PersonaAuthentication => "Persona Authentication Key",
+            KeyTypes::PersonaEncryption => "Persona Encryption Key",
+            KeyTypes::PersonaOther => "Persona Other Key",
             KeyTypes::RelationshipVerification => "Relationship Verification Key",
             KeyTypes::RelationshipEncryption => "Relationship Encryption Key",
             KeyTypes::WebVHManagement => "Web VH Management Key",

@@ -90,7 +90,7 @@ lkmv -u MyUnlockCode status
 
 ## lkmv setup
 
-Initialise your LKMV environment by creating a profile, generating a Community DID, and setting up cryptographic keys.
+Initialise your LKMV environment by creating a profile, generating a Persona DID, and setting up cryptographic keys.
 
 **Usage:**
 ```bash
@@ -180,7 +180,7 @@ lkmv export settings [OPTIONS]
 
 ### lkmv export pgp-keys
 
-Export the primary PGP keys used in your Community DID for signing, authentication, and decryption.
+Export the primary PGP keys used in your Persona DID for signing, authentication, and decryption.
 
 **Options:**
 
@@ -346,7 +346,7 @@ Send a relationship request to another DID.
 | `-r, --reason <TEXT>` | Reason for the relationship | No |
 | `-g, --generate-did` | Generate a local R-DID | No |
 
-> **Tip:** Use `--generate-did` to create a Relationship DID (R-DID) for private channel communication. Without it, your Community DID (C-DID) will be used.
+> **Tip:** Use `--generate-did` to create a Relationship DID (R-DID) for private channel communication. Without it, your Persona DID (P-DID) will be used.
 
 **Examples:**
 

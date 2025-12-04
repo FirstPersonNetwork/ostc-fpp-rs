@@ -1,6 +1,6 @@
 # Relationships and VRCs
 
-The LKMV tool enables you to establish relationships with other DIDs (e.g., peers, coworkers, or community members) and communicate privately through the DIDComm protocol using your **Community DID (C-DID)** or **Relationship DID (R-DID)**.
+The LKMV tool enables you to establish relationships with other DIDs (e.g., peers, coworkers, or community members) and communicate privately through the DIDComm protocol using your **Persona DID (P-DID)** or **Relationship DID (R-DID)**.
 
 Once a relationship is established, you can request a **Verifiable Relationship Credential (VRC)**, a peer-to-peer credential that attests to verifiable trust relationships between personhood credential holders.
 
@@ -10,8 +10,8 @@ Once a relationship is established, you can request a **Verifiable Relationship 
 sequenceDiagram
     autonumber
     box transparent Establish Relationship
-    actor req as Requestor (C-DID)
-    actor res as Respondent (C-DID)
+    actor req as Requestor (P-DID)
+    actor res as Respondent (P-DID)
     end
     
     req->>res: Send Relationship Request
@@ -46,7 +46,7 @@ sequenceDiagram
 
 ## Establish Relationship
 
-Follow these steps to establish a relationship with another Community DID.
+Follow these steps to establish a relationship with another Persona DID.
 
 ### 1. Send Relationship Request (Requestor)
 
@@ -64,7 +64,7 @@ This command sends a relationship request and sets an alias for the relationship
 lkmv relationships request --respondent <Community_DID> --alias <Respondent_Alias> --generate-did
 ```
 
-When an R-DID is present, subsequent communication uses the R-DID for privacy; otherwise, it uses your C-DID.
+When an R-DID is present, subsequent communication uses the R-DID for privacy; otherwise, it uses your P-DID.
 
 **Note:** Initiating a relationship request automatically adds the respondent to your Contacts list.
 
@@ -127,14 +127,14 @@ Refer to the sample response below:
 
 ```bash
 ✅ Relationship successfully established did:webvh:Qmbea...
-  Remote: c-did(did:webvh:Qmbea...) r-did(did:peer:2.Vz6Mkkop...)
-  Local: c-did(did:webvh:QmQzm...) r-did(did:peer:2.Vz6Mkgt...)
+  Remote: P-DID(did:webvh:Qmbea...) r-did(did:peer:2.Vz6Mkkop...)
+  Local: P-DID(did:webvh:QmQzm...) r-did(did:peer:2.Vz6Mkgt...)
 Task Id: 020bb98e-5460-4d42-b369-bf4a65b4909c Type: Relationship request finalized
 ```
 
 ## Request Verifiable Relationship Credential (VRC)
 
-A VRC is a peer-to-peer credential that attests to verifiable trust relationships between C-DIDs (e.g., coworkers, peers, or community members).
+A VRC is a peer-to-peer credential that attests to verifiable trust relationships between P-DIDs (e.g., coworkers, peers, or community members).
 
 ### Prerequisite
 

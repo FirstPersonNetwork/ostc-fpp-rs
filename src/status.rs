@@ -73,18 +73,18 @@ pub async fn print_status(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>,
 
     pub_config.status();
 
-    // Check Community DID Resolution status
+    // Check Persona DID Resolution status
     println!();
     print!(
         "{}{}{}",
-        style("Resolving Community DID (").color256(CLI_BLUE),
-        style(&pub_config.community_did).color256(CLI_PURPLE),
+        style("Resolving Persona DID (").color256(CLI_BLUE),
+        style(&pub_config.persona_did).color256(CLI_PURPLE),
         style(")...").color256(CLI_BLUE)
     );
     let _ = term.hide_cursor();
     let _ = term.flush();
 
-    match tdk.did_resolver().resolve(&pub_config.community_did).await {
+    match tdk.did_resolver().resolve(&pub_config.persona_did).await {
         Ok(result) => {
             let _ = term.show_cursor();
             println!(
@@ -93,7 +93,7 @@ pub async fn print_status(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>,
             );
 
             // Check that DID ID's match as expected
-            if result.doc.id.as_str() == pub_config.community_did.as_str() {
+            if result.doc.id.as_str() == pub_config.persona_did.as_str() {
                 println!(
                     "{} {}",
                     style("Resolved DID matches ID in config?").color256(CLI_BLUE),
@@ -103,7 +103,7 @@ pub async fn print_status(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>,
                 println!(
                     "{} {}",
                     style("ERROR: Resolved DID ID does not match!").color256(CLI_RED),
-                    style(format!("Expected ({})", &pub_config.community_did)).color256(CLI_ORANGE)
+                    style(format!("Expected ({})", &pub_config.persona_did)).color256(CLI_ORANGE)
                 );
                 println!(
                     "{}",
