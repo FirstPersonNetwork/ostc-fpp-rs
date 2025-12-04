@@ -4,7 +4,7 @@
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_PURPLE, LF_PUBLIC_MEDIATOR_DID,
     config::{
-        PersonaDID, Config, KeyTypes,
+        Config, KeyTypes, PersonaDID,
         private_config::PrivateConfig,
         public_config::PublicConfig,
         secured_config::{KeyInfoConfig, KeySourceMaterial, ProtectionMethod},
@@ -141,18 +141,18 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
     };
 
     // Creating new Secrets for the Persona DID
-    let mut c_did_keys = create_keys(&mnemonic, &imported_keys)?;
+    let mut p_did_keys = create_keys(&mnemonic, &imported_keys)?;
 
     // Export this as an armored PGP Keyfile?
     if imported_keys.is_empty() {
-        ask_export_persona_did_keys(term, &c_did_keys, None, None, true);
+        ask_export_persona_did_keys(term, &p_did_keys, None, None, true);
     }
 
     // Use hardware token?
     #[cfg(feature = "openpgp-card")]
     let token_id = {
         let mut admin_pin = AdminPin::default();
-        setup_hardware_token(term, &mut admin_pin, &c_did_keys)?
+        setup_hardware_token(term, &mut admin_pin, &p_did_keys)?
     };
     #[cfg(not(feature = "openpgp-card"))]
     let token_id = None;
@@ -170,9 +170,9 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
     let mediator_did = change_mediator();
 
     // Create a DID - will also rename the P-DID Keys with the right key-IDS
-    let c_did = did_setup(
+    let p_did = did_setup(
         get_bip32_root(mnemonic.to_entropy().as_slice())?,
-        &mut c_did_keys,
+        &mut p_did_keys,
         &mediator_did,
         imported_bip32,
     )
@@ -181,26 +181,26 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
     // Create Configuration
     let mut key_info = HashMap::new();
     key_info.insert(
-        c_did_keys.signing.secret.id.clone(),
+        p_did_keys.signing.secret.id.clone(),
         KeyInfoConfig {
-            path: c_did_keys.signing.source.clone(),
-            create_time: c_did_keys.signing.created,
+            path: p_did_keys.signing.source.clone(),
+            create_time: p_did_keys.signing.created,
             purpose: KeyTypes::PersonaSigning,
         },
     );
     key_info.insert(
-        c_did_keys.authentication.secret.id.clone(),
+        p_did_keys.authentication.secret.id.clone(),
         KeyInfoConfig {
-            path: c_did_keys.authentication.source.clone(),
-            create_time: c_did_keys.authentication.created,
+            path: p_did_keys.authentication.source.clone(),
+            create_time: p_did_keys.authentication.created,
             purpose: KeyTypes::PersonaAuthentication,
         },
     );
     key_info.insert(
-        c_did_keys.decryption.secret.id.clone(),
+        p_did_keys.decryption.secret.id.clone(),
         KeyInfoConfig {
-            path: c_did_keys.decryption.source.clone(),
-            create_time: c_did_keys.decryption.created,
+            path: p_did_keys.decryption.source.clone(),
+            create_time: p_did_keys.decryption.created,
             purpose: KeyTypes::PersonaEncryption,
         },
     );
@@ -224,7 +224,7 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
         bip32_seed: SecretString::new(BASE64_URL_SAFE_NO_PAD.encode(mnemonic.to_entropy())),
         public: PublicConfig {
             token_id,
-            persona_did: c_did.did.clone(),
+            persona_did: p_did.did.clone(),
             unlock_code: unlock_code.is_some(),
             mediator_did: mediator_did.clone(),
             private: None,
@@ -240,12 +240,12 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
         },
         private: PrivateConfig::default(),
         persona_did: PersonaDID {
-            document: c_did.document,
+            document: p_did.document,
             profile: Arc::new(
                 ATMProfile::new(
                     tdk.atm.as_ref().unwrap(),
                     Some("Persona DID".to_string()),
-                    c_did.did.to_string(),
+                    p_did.did.to_string(),
                     Some(mediator_did.clone()),
                 )
                 .await?,

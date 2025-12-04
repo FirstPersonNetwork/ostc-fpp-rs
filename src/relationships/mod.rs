@@ -269,8 +269,8 @@ impl Relationships {
     }
 
     /// Gets a relationship using the remote P-DID key
-    pub fn get(&self, c_did: &Rc<String>) -> Option<Rc<Mutex<Relationship>>> {
-        self.relationships.get(c_did).cloned()
+    pub fn get(&self, p_did: &Rc<String>) -> Option<Rc<Mutex<Relationship>>> {
+        self.relationships.get(p_did).cloned()
     }
 
     /// Finds a relationship by it's task ID
