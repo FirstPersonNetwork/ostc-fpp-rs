@@ -16,7 +16,7 @@ use anyhow::{Result, bail};
 use chrono::Utc;
 use console::style;
 use dialoguer::{Confirm, Input, theme::ColorfulTheme};
-use lkmv::relationships::RelationshipAcceptBody;
+use lkmv::relationships::create_send_message_accepted;
 use serde_json::json;
 use std::{rc::Rc, sync::Mutex, time::SystemTime};
 use uuid::Uuid;
@@ -86,35 +86,13 @@ impl Config {
         }
 
         // Create the DIDComm message
-        let msg = create_message_accepted(&self.public.persona_did, from, &r_did, task_id)?;
-
-        let atm = tdk.atm.clone().unwrap();
-
-        // Pack the message
-        let (msg, _) = msg
-            .pack_encrypted(
-                from,
-                Some(&self.public.persona_did),
-                Some(&self.public.persona_did),
-                tdk.did_resolver(),
-                &tdk.get_shared_state().secrets_resolver,
-                &PackEncryptedOptions {
-                    forward: false,
-                    ..Default::default()
-                },
-            )
-            .await?;
-
-        atm.forward_and_send_message(
+        create_send_message_accepted(
+            tdk.atm.as_ref().unwrap(),
             &self.persona_did.profile,
-            false,
-            &msg,
-            None,
-            &self.public.mediator_did,
             from,
-            None,
-            None,
-            false,
+            &self.public.mediator_did,
+            &r_did,
+            task_id,
         )
         .await?;
 
@@ -369,35 +347,6 @@ impl Config {
 
         Ok(())
     }
-}
-
-/// DIDComm message for when a relationship request has been accepted
-fn create_message_accepted(
-    from: &str,
-    to: &str,
-    r_did: &Rc<String>,
-    task_id: &Rc<String>,
-) -> Result<Message> {
-    let now = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-
-    let message = Message::build(
-        Uuid::new_v4().into(),
-        "https://linuxfoundation.org/lkmv/1.0/relationship-request-accept".to_string(),
-        json!(RelationshipAcceptBody {
-            did: r_did.to_string()
-        }),
-    )
-    .from(from.to_string())
-    .to(to.to_string())
-    .thid(task_id.to_string())
-    .created_time(now)
-    .expires_time(60 * 60 * 48) // 48 hours
-    .finalize();
-
-    Ok(message)
 }
 
 /// DIDComm final message for when a relationship request has been accepted by all parties

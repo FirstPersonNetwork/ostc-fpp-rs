@@ -16,7 +16,9 @@ use chrono::{DateTime, Utc};
 use clap::Parser;
 use lkmv::{
     MessageType,
-    relationships::{RelationshipRequestBody, create_send_message_rejected},
+    relationships::{
+        RelationshipRequestBody, create_send_message_accepted, create_send_message_rejected,
+    },
 };
 use tokio::select;
 use tracing::{info, warn};
@@ -161,7 +163,7 @@ async fn handle_message(
                         Ok(b) => b,
                         Err(e) => {
                             warn!(
-                                "{}: Couldn't serialize relationship request body",
+                                "{}: Couldn't serialize relationship request body: {e}",
                                 to_profile.inner.alias
                             );
                             return;
@@ -172,12 +174,45 @@ async fn handle_message(
                     // Requestor is asking for a relationship-did wrapped channel which we don't
                     // support
 
-                    match create_send_message_rejected(atm, &to_profile, &from_did, &mediator, Some(&format!("Sorry, {} doesn't accept r-did based relationships. Only Persona-DID level relationships are allowed!", &to_profile.inner.alias)), &message.id).await {
+                    match create_send_message_rejected(atm, &to_profile, &from_did, mediator, Some(&format!("Sorry, {} doesn't accept r-did based relationships. Only Persona-DID level relationships are allowed!", &to_profile.inner.alias)), &message.id).await {
                         Ok(_) => info!("{}: Rejected a relationship due to using r-dids. Remote: {}", to_profile.inner.alias, &from_did),
                         Err(e) => warn!("{}: Couldn't send a relationship rejection message: {}", to_profile.inner.alias, e),
                     }
                 } else {
+                    // Accept and send a relationship request accept message
+                    match create_send_message_accepted(
+                        atm,
+                        &to_profile,
+                        &from_did,
+                        mediator,
+                        &to_profile.inner.did,
+                        &message.id,
+                    )
+                    .await
+                    {
+                        Ok(_) => info!(
+                            "{}: Accepted a relationship from: {}",
+                            to_profile.inner.alias, &from_did
+                        ),
+                        Err(e) => warn!(
+                            "{}: Couldn't send a relationship accept message: {}",
+                            to_profile.inner.alias, e
+                        ),
+                    }
+
+                    relationships.insert(
+                        from_did,
+                        Relationship {
+                            created: Utc::now(),
+                        },
+                    );
                 }
+            }
+            MessageType::RelationshipRequestFinalize => {
+                info!(
+                    "{}: Relationship setup fully completed with: {}",
+                    &to_profile.inner.alias, &from_did
+                );
             }
             _ => {
                 // Is a message type that we are not interested in. Can safely ignore
