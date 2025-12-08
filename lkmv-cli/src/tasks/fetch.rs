@@ -6,7 +6,6 @@ use crate::{
     interactions::vrc::handle_inbound_vrc_issued,
     log::LogFamily,
     messaging::{handle_inbound_ping, handle_inbound_pong},
-    relationships::{RelationshipAcceptBody, RelationshipRejectBody},
     tasks::TaskType,
 };
 use affinidi_tdk::{
@@ -18,7 +17,11 @@ use affinidi_tdk::{
 };
 use anyhow::{Result, anyhow};
 use console::{Term, style};
-use lkmv::{MessageType, vrc::VRCRequestReject};
+use lkmv::{
+    MessageType,
+    relationships::{RelationshipAcceptBody, RelationshipRejectBody},
+    vrc::VRCRequestReject,
+};
 
 /// Fetches tasks from the DIDComm mediator and returns the number of new tasks retrieved
 pub async fn fetch_tasks(

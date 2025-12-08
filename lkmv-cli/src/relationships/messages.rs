@@ -6,10 +6,7 @@ use crate::{
     CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
     config::Config,
     log::LogFamily,
-    relationships::{
-        Relationship, RelationshipRejectBody, RelationshipRequestBody, RelationshipState,
-        create_relationship_did,
-    },
+    relationships::{Relationship, RelationshipState, create_relationship_did},
     tasks::TaskType,
 };
 use affinidi_tdk::{
@@ -19,6 +16,7 @@ use affinidi_tdk::{
 use anyhow::{Result, bail};
 use chrono::Utc;
 use console::style;
+use lkmv::relationships::{RelationshipRequestBody, create_send_message_rejected};
 use serde_json::json;
 use std::{rc::Rc, sync::Mutex, time::SystemTime};
 use uuid::Uuid;
@@ -205,36 +203,14 @@ pub async fn send_rejection(
     reason: Option<&str>,
     task_id: &Rc<String>,
 ) -> Result<()> {
-    let atm = tdk.atm.clone().unwrap();
-
     // Create the Relationship Request rejection Message
-    let msg = create_message_rejected(&config.public.persona_did, respondent, reason, task_id)?;
-
-    // Pack the message
-    let (msg, _) = msg
-        .pack_encrypted(
-            respondent,
-            Some(&config.public.persona_did),
-            Some(&config.public.persona_did),
-            tdk.did_resolver(),
-            &tdk.get_shared_state().secrets_resolver,
-            &PackEncryptedOptions {
-                forward: false,
-                ..Default::default()
-            },
-        )
-        .await?;
-
-    atm.forward_and_send_message(
+    create_send_message_rejected(
+        tdk.atm.as_ref().unwrap(),
         &config.persona_did.profile,
-        false,
-        &msg,
-        None,
-        &config.public.mediator_did,
         respondent,
-        None,
-        None,
-        false,
+        &config.public.mediator_did,
+        reason,
+        task_id,
     )
     .await?;
 
@@ -254,32 +230,4 @@ pub async fn send_rejection(
     );
 
     Ok(())
-}
-
-fn create_message_rejected(
-    from: &str,
-    to: &str,
-    reason: Option<&str>,
-    task_id: &Rc<String>,
-) -> Result<Message> {
-    let now = SystemTime::now()
-        .duration_since(SystemTime::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-
-    let message = Message::build(
-        Uuid::new_v4().into(),
-        "https://linuxfoundation.org/lkmv/1.0/relationship-request-reject".to_string(),
-        json!(RelationshipRejectBody {
-            reason: reason.map(|r| r.to_string())
-        }),
-    )
-    .from(from.to_string())
-    .to(to.to_string())
-    .thid(task_id.to_string())
-    .created_time(now)
-    .expires_time(60 * 60 * 48) // 48 hours
-    .finalize();
-
-    Ok(message)
 }

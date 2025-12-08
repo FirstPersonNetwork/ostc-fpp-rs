@@ -7,13 +7,14 @@ use crate::{
         interact_vrc_inbound, interact_vrc_inbound_request, interact_vrc_outbound_request,
     },
     log::LogFamily,
-    relationships::{RelationshipRequestBody, messages::send_rejection},
+    relationships::messages::send_rejection,
     tasks::{Task, TaskType, Tasks},
 };
 use affinidi_tdk::TDK;
 use anyhow::Result;
 use console::style;
 use dialoguer::{Confirm, Input, Select, theme::ColorfulTheme};
+use lkmv::relationships::RelationshipRequestBody;
 
 impl Tasks {
     /// Console interaction for this task

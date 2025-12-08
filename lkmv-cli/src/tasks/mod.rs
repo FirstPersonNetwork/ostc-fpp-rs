@@ -3,9 +3,7 @@
 */
 
 use crate::{
-    CLI_BLUE, CLI_ORANGE, CLI_PURPLE, CLI_RED,
-    config::Config,
-    relationships::{Relationship, RelationshipRequestBody},
+    CLI_BLUE, CLI_ORANGE, CLI_PURPLE, CLI_RED, config::Config, relationships::Relationship,
     tasks::fetch::fetch_tasks,
 };
 use affinidi_tdk::{TDK, messaging::profiles::ATMProfile};
@@ -14,7 +12,10 @@ use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use console::{StyledObject, Term, style};
 use dialoguer::{Select, theme::ColorfulTheme};
-use lkmv::vrc::{Vrc, VrcRequest};
+use lkmv::{
+    relationships::RelationshipRequestBody,
+    vrc::{Vrc, VrcRequest},
+};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,

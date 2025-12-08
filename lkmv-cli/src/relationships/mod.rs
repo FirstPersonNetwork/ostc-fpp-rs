@@ -74,30 +74,6 @@ impl Display for RelationshipState {
 }
 
 // ****************************************************************************
-// Message Body Structure types
-// ****************************************************************************
-
-/// DIDComm message body sent to the remote party when requesting a relationship
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct RelationshipRequestBody {
-    pub reason: Option<String>,
-    pub did: String,
-}
-
-/// DIDComm message body sent to the initiator of a relationship request when the request is
-/// rejected
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct RelationshipRejectBody {
-    pub reason: Option<String>,
-}
-
-/// Body of a Relationship Rquest accept message
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct RelationshipAcceptBody {
-    pub did: String,
-}
-
-// ****************************************************************************
 // Relationships
 // ****************************************************************************
 

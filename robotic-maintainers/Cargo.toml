@@ -12,9 +12,16 @@ repository.workspace = true
 
 [dependencies]
 lkmv.workspace = true
+affinidi-tdk.workspace = true
 
 anyhow.workspace = true
+chrono.workspace = true
+clap.workspace = true
+serde.workspace = true
+serde_json.workspace = true
 tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
 
 [[bin]]
 name = "robotic-maintainers"

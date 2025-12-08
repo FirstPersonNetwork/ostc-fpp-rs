@@ -6,9 +6,7 @@ use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE,
     config::Config,
     log::LogFamily,
-    relationships::{
-        Relationship, RelationshipAcceptBody, RelationshipState, create_relationship_did,
-    },
+    relationships::{Relationship, RelationshipState, create_relationship_did},
 };
 use affinidi_tdk::{
     TDK,
@@ -18,6 +16,7 @@ use anyhow::{Result, bail};
 use chrono::Utc;
 use console::style;
 use dialoguer::{Confirm, Input, theme::ColorfulTheme};
+use lkmv::relationships::RelationshipAcceptBody;
 use serde_json::json;
 use std::{rc::Rc, sync::Mutex, time::SystemTime};
 use uuid::Uuid;

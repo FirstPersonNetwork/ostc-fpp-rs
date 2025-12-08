@@ -7,6 +7,7 @@ use affinidi_tdk::didcomm::Message;
 use serde::{Deserialize, Serialize};
 
 pub mod errors;
+pub mod relationships;
 pub mod vrc;
 
 /// Defined Message Types for LKMV

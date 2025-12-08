@@ -1,5 +1,5 @@
 [workspace]
-members = ["lkmv", "robotic-maintainers"]
+members = ["lkmv", "lkmv-cli", "robotic-maintainers"]
 resolver = "3"
 
 [workspace.package]
@@ -12,7 +12,7 @@ authors = ["Glenn Gore <glenn@affinidi.com>"]
 rust-version = "1.88.0"
 readme = "README.md"
 license = "Apache-2.0"
-repository = "https://github.com/FirstPersonNetwork/lkmv"
+repository = "https://github.com/FirstPersonNetwork/lkmv-rs"
 
 [workspace.dependencies]
 lkmv = { version = "0.1.0", path = "lkmv" }
@@ -48,6 +48,7 @@ sha2 = "0.10"
 sysinfo = "0.37"
 thiserror = "2.0"
 tokio = "1.48"
+tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 url = "2.5"
 uuid = { version = "1.18", features = ["v4", "fast-rng"] }
