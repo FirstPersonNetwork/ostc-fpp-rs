@@ -89,6 +89,11 @@ fn interact_relationship_outbound(
                 .interact()?
             {
                 config.private.tasks.remove(&task_id);
+                config.private.relationships.remove(
+                    &to,
+                    &mut config.private.vrcs_issued,
+                    &mut config.private.vrcs_received,
+                );
                 config.public.logs.insert(
                     LogFamily::Task,
                     format!(
