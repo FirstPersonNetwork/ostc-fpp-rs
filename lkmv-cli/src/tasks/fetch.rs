@@ -172,7 +172,11 @@ pub async fn fetch_tasks(
                             continue;
                         }
                         (
-                            style("Relationship request rejected".to_string()).color256(CLI_ORANGE),
+                            style(format!(
+                                "Relationship request rejected. Reason: {}",
+                                body.reason.unwrap_or("None given".to_string())
+                            ))
+                            .color256(CLI_ORANGE),
                             TaskType::RelationshipRequestRejected,
                         )
                     }
