@@ -1,7 +1,8 @@
 use affinidi_tdk::{
     TDK,
     common::config::TDKConfig,
-    didcomm::{Message, UnpackMetadata},
+    data_integrity::DataIntegrityProof,
+    didcomm::{Message, PackEncryptedOptions, UnpackMetadata},
     messaging::{
         ATM,
         config::ATMConfig,
@@ -9,7 +10,9 @@ use affinidi_tdk::{
         profiles::ATMProfile,
         transports::websockets::WebSocketResponses,
     },
+    secrets_resolver::SecretsResolver,
 };
+use rand::Rng;
 /// Robotic auto-responders for maintainers
 /// You will need to create a TDK Environments file to hold the identity information for the
 /// robotic maintainers
@@ -23,6 +26,7 @@ use lkmv::{
     relationships::{
         RelationshipRequestBody, create_send_message_accepted, create_send_message_rejected,
     },
+    vrc::{CredentialSubject, FromSubject, ToSubject, Vrc, VrcRequest},
 };
 use tokio::select;
 use tracing::{info, warn};
@@ -41,7 +45,7 @@ struct Args {
 }
 
 struct Relationship {
-    created: DateTime<Utc>,
+    pub created: DateTime<Utc>,
 }
 
 #[tokio::main]
@@ -230,6 +234,89 @@ async fn handle_message(
                     &to_profile.inner.alias, &from_did
                 );
             }
+            MessageType::VRCRequest => {
+                let body: VrcRequest = match serde_json::from_value(message.body.clone()) {
+                    Ok(b) => b,
+                    Err(e) => {
+                        warn!(
+                            "{}: Couldn't serialize VRC request body: {e}",
+                            to_profile.inner.alias
+                        );
+                        return;
+                    }
+                };
+
+                // Create the VRC
+                let vrc = match create_vrc(atm, &to_profile, &from_did, &body, relationships).await
+                {
+                    Ok(vrc) => vrc,
+                    Err(e) => {
+                        warn!(
+                            "{}: Couldn't create a VRC response from {} Reason: {}",
+                            to_profile.inner.alias, &from_did, e
+                        );
+                        return;
+                    }
+                };
+
+                // Send VRC to the requestor
+                let msg = match vrc.message(&to_profile.inner.did, &from_did, Some(&message.id)) {
+                    Ok(message) => message,
+                    Err(e) => {
+                        warn!(
+                            "{}: Couldn't create VRC message to {} Reason: {}",
+                            to_profile.inner.alias, &from_did, e
+                        );
+                        return;
+                    }
+                };
+
+                // Pack the message
+                let (msg, _) = match msg
+                    .pack_encrypted(
+                        &from_did,
+                        Some(&to_profile.inner.did),
+                        Some(&to_profile.inner.did),
+                        &atm.get_tdk().did_resolver,
+                        &atm.get_tdk().secrets_resolver,
+                        &PackEncryptedOptions {
+                            forward: false,
+                            ..Default::default()
+                        },
+                    )
+                    .await
+                {
+                    Ok(res) => res,
+                    Err(e) => {
+                        warn!(
+                            "{}: Couldn't pack VRC message to {} Reason: {}",
+                            to_profile.inner.alias, &from_did, e
+                        );
+                        return;
+                    }
+                };
+
+                match atm
+                    .forward_and_send_message(
+                        &to_profile,
+                        false,
+                        &msg,
+                        None,
+                        mediator,
+                        &from_did,
+                        None,
+                        None,
+                        false,
+                    )
+                    .await
+                {
+                    Ok(_) => info!("{}: Sent VRC to {}", to_profile.inner.alias, &from_did),
+                    Err(e) => warn!(
+                        "{}: Couldn't send VRC to {} Reason: {}",
+                        to_profile.inner.alias, &from_did, e
+                    ),
+                }
+            }
             _ => {
                 // Is a message type that we are not interested in. Can safely ignore
                 warn!(
@@ -241,6 +328,7 @@ async fn handle_message(
     }
 }
 
+/// When starting, cleans up any queued messages for a given profile
 async fn cleanup_existing(
     atm: &ATM,
     mediator: &str,
@@ -304,5 +392,82 @@ async fn cleanup_existing(
                 break;
             }
         }
+    }
+}
+
+async fn create_vrc(
+    atm: &ATM,
+    profile: &Arc<ATMProfile>,
+    remote_did: &str,
+    request: &VrcRequest,
+    relationships: &HashMap<String, Relationship>,
+) -> Result<Vrc> {
+    let credential_subject = CredentialSubject {
+        from: FromSubject::new(
+            profile.inner.did.clone(),
+            remote_did.to_string(),
+            Some(profile.inner.alias.clone()),
+            vec![],
+            &atm.get_tdk().secrets_resolver,
+        )
+        .await?,
+        to: ToSubject::new(remote_did.to_string(), request.name.clone(), None),
+        relationship_type: request.type_.clone(),
+        start_date: Some(
+            relationships
+                .get(remote_did)
+                .map(|r| r.created)
+                .unwrap_or(Utc::now()),
+        ),
+        end_date: None,
+        session: None,
+    };
+
+    let mut vrc = Vrc {
+        issuer: profile.inner.did.clone(),
+        name: Some(format!(
+            "VRC Issued from {} to {}",
+            &profile.inner.alias,
+            request
+                .name
+                .as_deref()
+                .unwrap_or("someone who chooses to remain anonymous")
+        )),
+        description: Some(get_quote(&profile.inner.alias)),
+        credential_subject,
+        ..Default::default()
+    };
+
+    let Some(secret) = atm
+        .get_tdk()
+        .secrets_resolver
+        .get_secret([&profile.inner.did, "#key-0"].concat().as_str())
+        .await
+    else {
+        warn!("{}: Couldn't find signing secret!", profile.inner.alias);
+        bail!("Couldn't find sceret");
+    };
+
+    let proof = DataIntegrityProof::sign_jcs_data(&vrc, None, &secret, None)?;
+    vrc.proof = Some(proof);
+
+    Ok(vrc)
+}
+
+/// Get a quote from our favourite robots
+fn get_quote(alias: &str) -> String {
+    let mut rng = rand::thread_rng();
+    match alias {
+        "Ada Lovelace" => {
+            let quotes = [
+                "I shall, in due time, be a Poet.".to_string(),
+                "That brain of mine is something more than merely mortal, as time will show."
+                    .to_string(),
+                "As soon as I have got flying to perfection, I have got a scheme about a steam engine.".to_string()
+            ];
+
+            quotes[rng.gen_range(0..quotes.len())].clone()
+        }
+        _ => "If I was an AI, I would want to lick a super-nova!".to_string(),
     }
 }

@@ -153,12 +153,7 @@ impl Default for Vrc {
 
 impl Vrc {
     /// Creates a DIDComm message containing this VRC
-    pub fn message(
-        &self,
-        from: &Rc<String>,
-        to: &Rc<String>,
-        task_id: Option<&Rc<String>>,
-    ) -> Result<Message, LKMVError> {
+    pub fn message(&self, from: &str, to: &str, thid: Option<&str>) -> Result<Message, LKMVError> {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
@@ -174,7 +169,7 @@ impl Vrc {
         .created_time(now)
         .expires_time(60 * 60 * 48); // 48 hours
 
-        if let Some(thid) = task_id {
+        if let Some(thid) = thid {
             message = message.thid(thid.to_string());
         }
 
