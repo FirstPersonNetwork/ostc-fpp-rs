@@ -1,0 +1,21 @@
+[package]
+name = "robotic-maintainers"
+description = "Robotic Maintainers for LKMV"
+version.workspace = true
+edition.workspace = true
+publish.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+readme = "README.md"
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+lkmv.workspace = true
+
+anyhow.workspace = true
+tokio.workspace = true
+
+[[bin]]
+name = "robotic-maintainers"
+path = "src/main.rs"

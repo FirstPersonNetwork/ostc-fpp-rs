@@ -3420,7 +3420,7 @@ dependencies = [
  "serde_json_canonicalizer",
  "sha2 0.10.9",
  "sysinfo",
- "thiserror 1.0.69",
+ "thiserror 2.0.17",
  "tokio",
  "tracing-subscriber",
  "url",
@@ -4704,6 +4704,15 @@ dependencies = [
  "block-buffer 0.9.0",
  "digest 0.9.0",
  "opaque-debug",
+]
+
+[[package]]
+name = "robotic-maintainers"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "lkmv",
+ "tokio",
 ]
 
 [[package]]
