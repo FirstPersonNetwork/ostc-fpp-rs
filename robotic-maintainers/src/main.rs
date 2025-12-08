@@ -1,15 +1,19 @@
 use affinidi_tdk::{
     TDK,
     common::config::TDKConfig,
-    didcomm::Message,
+    didcomm::{Message, UnpackMetadata},
     messaging::{
-        ATM, config::ATMConfig, profiles::ATMProfile, transports::websockets::WebSocketResponses,
+        ATM,
+        config::ATMConfig,
+        messages::{FetchDeletePolicy, fetch::FetchOptions},
+        profiles::ATMProfile,
+        transports::websockets::WebSocketResponses,
     },
 };
 /// Robotic auto-responders for maintainers
 /// You will need to create a TDK Environments file to hold the identity information for the
 /// robotic maintainers
-use std::{collections::HashMap, env};
+use std::{collections::HashMap, env, sync::Arc};
 
 use anyhow::{Result, bail};
 use chrono::{DateTime, Utc};
@@ -103,19 +107,25 @@ async fn main() -> Result<()> {
     };
 
     let atm_ada = atm
-        .profile_add(&ATMProfile::from_tdk_profile(&atm, tdk_ada).await?, true)
+        .profile_add(&ATMProfile::from_tdk_profile(&atm, tdk_ada).await?, false)
         .await?;
     info!("{} profile loaded", atm_ada.inner.alias);
 
     // Create an in-memory cache of relationships for incoming requests
     let mut relationships: HashMap<String, Relationship> = HashMap::new();
 
+    // Clean up any existing messages in all profiles
+    cleanup_existing(&atm, mediator_did, &atm_ada, &mut relationships).await;
+
+    // Enable websocket live streaming
+    let _ = atm.profile_enable_websocket(&atm_ada).await;
+
     info!("Main loop running...");
     loop {
         select! {
             // Listen for inbound messages for all profiles
-            Ok(WebSocketResponses::MessageReceived(inbound_message, _)) = inbound_channel.recv() => {
-                handle_message( &atm, mediator_did, &inbound_message, &mut relationships).await;
+            Ok(WebSocketResponses::MessageReceived(inbound_message, meta)) = inbound_channel.recv() => {
+                handle_message( &atm, mediator_did, &inbound_message, &meta, &mut relationships).await;
             }
 
         }
@@ -127,13 +137,9 @@ async fn handle_message(
     atm: &ATM,
     mediator: &str,
     message: &Message,
+    meta: &UnpackMetadata,
     relationships: &mut HashMap<String, Relationship>,
 ) {
-    if message.type_ == "https://didcomm.org/messagepickup/3.0/status" {
-        // Status message, ignore
-        return;
-    }
-
     let to_profile = if let Some(to) = &message.to
         && let Some(first) = to.first()
         && let Some(profile) = atm.find_profile(first).await
@@ -144,6 +150,11 @@ async fn handle_message(
         return;
     };
 
+    // Ensure we are cleaning up after ourselves
+    let _ = atm
+        .delete_message_background(&to_profile, &meta.sha256_hash)
+        .await;
+
     let from_did = if let Some(from) = &message.from {
         from.to_string()
     } else {
@@ -153,6 +164,11 @@ async fn handle_message(
         );
         return;
     };
+
+    if message.type_ == "https://didcomm.org/messagepickup/3.0/status" {
+        // Status message, ignore
+        return;
+    }
 
     if let Ok(msg_type) = MessageType::try_from(message) {
         match msg_type {
@@ -220,6 +236,72 @@ async fn handle_message(
                     "{}: Unknown Message: {:#?}",
                     to_profile.inner.alias, message
                 );
+            }
+        }
+    }
+}
+
+async fn cleanup_existing(
+    atm: &ATM,
+    mediator: &str,
+    profile: &Arc<ATMProfile>,
+    relationships: &mut HashMap<String, Relationship>,
+) {
+    info!(
+        "Cleaning up existing messages for profile: {}",
+        profile.inner.alias
+    );
+
+    loop {
+        let messages = atm
+            .fetch_messages(
+                profile,
+                &FetchOptions {
+                    limit: 50,
+                    delete_policy: FetchDeletePolicy::Optimistic,
+                    ..Default::default()
+                },
+            )
+            .await;
+
+        match messages {
+            Ok(msgs) => {
+                if msgs.success.is_empty() {
+                    info!(
+                        "No existing messages found for profile: {}",
+                        profile.inner.alias
+                    );
+                    break;
+                }
+
+                for message in msgs.success {
+                    let (msg, meta) = if let Some(msg) = &message.msg {
+                        match atm.unpack(msg).await {
+                            Ok((msg, meta)) => (msg, meta),
+                            Err(e) => {
+                                warn!(
+                                    "{}: Couldn't unpack message. Reason: {e}",
+                                    &profile.inner.alias
+                                );
+                                continue;
+                            }
+                        }
+                    } else {
+                        warn!(
+                            "{}: Downloaded a message, but there was no message...",
+                            profile.inner.alias
+                        );
+                        continue;
+                    };
+                    handle_message(atm, mediator, &msg, &meta, relationships).await;
+                }
+            }
+            Err(e) => {
+                warn!(
+                    "Error fetching existing messages for profile: {}: {}",
+                    profile.inner.alias, e
+                );
+                break;
             }
         }
     }
