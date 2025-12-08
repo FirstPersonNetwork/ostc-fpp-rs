@@ -32,7 +32,9 @@ pub mod interact;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[non_exhaustive]
 pub enum TaskType {
-    RelationshipRequestOutbound,
+    RelationshipRequestOutbound {
+        to: Rc<String>,
+    },
     RelationshipRequestInbound {
         from: Rc<String>,
         to: Rc<String>,
@@ -63,7 +65,7 @@ pub enum TaskType {
 impl Display for TaskType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let friendly_name = match self {
-            TaskType::RelationshipRequestOutbound => "Relationship Request (Outbound)",
+            TaskType::RelationshipRequestOutbound { .. } => "Relationship Request (Outbound)",
             TaskType::RelationshipRequestInbound { .. } => "Relationship Request (Inbound)",
             TaskType::RelationshipRequestRejected => "Relationship Request Rejected",
             TaskType::RelationshipRequestAccepted => "Relationship Request Accepted",

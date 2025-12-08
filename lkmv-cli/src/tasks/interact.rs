@@ -40,12 +40,68 @@ impl Tasks {
             TaskType::VRCRequestOutbound { relationship } => {
                 interact_vrc_outbound_request(config, task, &relationship)?
             }
+            TaskType::RelationshipRequestOutbound { to } => {
+                interact_relationship_outbound(config, task, to)?
+            }
             TaskType::VRCIssued { vrc } => interact_vrc_inbound(config, task, vrc)?,
             _ => {
                 // Do nothing
                 false
             }
         })
+    }
+}
+
+/// Manage a outbound relationship request that is in process
+/// All you can really do here is wait or delete it
+fn interact_relationship_outbound(
+    config: &mut Config,
+    task: &Rc<Mutex<Task>>,
+    to: Rc<String>,
+) -> Result<bool> {
+    let task_id = { task.lock().unwrap().id.clone() };
+
+    println!();
+    println!(
+        "{}{} {}{}",
+        style("Task ID: ").color256(CLI_BLUE),
+        style(&task_id).color256(CLI_PURPLE),
+        style("Type: ").color256(CLI_BLUE),
+        style("Outbound Relationship Request").color256(CLI_PURPLE)
+    );
+
+    println!(
+        "{}{}",
+        style("To: ").color256(CLI_BLUE),
+        style(&to).color256(CLI_PURPLE)
+    );
+
+    match Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("Task Action?")
+        .item("Delete this Relationship request (Does not notify the other party)")
+        .item("Return to previous menu?")
+        .interact()?
+    {
+        0 => {
+            if Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt("Are you sure you want to DELETE this Relationship request?")
+                .default(false)
+                .interact()?
+            {
+                config.private.tasks.remove(&task_id);
+                config.public.logs.insert(
+                    LogFamily::Task,
+                    format!(
+                        "Deleted Relationship request to remote DID({}) Task ID({})",
+                        to, task_id
+                    ),
+                );
+                Ok(true)
+            } else {
+                Ok(false)
+            }
+        }
+        _ => Ok(false),
     }
 }
 
@@ -77,7 +133,7 @@ async fn interact_relationship_request(
 
     print!(
         "{}",
-        style("Rquesting to use random relationship DID?").color256(CLI_BLUE)
+        style("Requesting to use random relationship DID?").color256(CLI_BLUE)
     );
 
     if request.did == from.as_str() {

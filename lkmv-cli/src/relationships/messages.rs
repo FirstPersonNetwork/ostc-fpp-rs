@@ -139,10 +139,12 @@ pub async fn create_send_request(
         })),
     );
 
-    config
-        .private
-        .tasks
-        .new_task(&msg_id, TaskType::RelationshipRequestOutbound);
+    config.private.tasks.new_task(
+        &msg_id,
+        TaskType::RelationshipRequestOutbound {
+            to: contact.did.clone(),
+        },
+    );
 
     println!();
     println!(
