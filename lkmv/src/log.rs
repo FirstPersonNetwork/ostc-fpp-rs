@@ -2,13 +2,11 @@
 *  Manages a log of messages that can be helpfuil to see what has happened in the past.
 */
 
-use std::{collections::VecDeque, fmt::Display};
-
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE};
 use chrono::Utc;
 use console::style;
 use serde::{Deserialize, Serialize};
-
-use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE};
+use std::{collections::VecDeque, fmt::Display};
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub enum LogFamily {

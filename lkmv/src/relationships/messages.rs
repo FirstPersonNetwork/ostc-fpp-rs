@@ -3,7 +3,7 @@
 */
 
 use crate::{
-    CLI_ORANGE, CLI_GREEN, CLI_PURPLE, CLI_RED,
+    CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
     config::Config,
     log::LogFamily,
     relationships::{
@@ -39,17 +39,19 @@ pub async fn create_send_request(
     generate_did: bool,
 ) -> Result<()> {
     // Check if the remote DID exists in contacts
-    let contact = if let Some(contact) = config.private.contacts.find_contact(respondent) { 
+    let contact = if let Some(contact) = config.private.contacts.find_contact(respondent) {
         // Filter and check if established relationship exists
-        if config.private.relationships.find_by_remote_did(&contact.did.clone().into())
+        if config
+            .private
+            .relationships
+            .find_by_remote_did(&contact.did)
             .as_ref()
             .map(|r| r.lock().unwrap().state == RelationshipState::Established)
-            .unwrap_or(false) {
-
+            .unwrap_or(false)
+        {
             println!(
                 "{} {}.",
-                style("You have already established a relationship with")
-                    .color256(CLI_ORANGE),
+                style("You have already established a relationship with").color256(CLI_ORANGE),
                 style(contact.alias.as_deref().unwrap_or(&contact.did)).color256(CLI_PURPLE),
             );
             bail!("Established relationship already exists.");

@@ -7,14 +7,14 @@ use crate::{
     config::Config,
     relationships::{Relationship, RelationshipRequestBody},
     tasks::fetch::fetch_tasks,
-    vrc::{Vrc, VrcRequest},
 };
-use affinidi_tdk::{TDK, didcomm::Message, messaging::profiles::ATMProfile};
+use affinidi_tdk::{TDK, messaging::profiles::ATMProfile};
 use anyhow::{Result, bail};
 use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use console::{StyledObject, Term, style};
 use dialoguer::{Select, theme::ColorfulTheme};
+use lkmv::vrc::{Vrc, VrcRequest};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -75,104 +75,6 @@ impl Display for TaskType {
             TaskType::VRCIssued { .. } => "VRC Issued",
         };
         write!(f, "{}", friendly_name)
-    }
-}
-
-/// Defined Message Types for LKMV
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[non_exhaustive]
-pub enum MessageType {
-    RelationshipRequest,
-    RelationshipRequestRejected,
-    RelationshipRequestAccepted,
-    RelationshipRequestFinalize,
-    TrustPing,
-    TrustPong,
-    VRCRequest,
-    VRCRequestRejected,
-    VRCIssued,
-}
-
-impl MessageType {
-    fn friendly_name(&self) -> String {
-        match self {
-            MessageType::RelationshipRequest => "Relationship Request",
-            MessageType::RelationshipRequestRejected => "Relationship Request Rejected",
-            MessageType::RelationshipRequestAccepted => "Relationship Request Accepted",
-            MessageType::RelationshipRequestFinalize => "Relationship Request Finalize",
-            MessageType::TrustPing => "Trust Ping (Send)",
-            MessageType::TrustPong => "Trust Pong (Receive)",
-            MessageType::VRCRequest => "VRC Request",
-            MessageType::VRCRequestRejected => "VRC Request Rejected",
-            MessageType::VRCIssued => "VRC Issued",
-        }
-        .to_string()
-    }
-}
-
-/// Convert TaskTypes to type string
-impl From<MessageType> for String {
-    fn from(value: MessageType) -> Self {
-        match value {
-            MessageType::RelationshipRequest => {
-                "https://linuxfoundation.org/lkmv/1.0/relationship-request".to_string()
-            }
-            MessageType::RelationshipRequestRejected => {
-                "https://linuxfoundation.org/lkmv/1.0/relationship-request-reject".to_string()
-            }
-            MessageType::RelationshipRequestAccepted => {
-                "https://linuxfoundation.org/lkmv/1.0/relationship-request-accept".to_string()
-            }
-            MessageType::RelationshipRequestFinalize => {
-                "https://linuxfoundation.org/lkmv/1.0/relationship-request-finalize".to_string()
-            }
-            MessageType::TrustPing => "https://didcomm.org/trust-ping/2.0/ping".to_string(),
-            MessageType::TrustPong => {
-                "https://didcomm.org/trust-ping/2.0/ping-response".to_string()
-            }
-            MessageType::VRCRequest => "https://firstperson.network/vrc/1.0/request".to_string(),
-            MessageType::VRCRequestRejected => {
-                "https://firstperson.network/vrc/1.0/rejected".to_string()
-            }
-            MessageType::VRCIssued => "https://firstperson.network/vrc/1.0/issued".to_string(),
-        }
-    }
-}
-
-/// Convert &str to a MessageType based on type URL
-impl TryFrom<&str> for MessageType {
-    type Error = anyhow::Error;
-
-    fn try_from(value: &str) -> Result<Self> {
-        match value {
-            "https://linuxfoundation.org/lkmv/1.0/relationship-request" => {
-                Ok(MessageType::RelationshipRequest)
-            }
-            "https://linuxfoundation.org/lkmv/1.0/relationship-request-reject" => {
-                Ok(MessageType::RelationshipRequestRejected)
-            }
-            "https://linuxfoundation.org/lkmv/1.0/relationship-request-accept" => {
-                Ok(MessageType::RelationshipRequestAccepted)
-            }
-            "https://linuxfoundation.org/lkmv/1.0/relationship-request-finalize" => {
-                Ok(MessageType::RelationshipRequestFinalize)
-            }
-            "https://didcomm.org/trust-ping/2.0/ping" => Ok(MessageType::TrustPing),
-            "https://didcomm.org/trust-ping/2.0/ping-response" => Ok(MessageType::TrustPong),
-            "https://firstperson.network/vrc/1.0/request" => Ok(MessageType::VRCRequest),
-            "https://firstperson.network/vrc/1.0/rejected" => Ok(MessageType::VRCRequestRejected),
-            "https://firstperson.network/vrc/1.0/issued" => Ok(MessageType::VRCIssued),
-            _ => bail!("Invalid Task Type: {}", value),
-        }
-    }
-}
-
-/// Convert a DIDComm message to a MessageType
-impl TryFrom<&Message> for MessageType {
-    type Error = anyhow::Error;
-
-    fn try_from(value: &Message) -> Result<Self> {
-        value.type_.as_str().try_into()
     }
 }
 

@@ -5,10 +5,10 @@
 use crate::{
     cli::cli,
     config::Config,
+    interactions::vrc::vrcs_entry,
     relationships::relationships_entry,
     setup::{cli_setup, pgp_export::ask_export_persona_did_keys},
     tasks::tasks_entry,
-    vrc::interact::vrcs_entry,
 };
 use affinidi_tdk::{TDK, common::config::TDKConfigBuilder};
 use anyhow::{Context, Result, bail};
@@ -24,6 +24,7 @@ use tracing_subscriber::EnvFilter;
 mod cli;
 mod config;
 mod contacts;
+mod interactions;
 mod log;
 mod messaging;
 #[cfg(feature = "openpgp-card")]
@@ -32,7 +33,6 @@ mod relationships;
 mod setup;
 mod status;
 mod tasks;
-mod vrc;
 
 // CLI Color codes
 const CLI_BLUE: u8 = 69; // Use for general information

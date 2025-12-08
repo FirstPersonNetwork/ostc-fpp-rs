@@ -3,13 +3,12 @@ use std::{rc::Rc, sync::Mutex};
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE,
     config::Config,
+    interactions::vrc::{
+        interact_vrc_inbound, interact_vrc_inbound_request, interact_vrc_outbound_request,
+    },
     log::LogFamily,
     relationships::{RelationshipRequestBody, messages::send_rejection},
     tasks::{Task, TaskType, Tasks},
-    vrc::{
-        interact::{interact_vrc_inbound, interact_vrc_outbound_request},
-        request::interact_vrc_inbound_request,
-    },
 };
 use affinidi_tdk::TDK;
 use anyhow::Result;

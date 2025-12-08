@@ -2,18 +2,13 @@
 *   Verified Relationship Credentials (VRC)
 */
 
-use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, config::Config, log::LogFamily,
-    tasks::MessageType,
-};
+use crate::{MessageType, errors::LKMVError};
 use affinidi_data_integrity::DataIntegrityProof;
 use affinidi_tdk::{
     didcomm::Message,
     secrets_resolver::{SecretsResolver, ThreadedSecretsResolver},
 };
-use anyhow::{Context, Result, bail};
 use chrono::{DateTime, Utc};
-use console::style;
 use serde::{Deserialize, Serialize, Serializer};
 use serde_json_canonicalizer::to_string;
 use sha2::Digest;
@@ -26,11 +21,6 @@ use std::{
     time::SystemTime,
 };
 use uuid::Uuid;
-
-pub mod interact;
-pub mod remove;
-pub mod request;
-pub mod visual;
 
 /// Collection of VRCs
 /// Often used side-by-side with a set for issued and 2nd set for received
@@ -168,7 +158,7 @@ impl Vrc {
         from: &Rc<String>,
         to: &Rc<String>,
         task_id: Option<&Rc<String>>,
-    ) -> Result<Message> {
+    ) -> Result<Message, LKMVError> {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
@@ -177,7 +167,7 @@ impl Vrc {
         let mut message = Message::build(
             Uuid::new_v4().to_string(),
             MessageType::VRCIssued.into(),
-            serde_json::to_value(self).context("Couldn't serialize VRC into JSON")?,
+            serde_json::to_value(self)?,
         )
         .from(from.to_string())
         .to(to.to_string())
@@ -193,7 +183,7 @@ impl Vrc {
 
     /// Returns a hash string representing this VRC
     /// Strips the proof before using JCS and a SHA256 hash
-    pub fn get_hash(&self) -> Result<String> {
+    pub fn get_hash(&self) -> Result<String, LKMVError> {
         let tmp = Vrc {
             proof: None,
             ..self.clone()
@@ -272,7 +262,7 @@ impl FromSubject {
         name: Option<String>,
         also_known_as: Vec<String>,
         secrets: &ThreadedSecretsResolver,
-    ) -> Result<Self> {
+    ) -> Result<Self, LKMVError> {
         // A linkage_proof is derived from the following:
         // from_did
         // to_did
@@ -284,12 +274,9 @@ impl FromSubject {
                 .get_secret([alias, "#key-1"].concat().as_str())
                 .await
             else {
-                println!(
-                    "{} {}",
-                    style("Couldn't find Secret key material for #key-id:").color256(CLI_RED),
-                    style([alias, "#key-1"].concat()).color256(CLI_ORANGE)
-                );
-                bail!("COuldn't find Secret key material!");
+                return Err(LKMVError::MissingSecretKeyMaterial(
+                    [alias, "#key-1"].concat(),
+                ));
             };
 
             let proof = DataIntegrityProof::sign_jcs_data(
@@ -451,69 +438,8 @@ pub struct VrcRequest {
 }
 
 impl VrcRequest {
-    /// Create a new VRCRequest with default values
-    pub fn print(&self) {
-        println!();
-        println!("{}", style("VRC request details: ").color256(CLI_BLUE));
-
-        println!();
-        print!("{}", style("Request reason: ").color256(CLI_BLUE));
-        if let Some(reason) = &self.reason {
-            println!("{}", style(reason).color256(CLI_PURPLE));
-        } else {
-            println!("{}", style("NO REASON PROVIDED").color256(CLI_ORANGE));
-        }
-
-        print!(
-            "{}",
-            style("Suggested relationship type: ").color256(CLI_BLUE)
-        );
-        if let Some(type_) = &self.type_ {
-            println!("{}", style(type_).color256(CLI_PURPLE));
-        } else {
-            println!("{}", style("NO TYPE REQUESTED").color256(CLI_ORANGE));
-        }
-
-        print!(
-            "{} {} ",
-            style("Human-readable name: ").color256(CLI_BLUE),
-            self.name
-                .as_deref()
-                .map(|m| style(m).color256(CLI_GREEN))
-                .unwrap_or(style("N/A").color256(CLI_ORANGE))
-        );
-
-        println!();
-        print!(
-            "{}",
-            style("Include R-DID in alsoKnownAs: ").color256(CLI_BLUE)
-        );
-        if self.include_r_did {
-            print!("{}", style("YES").color256(CLI_GREEN));
-        } else {
-            print!("{}", style("NO").color256(CLI_ORANGE));
-        }
-
-        println!();
-        print!("{}", style("Start date requested: ").color256(CLI_BLUE));
-        if self.start_date {
-            print!("{}", style("YES").color256(CLI_GREEN));
-        } else {
-            print!("{}", style("NO").color256(CLI_ORANGE));
-        }
-
-        println!();
-        print!("{}", style("End date requested: ").color256(CLI_BLUE));
-        if self.end_date {
-            println!("{}", style("YES").color256(CLI_GREEN));
-        } else {
-            println!("{}", style("NO").color256(CLI_ORANGE));
-        }
-        println!();
-    }
-
     /// Creates a DIDCOmm message for the request
-    pub fn create_message(&self, to: &Rc<String>, from: &Rc<String>) -> Result<Message> {
+    pub fn create_message(&self, to: &Rc<String>, from: &Rc<String>) -> Result<Message, LKMVError> {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
@@ -551,7 +477,7 @@ impl VRCRequestReject {
         from: &Rc<String>,
         thid: &Rc<String>,
         reason: Option<String>,
-    ) -> Result<Message> {
+    ) -> Result<Message, LKMVError> {
         let now = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .unwrap()
@@ -567,41 +493,5 @@ impl VRCRequestReject {
         .created_time(now)
         .expires_time(60 * 60 * 48) // 48 hours
         .finalize())
-    }
-}
-
-impl Config {
-    /// Handles rejection of a VRC request
-    pub fn handle_vrc_reject(
-        &mut self,
-        task_id: &Rc<String>,
-        reason: Option<&str>,
-        from: &Rc<String>,
-    ) -> Result<()> {
-        let reason = if let Some(reason) = reason {
-            reason.to_string()
-        } else {
-            "NO REASON PROVIDED".to_string()
-        };
-
-        self.public.logs.insert(
-            LogFamily::Relationship,
-            format!(
-                "Removed VRC ({}) request as rejected by remote entity Reason: {}",
-                task_id, reason
-            ),
-        );
-
-        self.private.tasks.remove(task_id);
-
-        self.public.logs.insert(
-            LogFamily::Task,
-            format!(
-                "VRC request rejected by remote DID({}) Task ID({}) Reason({})",
-                from, task_id, reason
-            ),
-        );
-
-        Ok(())
     }
 }

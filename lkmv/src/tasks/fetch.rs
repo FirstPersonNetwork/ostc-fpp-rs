@@ -3,11 +3,11 @@ use std::{rc::Rc, sync::Arc};
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
     config::Config,
+    interactions::vrc::handle_inbound_vrc_issued,
     log::LogFamily,
     messaging::{handle_inbound_ping, handle_inbound_pong},
     relationships::{RelationshipAcceptBody, RelationshipRejectBody},
-    tasks::{MessageType, TaskType},
-    vrc::{VRCRequestReject, interact::handle_inbound_vrc_issued},
+    tasks::TaskType,
 };
 use affinidi_tdk::{
     TDK,
@@ -18,6 +18,7 @@ use affinidi_tdk::{
 };
 use anyhow::{Result, anyhow};
 use console::{Term, style};
+use lkmv::{MessageType, vrc::VRCRequestReject};
 
 /// Fetches tasks from the DIDComm mediator and returns the number of new tasks retrieved
 pub async fn fetch_tasks(
@@ -360,6 +361,14 @@ pub async fn fetch_tasks(
                                 continue;
                             }
                         }
+                    }
+                    _ => {
+                        println!(
+                            "{}{}",
+                            style("ERROR: Unknown MessageType received: ").color256(CLI_RED),
+                            style::<String>(msg_type.into()).color256(CLI_ORANGE)
+                        );
+                        continue;
                     }
                 }
             } else {

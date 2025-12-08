@@ -22,10 +22,8 @@ use crate::{
         },
     },
     get_unlock_code,
-    setup::{
-        PersonaDIDKeys, KeyInfo, KeyPurpose, bip32_bip39::Bip32Extension, create_unlock_code,
-    },
-    vrc::Vrc,
+    log::LogFamily,
+    setup::{KeyInfo, KeyPurpose, PersonaDIDKeys, bip32_bip39::Bip32Extension, create_unlock_code},
 };
 use affinidi_tdk::{
     TDK,
@@ -38,6 +36,7 @@ use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use console::{Term, style};
 use dialoguer::{Password, theme::ColorfulTheme};
 use ed25519_dalek_bip32::ExtendedSigningKey;
+use lkmv::vrc::Vrc;
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -314,8 +313,7 @@ impl Config {
                 bail!("DID Document does not contain any authentication methods!");
             };
 
-        let decryption = if let Some(decryption) = self.persona_did.document.key_agreement.first()
-        {
+        let decryption = if let Some(decryption) = self.persona_did.document.key_agreement.first() {
             let Some(secret) = tdk
                 .get_shared_state()
                 .secrets_resolver
@@ -570,6 +568,40 @@ impl Config {
         println!(
             "{}",
             style("Successfully imported lkmv configuration settings").color256(CLI_GREEN)
+        );
+
+        Ok(())
+    }
+
+    /// Handles rejection of a VRC request
+    pub fn handle_vrc_reject(
+        &mut self,
+        task_id: &Rc<String>,
+        reason: Option<&str>,
+        from: &Rc<String>,
+    ) -> Result<()> {
+        let reason = if let Some(reason) = reason {
+            reason.to_string()
+        } else {
+            "NO REASON PROVIDED".to_string()
+        };
+
+        self.public.logs.insert(
+            LogFamily::Relationship,
+            format!(
+                "Removed VRC ({}) request as rejected by remote entity Reason: {}",
+                task_id, reason
+            ),
+        );
+
+        self.private.tasks.remove(task_id);
+
+        self.public.logs.insert(
+            LogFamily::Task,
+            format!(
+                "VRC request rejected by remote DID({}) Task ID({}) Reason({})",
+                from, task_id, reason
+            ),
         );
 
         Ok(())

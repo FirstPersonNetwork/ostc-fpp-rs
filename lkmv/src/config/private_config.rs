@@ -8,12 +8,12 @@ use crate::{
     contacts::Contacts,
     relationships::Relationships,
     tasks::Tasks,
-    vrc::Vrcs,
 };
 use anyhow::Result;
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use console::style;
 use ed25519_dalek_bip32::{DerivationPath, ExtendedSigningKey};
+use lkmv::vrc::Vrcs;
 use secrecy::{ExposeSecret, SecretVec};
 use serde::{Deserialize, Serialize};
 

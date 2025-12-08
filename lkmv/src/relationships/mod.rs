@@ -13,7 +13,6 @@ use crate::{
     relationships::messages::create_send_request,
     setup::{KeyPurpose, bip32_bip39::Bip32Extension},
     tasks::TaskType,
-    vrc::Vrcs,
 };
 use affinidi_tdk::{
     TDK,
@@ -30,6 +29,7 @@ use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use console::style;
 use ed25519_dalek_bip32::{DerivationPath, ExtendedSigningKey};
+use lkmv::vrc::Vrcs;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
