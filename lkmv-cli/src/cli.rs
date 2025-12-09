@@ -194,6 +194,15 @@ pub fn cli() -> Command {
                 .arg(Arg::new("id").help("VRC ID to remove").required(true)),
         );
 
+    // Kernel Maintainers
+    let maintainers_subcommand = Command::new("maintainers")
+        .about("Known Linux Kernel Maintainers")
+        .arg_required_else_help(true)
+        .subcommand(
+            Command::new("list")
+                .about("List known Kernel Maintainers who can validate other developers"),
+        );
+
     // Full CLI Set
     Command::new("lkmv")
         .about("Linux Kernel Maintainer Verification")
@@ -236,5 +245,6 @@ pub fn cli() -> Command {
             relationships_subcommand,
             tasks_subcommand,
             vrc_subcommand,
+            maintainers_subcommand,
         ])
 }

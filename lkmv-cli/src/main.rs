@@ -6,6 +6,7 @@ use crate::{
     cli::cli,
     config::Config,
     interactions::vrc::vrcs_entry,
+    maintainers::maintainers_entry,
     relationships::relationships_entry,
     setup::{cli_setup, pgp_export::ask_export_persona_did_keys},
     tasks::tasks_entry,
@@ -26,6 +27,7 @@ mod config;
 mod contacts;
 mod interactions;
 mod log;
+mod maintainers;
 mod messaging;
 #[cfg(feature = "openpgp-card")]
 mod openpgp_card;
@@ -379,6 +381,11 @@ async fn lkmv(term: &Term, profile: &str) -> Result<()> {
             let (tdk, mut config) = load(term, profile).await?;
 
             vrcs_entry(tdk, &mut config, profile, args).await?;
+        }
+        Some(("maintainers", args)) => {
+            let (tdk, mut config) = load(term, profile).await?;
+
+            maintainers_entry(tdk, &mut config, profile, args).await?;
         }
         _ => {
             eprintln!("No valid subcommand was used. Use --help for more information.");
