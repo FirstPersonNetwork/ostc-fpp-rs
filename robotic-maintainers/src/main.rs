@@ -115,14 +115,62 @@ async fn main() -> Result<()> {
         .await?;
     info!("{} profile loaded", atm_ada.inner.alias);
 
+    // Activate Alan Profile
+    let tdk_alan = if let Some(alan) = environment.profiles.get("Alan") {
+        tdk.add_profile(alan).await;
+        alan
+    } else {
+        bail!("Alan not found in Environment: {}", environment_name);
+    };
+
+    let atm_alan = atm
+        .profile_add(&ATMProfile::from_tdk_profile(&atm, tdk_alan).await?, false)
+        .await?;
+    info!("{} profile loaded", atm_alan.inner.alias);
+
+    // Activate Grace Profile
+    let tdk_grace = if let Some(grace) = environment.profiles.get("Grace") {
+        tdk.add_profile(grace).await;
+        grace
+    } else {
+        bail!("Grace not found in Environment: {}", environment_name);
+    };
+
+    let atm_grace = atm
+        .profile_add(&ATMProfile::from_tdk_profile(&atm, tdk_grace).await?, false)
+        .await?;
+    info!("{} profile loaded", atm_grace.inner.alias);
+
+    // Activate Charles Profile
+    let tdk_charles = if let Some(charles) = environment.profiles.get("Charles") {
+        tdk.add_profile(charles).await;
+        charles
+    } else {
+        bail!("Charles not found in Environment: {}", environment_name);
+    };
+
+    let atm_charles = atm
+        .profile_add(
+            &ATMProfile::from_tdk_profile(&atm, tdk_charles).await?,
+            false,
+        )
+        .await?;
+    info!("{} profile loaded", atm_charles.inner.alias);
+
     // Create an in-memory cache of relationships for incoming requests
     let mut relationships: HashMap<String, Relationship> = HashMap::new();
 
     // Clean up any existing messages in all profiles
     cleanup_existing(&atm, mediator_did, &atm_ada, &mut relationships).await;
+    cleanup_existing(&atm, mediator_did, &atm_grace, &mut relationships).await;
+    cleanup_existing(&atm, mediator_did, &atm_alan, &mut relationships).await;
+    cleanup_existing(&atm, mediator_did, &atm_charles, &mut relationships).await;
 
     // Enable websocket live streaming
     let _ = atm.profile_enable_websocket(&atm_ada).await;
+    let _ = atm.profile_enable_websocket(&atm_grace).await;
+    let _ = atm.profile_enable_websocket(&atm_alan).await;
+    let _ = atm.profile_enable_websocket(&atm_charles).await;
 
     info!("Main loop running...");
     loop {
@@ -464,6 +512,41 @@ fn get_quote(alias: &str) -> String {
                 "That brain of mine is something more than merely mortal, as time will show."
                     .to_string(),
                 "As soon as I have got flying to perfection, I have got a scheme about a steam engine.".to_string()
+            ];
+
+            quotes[rng.gen_range(0..quotes.len())].clone()
+        }
+        "Grace Hopper" => {
+            let quotes = [
+                "I've always been more interested in the future than in the past.".to_string(),
+                "The most dangerous phrase in the language is, ‘We've always done it this way.’"
+                    .to_string(),
+                "A dream is just a dream. A goal is a dream with a plan and a deadline."
+                    .to_string(),
+                "You don't have to know everything. You just need to know where to find it."
+                    .to_string(),
+            ];
+
+            quotes[rng.gen_range(0..quotes.len())].clone()
+        }
+        "Alan Turing" => {
+            let quotes = [
+                "If a machine can think, it might think more intelligently than we do, and then where should we be?".to_string(),
+                "If a machine is expected to be infallible, it cannot also be intelligent."
+                    .to_string(),
+                "Those who can imagine anything, can create the impossible.".to_string(),
+                "I propose to consider the question, 'Can machines think?".to_string()
+            ];
+
+            quotes[rng.gen_range(0..quotes.len())].clone()
+        }
+        "Charles Babbage" => {
+            let quotes = [
+                "No motion impressed by natural causes, or by human agency, is ever obliterated.".to_string(),
+                "Man wrongs, and Time avenges. Byron﻿—The Prophecy of Dante."
+                    .to_string(),
+                "Pray, Mr. Babbage, if you put into the machine wrong figures, will the right answers come out?".to_string(),
+                "I find no flaw in your reasoning about the Analytical Engine; I admire it; but you are aware that it rests entirely on the hypothesis that I care for the 'whole human race.".to_string()
             ];
 
             quotes[rng.gen_range(0..quotes.len())].clone()
