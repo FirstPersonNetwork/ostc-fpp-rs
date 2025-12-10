@@ -107,6 +107,7 @@ async fn get_maintainers_list(tdk: &TDK, config: &Config) -> Result<()> {
                     println!("{}", style("WARN: kernel.org doesn't seem to have any active maintainers right now! Please try again later!").color256(CLI_ORANGE));
                     return Ok(());
                 }
+                println!();
                 println!(
                     "{}",
                     style("Maintainers").color256(CLI_BLUE).bold().underlined()
