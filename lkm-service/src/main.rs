@@ -72,7 +72,6 @@ async fn main() -> Result<()> {
 
         // A valid DIDComm message has been received
         let _ = handle_message(&atm, &profile, &config, &msg, &meta).await;
-        info!("Looped");
     }
 }
 
@@ -122,6 +121,7 @@ async fn handle_message(
                     &msg.id,
                 )
                 .await;
+                info!("Maintainer list requested by {}", from_did);
             }
             _ => {
                 warn!("Unsupported MessageType receieved: {}", msg.type_);
