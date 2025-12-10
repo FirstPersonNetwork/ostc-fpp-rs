@@ -2,7 +2,7 @@
 */
 
 use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_PURPLE, LF_PUBLIC_MEDIATOR_DID,
+    CLI_BLUE, CLI_GREEN, CLI_PURPLE, LF_ORG_DID, LF_PUBLIC_MEDIATOR_DID,
     config::{
         Config, KeyTypes, PersonaDID,
         private_config::PrivateConfig,
@@ -169,6 +169,8 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
     // Use a different Mediator?
     let mediator_did = change_mediator();
 
+    let lk_did = change_lf_did();
+
     // Create a DID - will also rename the P-DID Keys with the right key-IDS
     let p_did = did_setup(
         get_bip32_root(mnemonic.to_entropy().as_slice())?,
@@ -237,6 +239,7 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
                 ..Default::default()
             },
             friendly_name,
+            lk_did,
         },
         private: PrivateConfig::default(),
         persona_did: PersonaDID {
@@ -423,5 +426,30 @@ fn change_mediator() -> String {
             .unwrap()
     } else {
         LF_PUBLIC_MEDIATOR_DID.to_string()
+    }
+}
+
+/// Do you want to use an alternative LF DID?
+fn change_lf_did() -> String {
+    println!();
+    println!("{}", style("lkmv interacts with the Linux kernel organisation, Linux Kernel is represented by a well-known DID. Do not change the following unless you know what you are doing!").color256(CLI_BLUE));
+    println!(
+        "{} {}",
+        style("Default Linux Organbisation DID:").color256(CLI_BLUE),
+        style(LF_ORG_DID).color256(CLI_PURPLE),
+    );
+
+    if Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt("Do you want to use an alternative Linux Organisation DID?")
+        .default(false)
+        .interact()
+        .unwrap()
+    {
+        Input::with_theme(&ColorfulTheme::default())
+            .with_prompt("Linux Organisation DID:")
+            .interact()
+            .unwrap()
+    } else {
+        LF_ORG_DID.to_string()
     }
 }

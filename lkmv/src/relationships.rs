@@ -1,14 +1,12 @@
-use std::{sync::Arc, time::SystemTime};
-
+use crate::errors::LKMVError;
 use affinidi_tdk::{
     didcomm::{Message, PackEncryptedOptions},
     messaging::{ATM, profiles::ATMProfile},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::{sync::Arc, time::SystemTime};
 use uuid::Uuid;
-
-use crate::errors::LKMVError;
 
 // ****************************************************************************
 // Message Body Structure types

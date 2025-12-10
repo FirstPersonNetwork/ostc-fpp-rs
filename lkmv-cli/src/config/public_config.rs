@@ -33,6 +33,9 @@ pub struct PublicConfig {
     /// Human friendly name to use when referring to ourself
     pub friendly_name: String,
 
+    /// Linux Organisation DID
+    pub lk_did: String,
+
     #[serde(default)]
     pub logs: Logs,
 

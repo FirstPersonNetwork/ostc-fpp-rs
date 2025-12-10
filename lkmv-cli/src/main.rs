@@ -44,9 +44,12 @@ const CLI_ORANGE: u8 = 214; // Use for cautionary data
 const CLI_PURPLE: u8 = 165; // Use for Example data
 const CLI_WHITE: u8 = 15;
 
-// Primary Linux Kernel Mediator DID
+/// Primary Linux Kernel Mediator DID
 const LF_PUBLIC_MEDIATOR_DID: &str =
     "did:webvh:QmetnhxzJXTJ9pyXR1BbZ2h6DomY6SB1ZbzFPrjYyaEq9V:fpp.storm.ws:public-mediator";
+
+/// Primary Linux Kernel Organisation DID
+const LF_ORG_DID: &str = "did:webvh:QmXkYcFCbvFFcYZf2q5gNk8Vp4b4vMbVKWbbc7oivcdZHK:fpp.storm.ws";
 
 // Handles initial setup and configuration of the CLI tool
 fn initialize(term: &Term) {
@@ -385,7 +388,7 @@ async fn lkmv(term: &Term, profile: &str) -> Result<()> {
         Some(("maintainers", args)) => {
             let (tdk, mut config) = load(term, profile).await?;
 
-            maintainers_entry(tdk, &mut config, profile, args).await?;
+            maintainers_entry(tdk, &mut config, args).await?;
         }
         _ => {
             eprintln!("No valid subcommand was used. Use --help for more information.");

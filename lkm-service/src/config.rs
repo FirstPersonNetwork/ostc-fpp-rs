@@ -1,20 +1,14 @@
 use affinidi_tdk::secrets_resolver::secrets::Secret;
 use anyhow::{Context, Result, bail};
+use lkmv::maintainers::Maintainer;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use tracing::error;
 
-/// Known Maintainers
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Maintainers {
-    pub alias: String,
-    pub did: String,
-}
-
 /// LKM Configuration
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct Config {
-    pub maintainers: Vec<Maintainers>,
+    pub maintainers: Vec<Maintainer>,
     pub mediator: String,
     pub our_did: String,
     pub secrets: Vec<Secret>,

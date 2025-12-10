@@ -7,6 +7,7 @@ use affinidi_tdk::didcomm::Message;
 use serde::{Deserialize, Serialize};
 
 pub mod errors;
+pub mod maintainers;
 pub mod relationships;
 pub mod vrc;
 
@@ -23,6 +24,8 @@ pub enum MessageType {
     VRCRequest,
     VRCRequestRejected,
     VRCIssued,
+    MaintainersListRequest,
+    MaintainersListResponse,
 }
 
 impl MessageType {
@@ -37,6 +40,8 @@ impl MessageType {
             MessageType::VRCRequest => "VRC Request",
             MessageType::VRCRequestRejected => "VRC Request Rejected",
             MessageType::VRCIssued => "VRC Issued",
+            MessageType::MaintainersListRequest => "List Known Maintainers (request)",
+            MessageType::MaintainersListResponse => "List Known Maintainers (response)",
         }
         .to_string()
     }
@@ -67,6 +72,12 @@ impl From<MessageType> for String {
                 "https://firstperson.network/vrc/1.0/rejected".to_string()
             }
             MessageType::VRCIssued => "https://firstperson.network/vrc/1.0/issued".to_string(),
+            MessageType::MaintainersListRequest => {
+                "https://kernel.org/maintainers/1.0/list".to_string()
+            }
+            MessageType::MaintainersListResponse => {
+                "https://kernel.org/maintainers/1.0/list/response".to_string()
+            }
         }
     }
 }
@@ -94,6 +105,10 @@ impl TryFrom<&str> for MessageType {
             "https://firstperson.network/vrc/1.0/request" => Ok(MessageType::VRCRequest),
             "https://firstperson.network/vrc/1.0/rejected" => Ok(MessageType::VRCRequestRejected),
             "https://firstperson.network/vrc/1.0/issued" => Ok(MessageType::VRCIssued),
+            "https://kernel.org/maintainers/1.0/list" => Ok(MessageType::MaintainersListRequest),
+            "https://kernel.org/maintainers/1.0/list/response" => {
+                Ok(MessageType::MaintainersListResponse)
+            }
             _ => Err(LKMVError::InvalidMessage(value.to_string())),
         }
     }
