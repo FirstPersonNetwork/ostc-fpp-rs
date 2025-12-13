@@ -12,10 +12,8 @@ use chrono::{DateTime, Utc};
 use clap::ArgMatches;
 use console::{StyledObject, Term, style};
 use dialoguer::{Select, theme::ColorfulTheme};
-use lkmv::{
-    relationships::RelationshipRequestBody,
-    vrc::{Vrc, VrcRequest},
-};
+use dtg_credentials::DTGCredential;
+use lkmv::{relationships::RelationshipRequestBody, vrc::VrcRequest};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
@@ -58,7 +56,7 @@ pub enum TaskType {
     },
     VRCRequestRejected,
     VRCIssued {
-        vrc: Box<Vrc>,
+        vrc: Box<DTGCredential>,
     },
 }
 

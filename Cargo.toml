@@ -16,6 +16,10 @@ repository = "https://github.com/FirstPersonNetwork/lkmv-rs"
 [workspace.dependencies]
 lkmv = { version = "0.1.0", path = "lkmv" }
 
+# Decentralized Trust Graph Credentials
+# NOTE: When this is published, switch from git to crates.io
+dtg-credentials = { version = "0.1", git = "https://github.com/FirstPersonNetwork/dtg-credentials-rs" }
+
 aes-gcm = "0.10"
 affinidi-tdk = "0.2"
 affinidi-data-integrity = "0.3"

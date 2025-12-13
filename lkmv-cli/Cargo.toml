@@ -35,6 +35,7 @@ crossterm.workspace = true
 dirs.workspace = true
 dialoguer.workspace = true
 didwebvh-rs.workspace = true
+dtg-credentials.workspace = true
 ed25519-dalek-bip32.workspace = true
 hex.workspace = true
 keyring.workspace = true

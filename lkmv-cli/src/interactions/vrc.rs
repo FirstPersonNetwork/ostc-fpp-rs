@@ -11,11 +11,12 @@ use affinidi_tdk::{
     didcomm::{Message, PackEncryptedOptions},
 };
 use anyhow::{Result, bail};
-use chrono::{DateTime, Local, SecondsFormat, Utc};
+use chrono::{DateTime, Local, Utc};
 use clap::ArgMatches;
 use console::style;
 use dialoguer::{Confirm, Input, Select, theme::ColorfulTheme};
-use lkmv::vrc::{CredentialSubject, FromSubject, ToSubject, VRCRequestReject, Vrc, VrcRequest};
+use dtg_credentials::{DTGCommon, DTGCredential};
+use lkmv::vrc::{DtgCredentialMessage, VRCRequestReject, VrcRequest};
 use std::{collections::HashSet, rc::Rc, sync::Mutex};
 
 pub trait Print {
@@ -35,51 +36,6 @@ impl Print for VrcRequest {
             println!("{}", style("NO REASON PROVIDED").color256(CLI_ORANGE));
         }
 
-        print!(
-            "{}",
-            style("Suggested relationship type: ").color256(CLI_BLUE)
-        );
-        if let Some(type_) = &self.type_ {
-            println!("{}", style(type_).color256(CLI_PURPLE));
-        } else {
-            println!("{}", style("NO TYPE REQUESTED").color256(CLI_ORANGE));
-        }
-
-        print!(
-            "{} {} ",
-            style("Human-readable name: ").color256(CLI_BLUE),
-            self.name
-                .as_deref()
-                .map(|m| style(m).color256(CLI_GREEN))
-                .unwrap_or(style("N/A").color256(CLI_ORANGE))
-        );
-
-        println!();
-        print!(
-            "{}",
-            style("Include R-DID in alsoKnownAs: ").color256(CLI_BLUE)
-        );
-        if self.include_r_did {
-            print!("{}", style("YES").color256(CLI_GREEN));
-        } else {
-            print!("{}", style("NO").color256(CLI_ORANGE));
-        }
-
-        println!();
-        print!("{}", style("Start date requested: ").color256(CLI_BLUE));
-        if self.start_date {
-            print!("{}", style("YES").color256(CLI_GREEN));
-        } else {
-            print!("{}", style("NO").color256(CLI_ORANGE));
-        }
-
-        println!();
-        print!("{}", style("End date requested: ").color256(CLI_BLUE));
-        if self.end_date {
-            println!("{}", style("YES").color256(CLI_GREEN));
-        } else {
-            println!("{}", style("NO").color256(CLI_ORANGE));
-        }
         println!();
     }
 }
@@ -158,11 +114,7 @@ async fn vrcs_interactive_request(tdk: &TDK, config: &mut Config) -> Result<bool
         return Ok(false);
     };
 
-    let request_body = generate_vrc_request_body(
-        &relationship,
-        &config.public.persona_did,
-        &config.public.friendly_name,
-    )?;
+    let request_body = generate_vrc_request_body()?;
 
     request_body.print();
 
@@ -299,11 +251,7 @@ fn select_relationship(config: &Config) -> Option<Rc<Mutex<Relationship>>> {
     }
 }
 
-fn generate_vrc_request_body(
-    relationship: &Rc<Mutex<Relationship>>,
-    our_p_did: &Rc<String>,
-    friendly_name: &str,
-) -> Result<VrcRequest> {
+fn generate_vrc_request_body() -> Result<VrcRequest> {
     let reason: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Enter a reason for the VRC request (optional, press Enter to skip)")
         .allow_empty(true)
@@ -315,78 +263,7 @@ fn generate_vrc_request_body(
         Some(reason.trim().to_string())
     };
 
-    println!();
-    println!(
-        "{} {}",
-        style("Your current human-readable name: ").color256(CLI_BLUE),
-        style(friendly_name).color256(CLI_GREEN)
-    );
-
-    let name = match Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Include your human-readable name in the VRC request?")
-        .items([
-            "Yes, include my name",
-            "Change my name",
-            "Do not include a name",
-        ])
-        .default(0)
-        .interact()?
-    {
-        0 => Some(friendly_name.to_string()),
-        1 => Some(
-            Input::with_theme(&ColorfulTheme::default())
-                .with_prompt("Enter the name to include in the VRC request")
-                .interact_text()
-                .unwrap(),
-        ),
-        2 => None,
-        _ => Some(friendly_name.to_string()),
-    };
-
-    let lock = relationship.lock().unwrap();
-    let include_r_did = if &lock.our_did != our_p_did {
-        println!(
-            "{}{}",
-            style("You are using an R-DID for this relationship: ").color256(CLI_BLUE),
-            style(&lock.our_did).color256(CLI_PURPLE)
-        );
-        Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt("Include R-DID in alsoKnownAs?")
-            .default(false)
-            .interact()?
-    } else {
-        false
-    };
-
-    let type_: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Suggest a relationship type (e.g., Coworker, Peer, or a Relationship Type URI) \n   (optional, press Enter to skip)")
-        .allow_empty(true)
-        .interact_text()?;
-
-    let type_ = if type_.trim().is_empty() {
-        None
-    } else {
-        Some(type_.trim().to_string())
-    };
-
-    let start_date = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Request to include a start date in the VRC request?")
-        .default(true)
-        .interact()?;
-
-    let end_date = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Request to include an end date in the VRC request?")
-        .default(false)
-        .interact()?;
-
-    Ok(VrcRequest {
-        reason,
-        include_r_did,
-        type_,
-        start_date,
-        end_date,
-        name,
-    })
+    Ok(VrcRequest { reason })
 }
 
 /// Interactive menu to manage an outbound VRC request
@@ -454,9 +331,9 @@ pub async fn handle_inbound_vrc_issued(
     tdk: &TDK,
     config: &mut Config,
     message: &Message,
-) -> Result<Vrc> {
+) -> Result<DTGCredential> {
     // Valid VRC structure?
-    let vrc: Vrc = match serde_json::from_value(message.body.clone()) {
+    let vrc: DTGCredential = match serde_json::from_value(message.body.clone()) {
         Ok(vrc) => vrc,
         Err(e) => {
             println!(
@@ -468,7 +345,7 @@ pub async fn handle_inbound_vrc_issued(
         }
     };
 
-    let Some(proof) = vrc.proof.clone() else {
+    let Some(proof) = vrc.credential().proof.clone() else {
         println!(
             "{}",
             style("ERROR: VRC issued does not contain a proof!").color256(CLI_RED)
@@ -476,9 +353,9 @@ pub async fn handle_inbound_vrc_issued(
         bail!("VRC Missing Proof");
     };
 
-    let check_vrc = Vrc {
+    let check_vrc = DTGCommon {
         proof: None,
-        ..vrc.clone()
+        ..vrc.credential().clone()
     };
 
     // Check the proof of the VRC
@@ -551,7 +428,7 @@ pub async fn handle_inbound_vrc_issued(
 pub fn interact_vrc_inbound(
     config: &mut Config,
     task: &Rc<Mutex<Task>>,
-    vrc: Box<Vrc>,
+    vrc: Box<DTGCredential>,
 ) -> Result<bool> {
     let (task_id, task_created) = {
         let lock = task.lock().unwrap();
@@ -569,7 +446,7 @@ pub fn interact_vrc_inbound(
     println!(
         "{}{}",
         style("VRC Issued By: ").color256(CLI_BLUE),
-        style(&vrc.issuer).color256(CLI_PURPLE)
+        style(vrc.issuer()).color256(CLI_PURPLE)
     );
     println!(
         "{}",
@@ -595,7 +472,7 @@ pub fn interact_vrc_inbound(
                 let relationship_p_did = if let Some(relationship) = config
                     .private
                     .relationships
-                    .find_by_remote_did(&Rc::new(vrc.issuer.clone()))
+                    .find_by_remote_did(&Rc::new(vrc.issuer().to_string()))
                 {
                     relationship.lock().unwrap().remote_p_did.clone()
                 } else {
@@ -743,7 +620,7 @@ pub async fn interact_vrc_inbound_request(
     {
         0 => {
             // Accept the VRC Request
-            Ok(handle_accept_vrcs_request(tdk, config, task, request, relationship).await?)
+            Ok(handle_accept_vrcs_request(tdk, config, task, relationship).await?)
         }
         1 => {
             // Reject the VRC Request
@@ -866,7 +743,6 @@ pub async fn handle_accept_vrcs_request(
     tdk: &TDK,
     config: &mut Config,
     task: &Rc<Mutex<Task>>,
-    request: &VrcRequest,
     relationship: &Rc<Mutex<Relationship>>,
 ) -> Result<bool> {
     // Start collecting data for VRC Response
@@ -882,392 +758,56 @@ pub async fn handle_accept_vrcs_request(
     let task_id = { task.lock().unwrap().id.clone() };
 
     println!();
-    println!("{}", style("Your Information").color256(CLI_BLUE).bold());
-    println!("{}", style("=================").bold().color256(CLI_BLUE));
-    println!();
-
-    println!(
-        "{} {}",
-        style("Your current human-readable name:").color256(CLI_BLUE),
-        style(&config.public.friendly_name).color256(CLI_GREEN)
-    );
-
-    let from_name = match Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Change your human-readable name in this VRC?")
-        .items([
-            "No, keep my name",
-            "Change my name",
-            "Do not include a name",
-        ])
-        .default(0)
-        .interact()?
-    {
-        0 => Some(config.public.friendly_name.to_string()),
-        1 => Some(
-            Input::with_theme(&ColorfulTheme::default())
-                .with_prompt(
-                    "Enter the name to include in this VRC (leave blank for no issuer name): ",
-                )
-                .allow_empty(true)
-                .interact_text()
-                .unwrap(),
-        ),
-        2 => None,
-        _ => Some(config.public.friendly_name.to_string()),
-    };
-
-    if from_name.clone().unwrap().trim().is_empty() {
-        println!("{}", style("No issuer name included.").color256(CLI_ORANGE));
-    }
-
-    let our_also_known_as = if our_r_did != config.public.persona_did {
-        println!(
-            "{}{}",
-            style("This relationship is using private Relationship DIDs (R-DID): ")
-                .color256(CLI_BLUE),
-            style(&our_r_did).color256(CLI_PURPLE)
-        );
-        println!();
-        println!(
-            "{}{}{}",
-            style("It is ")
-                .color256(CLI_BLUE),
-            style("NOT RECOMMENDED")
-                .color256(CLI_ORANGE).bold(),
-            style(" to include the R-DID in alsoKnownAs, as this is your private communication channel.")
-                .color256(CLI_BLUE),
-        );
-        println!();
-        let ask_default = if request.include_r_did {
-            println!(
-                "{} {}",
-                style("Did the requestor request to include their R-DID?").color256(CLI_BLUE),
-                style("YES").color256(CLI_GREEN)
-            );
-            true
-        } else {
-            println!(
-                "{} {}",
-                style("Did the requestor request to include their R-DID?").color256(CLI_BLUE),
-                style("NO").color256(CLI_ORANGE)
-            );
-            false
-        };
-
-        if Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt("Include your R-DID in your alsoKnownAs?")
-            .default(ask_default)
-            .interact()?
-        {
-            println!(
-                "{}{}",
-                style("You are including your R-DID in alsoKnownAs: ").color256(CLI_BLUE),
-                style(&our_r_did).color256(CLI_PURPLE)
-            );
-            vec![our_r_did.to_string()]
-        } else {
-            println!(
-                "{}",
-                style("You are NOT including your R-DID in alsoKnownAs.").color256(CLI_BLUE)
-            );
-            vec![]
-        }
-    } else {
-        vec![]
-    };
-
-    println!();
-    println!(
-        "{}",
-        style("Requestor Information").color256(CLI_BLUE).bold()
-    );
-    println!(
-        "{}",
-        style("======================").bold().color256(CLI_BLUE)
-    );
-    println!();
-
-    let their_name = if let Some(name) = &request.name {
-        println!(
-            "{}{}",
-            style("The requestor suggested a name for themselves: ").color256(CLI_BLUE),
-            style(name).color256(CLI_ORANGE)
-        );
-        if Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt("Use the requestor's suggested name?")
-            .default(true)
-            .interact()?
-        {
-            println!(
-                "{}{}",
-                style("Using the requestor's suggested name: ").color256(CLI_BLUE),
-                style(name).color256(CLI_ORANGE)
-            );
-            Some(name.to_string())
-        } else {
-            let name: String = Input::with_theme(&ColorfulTheme::default())
-                .with_prompt(
-                    "Enter a human-readable name for the requestor (leave blank for no name)",
-                )
-                .allow_empty(true)
-                .interact_text()
-                .unwrap();
-            if name.trim().is_empty() {
-                println!(
-                    "{}",
-                    style("No name will be included for the requestor.").color256(CLI_BLUE)
-                );
-                None
-            } else {
-                Some(name.trim().to_string())
-            }
-        }
-    } else {
-        let name: String = Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("Enter a human-readable name for the requestor (leave blank for no name)")
-            .allow_empty(true)
-            .interact_text()
-            .unwrap();
-        if name.trim().is_empty() {
-            println!(
-                "{}",
-                style("No name will be included for the requestor.").color256(CLI_BLUE)
-            );
-            None
-        } else {
-            Some(name.trim().to_string())
-        }
-    };
-
-    let to_also_known_as = if their_r_did != their_p_did {
-        if request.include_r_did {
-            println!(
-                "{}{}",
-                style("The requestor has requested to include their R-DID in alsoKnownAs: ")
-                    .color256(CLI_BLUE),
-                style(&their_r_did).color256(CLI_PURPLE)
-            );
-        } else {
-            println!(
-                "{}",
-                style("The requestor did not request to include their R-DID in alsoKnownAs.")
-                    .color256(CLI_BLUE)
-            );
-        }
-        if Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt("Include the requestor's R-DID in their alsoKnownAs?")
-            .default(request.include_r_did)
-            .interact()?
-        {
-            println!(
-                "{}{}",
-                style("Including the requestor's R-DID in alsoKnownAs: ").color256(CLI_BLUE),
-                style(&their_r_did).color256(CLI_PURPLE)
-            );
-            Some(vec![their_r_did.to_string()])
-        } else {
-            println!(
-                "{}",
-                style("Not including the requestor's R-DID in alsoKnownAs").color256(CLI_BLUE)
-            );
-            None
-        }
-    } else {
-        // No aliasing needed
-        None
-    };
-
-    println!();
     println!("{}", style("VRC Configuration").color256(CLI_BLUE).bold());
     println!("{}", style("=================").bold().color256(CLI_BLUE));
     println!();
 
-    if let Some(reason) = &request.reason {
-        println!(
-            "{} {}",
-            style("The VRC Request provided the following reason:").color256(CLI_BLUE),
-            style(reason).color256(CLI_PURPLE)
-        );
-    }
-
-    let description: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Enter a description for this VRC (optional, press Enter to skip):")
-        .allow_empty(true)
-        .interact_text()
-        .unwrap();
-
-    let description = if description.trim().is_empty() {
-        println!(
-            "{}",
-            style("No VRC description included.").color256(CLI_ORANGE)
-        );
-        None
-    } else {
-        Some(description.trim().to_string())
-    };
-
-    println!();
-    println!(
-        "{}",
-        style(
-            "A human-readable name can help others understand the purpose or reason for this VRC."
-        )
-        .color256(CLI_BLUE)
-    );
-    let name: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Include a human-readable name for this VRC (optional, press Enter to skip):")
-        .allow_empty(true)
-        .interact_text()
-        .unwrap();
-
-    let name = if name.trim().is_empty() {
-        println!("{}", style("No VRC name included.").color256(CLI_ORANGE));
-        println!();
-        None
-    } else {
-        Some(name.trim().to_string())
-    };
-
-    // Set the relationshipType attribute
-    let mut items = vec![
-        "Do not include a relationship type".to_string(),
-        "Set a custom relationship type".to_string(),
-    ];
-
-    if let Some(type_) = &request.type_ {
-        items.push(["Use the requestor's suggested relationship type: ", type_].concat());
-    }
-
-    let relationship_type = match Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Include a relationship type for this VRC?")
-        .default(0)
-        .items(items)
-        .interact()?
-    {
-        0 => None,
-        1 => {
-            let custom_relationship_type: String = Input::with_theme(&ColorfulTheme::default())
-                .with_prompt("Enter a custom relationship type: ")
-                .interact_text()
-                .unwrap();
-            Some(custom_relationship_type.trim().to_string())
-        }
-        2 => {
-            println!(
-                "{}{}",
-                style("Using the requestor's suggested relationship type: ").color256(CLI_BLUE),
-                style(request.type_.as_deref().unwrap()).color256(CLI_PURPLE)
-            );
-            Some(request.type_.as_deref().unwrap().to_string())
-        }
-        _ => None,
-    };
-
-    println!(
-        "{} {}",
-        style("Did the requestor request to include a relationship start date?").color256(CLI_BLUE),
-        if request.start_date {
-            style("YES").color256(CLI_GREEN)
-        } else {
-            style("NO").color256(CLI_ORANGE)
-        }
-    );
-    let r_start_date_str = r_created
-        .with_timezone(&Local)
-        .to_rfc3339_opts(SecondsFormat::Secs, true);
-    println!(
-        "{} {}",
-        style("Relationship start date: ").color256(CLI_BLUE),
-        style(&r_start_date_str).color256(CLI_GREEN)
-    );
-    let start_date = match Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Set a start date for the relationship?")
+    let valid_from = match Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("Select the valid from date for this VRC:")
         .item(format!(
-            "Use the requestor's suggested start date: {}",
-            &r_start_date_str
+            "Use relationship established date: {}",
+            r_created.to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
         ))
-        .item("Set start date to now")
-        .item("Set custom start date")
-        .item("No start date")
-        .default(0)
+        .item("Use current date-time")
+        .item("Specify a custom date-time")
+        .default(1)
         .interact()?
     {
-        0 => Some(r_created),
-        1 => Some(Utc::now()),
+        0 => r_created,
+        1 => Utc::now(),
         2 => {
+            let now = Local::now();
             println!(
                 "{}",
-                style("Timestamp format must be in ISO 8601 Format.").color256(CLI_BLUE)
+                style("The timestamp format must be in ISO 8601 Format.").color256(CLI_BLUE)
             );
-            let custom_start_date: String = Input::with_theme(&ColorfulTheme::default())
-                .with_prompt("Enter custom start date (e.g., 2025-12-01T14:09:29+08:00): ")
-                .validate_with(|input: &String| -> Result<(), &str> {
-                    if DateTime::parse_from_rfc3339(input).is_ok() {
-                        Ok(())
-                    } else {
-                        Err("Invalid date-time format. Use ISO 8601 format (e.g., 2025-12-01T14:09:29+08:00).")
-                    }
-                })
-                .interact_text()
-                .unwrap();
-            Some(
-                DateTime::parse_from_rfc3339(&custom_start_date)
-                    .unwrap()
-                    .to_utc(),
-            )
+            let custom_valid_from: String = Input::with_theme(&ColorfulTheme::default())
+            .with_prompt("Enter a valid from date-time for this VRC (e.g., 2025-12-01T14:09:29+08:00): ")
+            .default(now.to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
+            .validate_with(|input: &String| -> Result<(), &str> {
+                if DateTime::parse_from_rfc3339(input).is_ok() {
+                    Ok(())
+                } else {
+                    Err("Invalid date-time format. Use ISO 8601 format (e.g., 2025-12-01T14:09:29+08:00).")
+                }
+            })
+            .interact_text()
+            .unwrap();
+
+            custom_valid_from.parse().unwrap()
         }
-        _ => None,
+        _ => {
+            println!("{}", style("ERROR: Invalid selection!").color256(CLI_RED));
+            bail!("Invalid selection");
+        }
     };
 
-    println!(
-        "{} {}",
-        style("Did the requestor request to include a relationship end date?").color256(CLI_BLUE),
-        if request.end_date {
-            style("YES").color256(CLI_GREEN)
-        } else {
-            style("NO").color256(CLI_ORANGE)
-        }
-    );
-    let end_date = match Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Set an end date for the relationship?")
-        .item("Set end date to now")
-        .item("Set custom end date")
-        .item("No end date")
-        .default(if request.end_date { 0 } else { 2 })
+    let valid_until = if !Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt("Does this VRC have a valid until timestamp?")
+        .default(false)
         .interact()?
     {
-        0 => Some(Utc::now()),
-        1 => {
-            println!(
-                "{}",
-                style("Timestamp format must be in ISO 8601 Format.").color256(CLI_BLUE)
-            );
-            let custom_end_date: String = Input::with_theme(&ColorfulTheme::default())
-                .with_prompt("Enter custom end date (e.g., 2025-12-01T14:09:29+08:00): ")
-                .validate_with(|input: &String| -> Result<(), &str> {
-                    if DateTime::parse_from_rfc3339(input).is_ok() {
-                        Ok(())
-                    } else {
-                        Err("Invalid date-time format. Use ISO 8601 format (e.g., 2025-12-01T14:09:29+08:00).")
-                    }
-                })
-                .interact_text()
-                .unwrap();
-            Some(
-                DateTime::parse_from_rfc3339(&custom_end_date)
-                    .unwrap()
-                    .to_utc(),
-            )
-        }
-        _ => None,
-    };
-
-    let valid_from = if Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Should the VRC be valid from now?")
-        .default(true)
-        .interact()?
-    {
-        Local::now()
+        Some(Local::now())
     } else {
         let now = Local::now();
         println!(
@@ -1287,38 +827,20 @@ pub async fn handle_accept_vrcs_request(
             .interact_text()
             .unwrap();
 
-        custom_valid_from.parse().unwrap()
+        Some(custom_valid_from.parse().unwrap())
     };
 
-    let credential_subject = CredentialSubject {
-        from: FromSubject::new(
-            config.public.persona_did.to_string(),
-            their_p_did.to_string(),
-            from_name,
-            our_also_known_as,
-            &tdk.get_shared_state().secrets_resolver,
-        )
-        .await?,
-        to: ToSubject::new(their_p_did.to_string(), their_name, to_also_known_as),
-        relationship_type,
-        start_date,
-        end_date,
-        session: None,
-    };
-
-    let mut vrc = Vrc {
-        issuer: config.public.persona_did.to_string(),
-        valid_from: valid_from.to_utc(),
-        name,
-        description,
-        credential_subject,
-        ..Default::default()
-    };
+    let mut vrc = DTGCredential::new_vrc(
+        config.public.persona_did.to_string(),
+        their_r_did.to_string(),
+        valid_from,
+        valid_until.map(|dt| dt.to_utc()),
+    );
 
     let secret = config.get_persona_keys(tdk).await?.signing.secret;
 
     let proof = DataIntegrityProof::sign_jcs_data(&vrc, None, &secret, None)?;
-    vrc.proof = Some(proof);
+    vrc.credential_mut().proof = Some(proof);
 
     // Send VRC to the requestor
     let msg = vrc.message(&our_r_did, &their_r_did, Some(&task_id))?;
@@ -1496,67 +1018,32 @@ pub fn vrcs_show_relationship(remote: &Rc<String>, config: &Config) {
 }
 
 /// Prints a vrc to the screen
-pub fn vrc_show(vrc_id: &str, vrc: &Vrc) {
+pub fn vrc_show(vrc_id: &str, vrc: &DTGCredential) {
     println!(
         "\t{}{}",
         style("VRC ID: ").color256(CLI_BLUE).bold(),
         style(vrc_id).color256(CLI_PURPLE)
     );
 
-    print!("\t  {}", style("Name: ").color256(CLI_BLUE).bold());
-    if let Some(name) = &vrc.name {
-        print!("{}", style(name).color256(CLI_WHITE));
-    } else {
-        print!("{}", style("N/A").color256(CLI_ORANGE));
-    }
-    println!();
-
-    print!("\t  {}", style("Description: ").color256(CLI_BLUE).bold());
-    if let Some(description) = &vrc.description {
-        print!("{}", style(description).color256(CLI_WHITE));
-    } else {
-        print!("{}", style("N/A").color256(CLI_ORANGE));
-    }
-    println!();
-
-    if let Some(rel_type) = &vrc.credential_subject.relationship_type {
-        println!(
-            "\t  {}{}",
-            style("Relationship Type: ").color256(CLI_BLUE).bold(),
-            style(rel_type).color256(CLI_WHITE)
-        );
-    }
-
     println!(
-        "\t  {}{} {}{} {}{}",
+        "\t  {}{} {}{}",
         style("Valid From: ").color256(CLI_BLUE).bold(),
         style(
-            &vrc.valid_from
+            &vrc.valid_from()
                 .with_timezone(&Local)
                 .to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
         )
         .color256(CLI_WHITE),
-        style("Started?: ").color256(CLI_BLUE).bold(),
-        if let Some(start_date) = vrc.credential_subject.start_date {
+        style("Valid Until?: ").color256(CLI_BLUE).bold(),
+        if let Some(valid_until) = vrc.valid_until() {
             style(
-                start_date
+                valid_until
                     .with_timezone(&Local)
                     .to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
             )
             .color256(CLI_WHITE)
         } else {
-            style("N/A".to_string()).color256(CLI_ORANGE)
-        },
-        style("End Date?: ").color256(CLI_BLUE).bold(),
-        if let Some(end_date) = vrc.credential_subject.end_date {
-            style(
-                end_date
-                    .with_timezone(&Local)
-                    .to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
-            )
-            .color256(CLI_WHITE)
-        } else {
-            style("N/A".to_string()).color256(CLI_ORANGE)
+            style("Forever".to_string()).color256(CLI_ORANGE)
         },
     );
 }

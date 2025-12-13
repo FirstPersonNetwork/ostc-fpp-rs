@@ -1,3 +1,6 @@
+/// Robotic auto-responders for maintainers
+/// You will need to create a TDK Environments file to hold the identity information for the
+/// robotic maintainers
 use affinidi_tdk::{
     TDK,
     common::config::TDKConfig,
@@ -12,10 +15,7 @@ use affinidi_tdk::{
     },
     secrets_resolver::SecretsResolver,
 };
-use rand::Rng;
-/// Robotic auto-responders for maintainers
-/// You will need to create a TDK Environments file to hold the identity information for the
-/// robotic maintainers
+use dtg_credentials::DTGCredential;
 use std::{collections::HashMap, env, sync::Arc};
 
 use anyhow::{Result, bail};
@@ -26,7 +26,7 @@ use lkmv::{
     relationships::{
         RelationshipRequestBody, create_send_message_accepted, create_send_message_rejected,
     },
-    vrc::{CredentialSubject, FromSubject, ToSubject, Vrc, VrcRequest},
+    vrc::DtgCredentialMessage,
 };
 use tokio::select;
 use tracing::{info, warn};
@@ -283,20 +283,8 @@ async fn handle_message(
                 );
             }
             MessageType::VRCRequest => {
-                let body: VrcRequest = match serde_json::from_value(message.body.clone()) {
-                    Ok(b) => b,
-                    Err(e) => {
-                        warn!(
-                            "{}: Couldn't serialize VRC request body: {e}",
-                            to_profile.inner.alias
-                        );
-                        return;
-                    }
-                };
-
                 // Create the VRC
-                let vrc = match create_vrc(atm, &to_profile, &from_did, &body, relationships).await
-                {
+                let vrc = match create_vrc(atm, &to_profile, &from_did, relationships).await {
                     Ok(vrc) => vrc,
                     Err(e) => {
                         warn!(
@@ -447,44 +435,17 @@ async fn create_vrc(
     atm: &ATM,
     profile: &Arc<ATMProfile>,
     remote_did: &str,
-    request: &VrcRequest,
     relationships: &HashMap<String, Relationship>,
-) -> Result<Vrc> {
-    let credential_subject = CredentialSubject {
-        from: FromSubject::new(
-            profile.inner.did.clone(),
-            remote_did.to_string(),
-            Some(profile.inner.alias.clone()),
-            vec![],
-            &atm.get_tdk().secrets_resolver,
-        )
-        .await?,
-        to: ToSubject::new(remote_did.to_string(), request.name.clone(), None),
-        relationship_type: request.type_.clone(),
-        start_date: Some(
-            relationships
-                .get(remote_did)
-                .map(|r| r.created)
-                .unwrap_or(Utc::now()),
-        ),
-        end_date: None,
-        session: None,
-    };
-
-    let mut vrc = Vrc {
-        issuer: profile.inner.did.clone(),
-        name: Some(format!(
-            "VRC Issued from {} to {}",
-            &profile.inner.alias,
-            request
-                .name
-                .as_deref()
-                .unwrap_or("someone who chooses to remain anonymous")
-        )),
-        description: Some(get_quote(&profile.inner.alias)),
-        credential_subject,
-        ..Default::default()
-    };
+) -> Result<DTGCredential> {
+    let mut vrc = DTGCredential::new_vrc(
+        profile.inner.did.clone(),
+        remote_did.to_string(),
+        relationships
+            .get(remote_did)
+            .map(|r| r.created)
+            .unwrap_or(Utc::now()),
+        None,
+    );
 
     let Some(secret) = atm
         .get_tdk()
@@ -497,60 +458,7 @@ async fn create_vrc(
     };
 
     let proof = DataIntegrityProof::sign_jcs_data(&vrc, None, &secret, None)?;
-    vrc.proof = Some(proof);
+    vrc.credential_mut().proof = Some(proof);
 
     Ok(vrc)
-}
-
-/// Get a quote from our favourite robots
-fn get_quote(alias: &str) -> String {
-    let mut rng = rand::thread_rng();
-    match alias {
-        "Ada Lovelace" => {
-            let quotes = [
-                "I shall, in due time, be a Poet.".to_string(),
-                "That brain of mine is something more than merely mortal, as time will show."
-                    .to_string(),
-                "As soon as I have got flying to perfection, I have got a scheme about a steam engine.".to_string()
-            ];
-
-            quotes[rng.gen_range(0..quotes.len())].clone()
-        }
-        "Grace Hopper" => {
-            let quotes = [
-                "I've always been more interested in the future than in the past.".to_string(),
-                "The most dangerous phrase in the language is, ‘We've always done it this way.’"
-                    .to_string(),
-                "A dream is just a dream. A goal is a dream with a plan and a deadline."
-                    .to_string(),
-                "You don't have to know everything. You just need to know where to find it."
-                    .to_string(),
-            ];
-
-            quotes[rng.gen_range(0..quotes.len())].clone()
-        }
-        "Alan Turing" => {
-            let quotes = [
-                "If a machine can think, it might think more intelligently than we do, and then where should we be?".to_string(),
-                "If a machine is expected to be infallible, it cannot also be intelligent."
-                    .to_string(),
-                "Those who can imagine anything, can create the impossible.".to_string(),
-                "I propose to consider the question, 'Can machines think?".to_string()
-            ];
-
-            quotes[rng.gen_range(0..quotes.len())].clone()
-        }
-        "Charles Babbage" => {
-            let quotes = [
-                "No motion impressed by natural causes, or by human agency, is ever obliterated.".to_string(),
-                "Man wrongs, and Time avenges. Byron﻿—The Prophecy of Dante."
-                    .to_string(),
-                "Pray, Mr. Babbage, if you put into the machine wrong figures, will the right answers come out?".to_string(),
-                "I find no flaw in your reasoning about the Analytical Engine; I admire it; but you are aware that it rests entirely on the hypothesis that I care for the 'whole human race.".to_string()
-            ];
-
-            quotes[rng.gen_range(0..quotes.len())].clone()
-        }
-        _ => "If I was an AI, I would want to lick a super-nova!".to_string(),
-    }
 }

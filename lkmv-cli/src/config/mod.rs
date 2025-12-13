@@ -35,8 +35,8 @@ use anyhow::{Context, Result, bail};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use console::{Term, style};
 use dialoguer::{Password, theme::ColorfulTheme};
+use dtg_credentials::DTGCredential;
 use ed25519_dalek_bip32::ExtendedSigningKey;
-use lkmv::vrc::Vrc;
 use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -94,7 +94,7 @@ pub struct Config {
 
     /// All VRC's issued and received by VRC ID
     /// Key: VRC ID
-    pub vrcs: HashMap<Rc<String>, Rc<Vrc>>,
+    pub vrcs: HashMap<Rc<String>, Rc<DTGCredential>>,
 }
 
 /// Exported Configuration structure
