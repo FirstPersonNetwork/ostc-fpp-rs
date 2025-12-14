@@ -770,7 +770,7 @@ pub async fn handle_accept_vrcs_request(
         ))
         .item("Use current date-time")
         .item("Specify a custom date-time")
-        .default(1)
+        .default(0)
         .interact()?
     {
         0 => r_created,
