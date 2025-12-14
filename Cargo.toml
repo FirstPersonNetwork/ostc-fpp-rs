@@ -1,5 +1,11 @@
 [workspace]
-members = ["lkmv", "lkmv-cli", "robotic-maintainers", "lkm-service"]
+members = [
+  "lkmv",
+  "lkmv-cli",
+  "robotic-maintainers",
+  "lkm-service",
+  "lkmv-cli2",
+]
 resolver = "3"
 
 [workspace.package]
