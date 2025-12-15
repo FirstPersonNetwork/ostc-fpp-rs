@@ -1,6 +1,6 @@
 # Handling Secured Configuration
 
-The LKMV securely stores the sensitive configuration in a Base64 format in the OS secure storage layer of your device. The configuration contains the following information:
+The LKMV CLI tool securely stores the sensitive configuration in a Base64 format in the OS secure storage layer of your device. The configuration contains the following information:
 
 - BIP32 seed used to create the cryptographic keys to generate Decentralised Identifiers (DIDs), specifically your Persona DID.
 

@@ -55,13 +55,13 @@ lkmv --help
 
 - **Decentralised Identifiers (DIDs)** - A globally unique identifier that enables secure digital interactions. The DID is the cornerstone of Self-Sovereign Identity (SSI), a concept that aims to put individuals or entities in control of their digital identities. DID is usually associated with a cryptographic key pair and represented with different DID methods, each with its own benefits.
 
-- **Verifiable Credentials (VCs)** - A digital representation of a claim attested by a trusted issuer about the subject (e.g., Individual or Organisation). VC is cryptographically signed and verifiable using cryptographic keys associated with the DID of the issuer. 
+- **Verifiable Credentials (VCs)** - A digital representation of a claim attested by a trusted issuer about the subject (e.g., Individual or Organisation). VC is cryptographically signed and verifiable using cryptographic keys associated with the DID of the issuer.
 
 - **Personhood Credentials (PHCs)** – A type of verifiable credential issued by any ecosystem (any qualified entity such as a company, university, nonprofit community, government, etc.) that can attest to the credential holder being a real, unique person within that ecosystem. Part of PHC issuance is providing a verified identity verifiable credential issued by a trusted issuer. [Read more](https://docs.google.com/document/d/1RtS86BqyVn3i3mXm48VhC-SRaYvW2W_MvR4w6x9KQWY/edit?tab=t.0#heading=h.i544xd6ocqhm).
 
 - **Verifiable Relationship Credentials (VRCs)** - A type of verifiable credential issued peer-to-peer between holders of personhood credentials to attest to verifiable first-person trust relationships. The verifiable relationship credential validates your personhood credential. [Read more](https://docs.google.com/document/d/1RtS86BqyVn3i3mXm48VhC-SRaYvW2W_MvR4w6x9KQWY/edit?tab=t.0#heading=h.siks62ntn9c5).
 
-- **DIDComm Messaging Protocol** - An open standard for decentralised communication. Built on the foundation of Decentralised Identifiers (DIDs), it enables parties to exchange verifiable data such as credentials and establishes secure communication channels between parties without relying on centralised servers. 
+- **DIDComm Messaging Protocol** - An open standard for decentralised communication. Built on the foundation of Decentralised Identifiers (DIDs), it enables parties to exchange verifiable data such as credentials and establishes secure communication channels between parties without relying on centralised servers.
 
 ## Decentralised Identity
 
@@ -73,8 +73,6 @@ The LKMV tool uses the `did:webvh` to create your **Persona DID (P-DID)**. It en
 
 - Robust security by introducing a pre-rotation key and witness proof that approves changes to the DID.
 
-- Robust security by introducing a pre-rotation key and witness proof that approves changes to the DID.  
-
 **Requirements:** A publicly accessible domain to host DID log entries (`did.jsonl`) for successful DID resolution and public key/service endpoint retrieval.
 
 *Sample did:webvh identifier:*
@@ -83,7 +81,7 @@ The LKMV tool uses the `did:webvh` to create your **Persona DID (P-DID)**. It en
 
 ## Decentralised Communication
 
-LKMV seamlessly integrates with DIDComm-compatible mediators for secure, private communication using your **Persona DID (P-DID)** or **Relationship DID (R-DID)**. 
+LKMV seamlessly integrates with DIDComm-compatible mediators for secure, private communication using your **Persona DID (P-DID)** or **Relationship DID (R-DID)**.
 
 DIDComm mediators handle message routing and storage while preserving privacy through end-to-end encryption. Messages are structured in multiple "envelope" layers providing:
 
@@ -91,11 +89,10 @@ DIDComm mediators handle message routing and storage while preserving privacy th
 - Sender authenticity
 - Non-repudiation
 - Sender anonymity
- 
+
 *Sample DIDComm message envelopes.*
 
 ![Sample DIDComm Message Envelopes](./docs/assets/didcomm-envelopes.png)
-
 
 ## Profiles and Configurations
 
@@ -167,15 +164,15 @@ For more details, refer to the [Secured Configuration Management](./docs/secured
      `~/.config/lkmv/config.json`).
    - `LKMV_CONFIG_PROFILE`: Set a specific configuration profile (defaults to `default`).
 
-## Feature Flags 
+## Feature Flags
 
-LKMV currently supports `openpgp-card` as an option to perform cryptographic operations, such as signing and authentication. 
+LKMV currently supports `openpgp-card` as an option to perform cryptographic operations, such as signing and authentication.
 
-Flag | Description |	Default |
+Flag | Description |  Default |
 -----|-------------|----------|
-`openpgp-card` |	OpenPGP-compatible hardware token support |	Enabled |
+`openpgp-card` |  OpenPGP-compatible hardware token support | Enabled |
 
-To turn off default features, use `--no-default-features` flag on the setup command. 
+To turn off default features, use `--no-default-features` flag on the setup command.
 
 ```bash
 lkmv --no-default-features setup
@@ -185,13 +182,13 @@ lkmv --no-default-features setup
 
 ### Initial Setup
 
-1. Install locally from the source. 
+1. Install locally from the source.
 
    ```bash
    cargo install --path . 
    ```
 
-   > **Note:** This will change once the tool is published. 
+   > **Note:** This will change once the tool is published.
 
 2. Run the setup wizard.
 
@@ -210,11 +207,11 @@ Follow the prompts to:
 - Create the configuration.
 - Generate cryptographic keys.
 - Generate Persona DID.
-- Connect to DIDComm mediator server. 
+- Connect to DIDComm mediator server.
 
 ### Host Your DID Document
 
-After setup, LKMV generates `did.jsonl` file for your Persona DID. The file must be hosted at a specific URL matching your configured DID.
+After setup, LKMV generates a `did.jsonl` file for your Persona DID. The file must be hosted at a specific URL matching your configured DID.
 
 The `did:webvh` method resolves your DID by fetching the DID document from a well-known location on the web. If the document is not hosted at the correct URL, the DID cannot be resolved or used.
 
@@ -222,13 +219,13 @@ The `did:webvh` method resolves your DID by fetching the DID document from a wel
 
 - If your configured URL is `https://mydomain.com`, you must host the file at:
   
-  ```
+  ```html
   https://mydomain.com/.well-known/did.jsonl
   ```
 
-- If your configured URL is `https://mydomain.com/profile1`, you must host the file at: 
+- If your configured URL is `https://mydomain.com/profile1`, you must host the file at:
 
-  ```
+  ```html
   https://mydomain.com/profile1/did.jsonl
   ```
 
@@ -255,7 +252,7 @@ lkmv -p profile-1 status
 When successful, it displays the following info:
 
 - Tool version.
-- Your Persona DIDs, and whether your Persona DID is resolvable. 
+- Your Persona DIDs, and whether your Persona DID is resolvable.
 - Configured keys for authentication, encryption, and signing.
 - List of requested and established relationships.
 - DIDComm mediator connectivity.
