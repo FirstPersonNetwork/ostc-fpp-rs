@@ -95,6 +95,7 @@ lkmv -u MyUnlockCode status
 Initialise your LKMV environment by creating a profile, generating a Persona DID, and setting up cryptographic keys.
 
 **Usage:**
+
 ```bash
 lkmv setup
 lkmv setup import [OPTIONS]
@@ -103,11 +104,13 @@ lkmv setup import [OPTIONS]
 **Examples:**
 
 Setup a default profile:
+
 ```bash
 lkmv setup
 ```
 
 Create a named profile:
+
 ```bash
 lkmv -p profile-1 setup
 ```
@@ -126,21 +129,25 @@ Import previously exported LKMV settings into a new profile or machine.
 **Examples:**
 
 Import with default filename from the current directory:
+
 ```bash
 lkmv setup import
 ```
 
 Import from specific file:
+
 ```bash
 lkmv setup import -f ~/Downloads/backup.lkmv
 ```
 
 Import with passphrase:
+
 ```bash
 lkmv setup import -f ~/Downloads/backup.lkmv -p MyPassphrase
 ```
 
 Import to named profile:
+
 ```bash
 lkmv -p new-profile setup import -f ~/Downloads/backup.lkmv
 ```
@@ -152,6 +159,7 @@ lkmv -p new-profile setup import -f ~/Downloads/backup.lkmv
 Display current environment and configuration information.
 
 **Usage:**
+
 ```bash
 lkmv status
 ```
@@ -159,11 +167,13 @@ lkmv status
 **Examples:**
 
 Check default profile status:
+
 ```bash
 lkmv status
 ```
 
 Check specific profile status:
+
 ```bash
 lkmv -p profile-1 status
 ```
@@ -175,6 +185,7 @@ lkmv -p profile-1 status
 Display log history of actions and events within LKMV. Logs include relationship events, contact changes, task operations, vrc operations, and configuration updates.
 
 **Usage:**
+
 ```bash
 lkmv logs
 ```
@@ -184,11 +195,13 @@ lkmv logs
 **Examples:**
 
 View all log entries:
+
 ```bash
 lkmv logs
 ```
 
 View logs for a specific profile:
+
 ```bash
 lkmv -p profile-1 logs
 ```
@@ -200,6 +213,7 @@ lkmv -p profile-1 logs
 Export settings or cryptographic keys from your environment.
 
 **Usage:**
+
 ```bash
 lkmv export pgp-keys [OPTIONS]
 lkmv export settings [OPTIONS]
@@ -219,16 +233,19 @@ Export the primary PGP keys used in your Persona DID for signing, authentication
 **Examples:**
 
 Export with interactive prompts:
+
 ```bash
 lkmv export pgp-keys
 ```
 
 Export with inline parameters:
+
 ```bash
 lkmv export pgp-keys -p SecurePass123 -u "John Doe <john@example.com>"
 ```
 
 Export from specific profile:
+
 ```bash
 lkmv -p profile-1 export pgp-keys
 ```
@@ -247,16 +264,19 @@ Export settings for importing into another profile or machine.
 **Examples:**
 
 Export to default file:
+
 ```bash
 lkmv export settings
 ```
 
 Export to specific location:
+
 ```bash
 lkmv export settings -f ~/backups/profile-backup.lkmv
 ```
 
 Export with inline passphrase:
+
 ```bash
 lkmv export settings -p SecurePass123 -f ~/backups/profile-backup.lkmv
 ```
@@ -268,6 +288,7 @@ lkmv export settings -p SecurePass123 -f ~/backups/profile-backup.lkmv
 Manage your list of known DIDs and their aliases.
 
 **Usage:**
+
 ```bash
 lkmv contacts add [OPTIONS]
 lkmv contacts remove [OPTIONS]
@@ -291,16 +312,19 @@ Add a new contact or update an existing one. If the DID already exists, it will 
 **Examples:**
 
 Add contact with verification:
+
 ```bash
 lkmv contacts add -d did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com -a "John Doe"
 ```
 
 Add contact without verification:
+
 ```bash
 lkmv contacts add -d did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com -a "John Doe" -s
 ```
 
 Add contact without alias:
+
 ```bash
 lkmv contacts add -d did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com
 ```
@@ -321,11 +345,13 @@ Remove a contact by DID or alias.
 **Examples:**
 
 Remove by DID:
+
 ```bash
 lkmv contacts remove -d did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com
 ```
 
 Remove by alias:
+
 ```bash
 lkmv contacts remove -a "John Doe"
 ```
@@ -335,6 +361,7 @@ lkmv contacts remove -a "John Doe"
 Display all contacts in the current profile.
 
 **Usage:**
+
 ```bash
 lkmv contacts list
 ```
@@ -342,6 +369,7 @@ lkmv contacts list
 **Examples:**
 
 List all contacts:
+
 ```bash
 lkmv contacts list
 ```
@@ -353,6 +381,7 @@ lkmv contacts list
 Manage relationships with other DIDs for secure communication and VRC issuance.
 
 **Usage:**
+
 ```bash
 lkmv relationships request [OPTIONS]
 lkmv relationships ping [OPTIONS]
@@ -380,21 +409,25 @@ Send a relationship request to another DID.
 **Examples:**
 
 Send basic relationship request:
+
 ```bash
 lkmv relationships request -d did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com -a "JohnD"
 ```
 
 Send with reason:
+
 ```bash
 lkmv relationships request -d did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com -a "JohnD" -r "Coworker connection"
 ```
 
 Send with R-DID generation:
+
 ```bash
 lkmv relationships request -d did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com -a "JohnD" -g
 ```
 
 Use contact alias:
+
 ```bash
 lkmv relationships request -d "JohnD" -a "John Doe" -r "Conference attendee"
 ```
@@ -414,11 +447,13 @@ Send a trust ping message to test connectivity with an established relationship.
 **Examples:**
 
 Ping by DID:
+
 ```bash
 lkmv relationships ping -r did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com
 ```
 
 Ping by alias:
+
 ```bash
 lkmv relationships ping -r "JohnD"
 ```
@@ -438,11 +473,13 @@ Remove an existing relationship and all associated VRCs (both issued and receive
 **Examples:**
 
 Remove by DID:
+
 ```bash
 lkmv relationships remove -r did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com
 ```
 
 Remove by alias:
+
 ```bash
 lkmv relationships remove -r "JohnD"
 ```
@@ -452,6 +489,7 @@ lkmv relationships remove -r "JohnD"
 Display all relationships and their status.
 
 **Usage:**
+
 ```bash
 lkmv relationships list
 ```
@@ -459,6 +497,7 @@ lkmv relationships list
 **Examples:**
 
 List all relationships:
+
 ```bash
 lkmv relationships list
 ```
@@ -470,6 +509,7 @@ lkmv relationships list
 Manage outstanding tasks including messages from the mediator, relationship requests, and VRC requests.
 
 **Usage:**
+
 ```bash
 lkmv tasks list
 lkmv tasks fetch
@@ -483,6 +523,7 @@ lkmv tasks clear [OPTIONS]
 Display all outstanding tasks.
 
 **Usage:**
+
 ```bash
 lkmv tasks list
 ```
@@ -490,6 +531,7 @@ lkmv tasks list
 **Examples:**
 
 List all tasks:
+
 ```bash
 lkmv tasks list
 ```
@@ -499,6 +541,7 @@ lkmv tasks list
 Retrieve new messages and tasks from the mediator.
 
 **Usage:**
+
 ```bash
 lkmv tasks fetch
 ```
@@ -506,6 +549,7 @@ lkmv tasks fetch
 **Examples:**
 
 Fetch new tasks:
+
 ```bash
 lkmv tasks fetch
 ```
@@ -523,6 +567,7 @@ Remove a specific task by ID.
 **Examples:**
 
 Remove specific task:
+
 ```bash
 lkmv tasks remove --id 50ff0179-6d82-4424-8dab-bdf3b0c24b44
 ```
@@ -540,11 +585,13 @@ Interactive CLI manager for fetching and processing tasks (relationship requests
 **Examples:**
 
 Enter interactive mode to fetch and process all tasks:
+
 ```bash
 lkmv tasks interact
 ```
 
 Interact with specific task:
+
 ```bash
 lkmv tasks interact --id 50ff0179-6d82-4424-8dab-bdf3b0c24b44
 ```
@@ -565,16 +612,19 @@ Clear all local tasks and optionally remote messages from the mediator.
 **Examples:**
 
 Clear with confirmation:
+
 ```bash
 lkmv tasks clear
 ```
 
 Force clear without confirmation:
+
 ```bash
 lkmv tasks clear --force
 ```
 
 Clear all tasks including remote messages:
+
 ```bash
 lkmv tasks clear --remote
 ```
@@ -586,6 +636,7 @@ lkmv tasks clear --remote
 Manage Verifiable Relationship Credentials (VRCs).
 
 **Usage:**
+
 ```bash
 lkmv vrcs request
 lkmv vrcs list [OPTIONS]
@@ -600,6 +651,7 @@ lkmv vrcs remove <ID>
 Request a VRC from an established relationship.
 
 **Usage:**
+
 ```bash
 lkmv vrcs request
 ```
@@ -609,6 +661,7 @@ lkmv vrcs request
 **Examples:**
 
 Request VRC interactively:
+
 ```bash
 lkmv vrcs request
 ```
@@ -624,6 +677,7 @@ Display all VRCs (both issued and received). Optionally filter by relationship.
 | `-r, --remote <DID>` | Show VRCs for a specific remote DID or alias | No |
 
 **Usage:**
+
 ```bash
 lkmv vrcs list [OPTIONS]
 ```
@@ -631,16 +685,19 @@ lkmv vrcs list [OPTIONS]
 **Examples:**
 
 List all VRCs:
+
 ```bash
 lkmv vrcs list
 ```
 
 List VRCs for a specific relationship by DID:
+
 ```bash
 lkmv vrcs list -r did:webvh:QmbeaiTRfLnkzWvagfAUUuQ8XymXenxNaLVjctqVLafE7u:example.com
 ```
 
 List VRCs for a specific relationship by alias:
+
 ```bash
 lkmv vrcs list -r "JohnD"
 ```
@@ -650,6 +707,7 @@ lkmv vrcs list -r "JohnD"
 Display a specific VRC by ID.
 
 **Usage:**
+
 ```bash
 lkmv vrcs show <ID>
 ```
@@ -657,6 +715,7 @@ lkmv vrcs show <ID>
 **Examples:**
 
 View specific VRC:
+
 ```bash
 lkmv vrcs show be85696ebea0e947bde696754be67d640a36b63e1ff9da0c7637c933a6cb469f
 ```
@@ -666,6 +725,7 @@ lkmv vrcs show be85696ebea0e947bde696754be67d640a36b63e1ff9da0c7637c933a6cb469f
 Remove a VRC from local storage.
 
 **Usage:**
+
 ```bash
 lkmv vrcs remove <ID>
 ```
@@ -673,6 +733,7 @@ lkmv vrcs remove <ID>
 **Examples:**
 
 Remove specific VRC:
+
 ```bash
 lkmv vrcs remove be85696ebea0e947bde696754be67d640a36b63e1ff9da0c7637c933a6cb469f
 ```

@@ -43,7 +43,6 @@ sequenceDiagram
   - [3. Claim and Store VRC (Requestor)](#3-claim-and-store-vrc-requestor)
 - [List and View VRCs](#list-and-view-vrcs)
 
-
 ## Establish Relationship
 
 Follow these steps to establish a relationship with another Persona DID.
@@ -106,7 +105,7 @@ Refer to the sample response below:
 
 Both parties must complete finalisation:
 
-**1. Requestor**
+#### 1. Requestor
 
 Run `lkmv tasks interact` to fetch the acceptance message. This updates the relationship status from **`Request Sent`** to **`Established`** and sends a finalisation message to the respondent.
 
@@ -117,7 +116,7 @@ Refer to the sample response below:
 Task Id: 020bb98e-5460-4d42-b369-bf4a65b4909c Type: Relationship request accepted
 ```
 
-**2. Respondent**
+#### 2. Respondent
 
 Run `lkmv tasks interact` to fetch the finalisation message. This updates the relationship status from **`Request Accepted`** to **`Established`**.
 
@@ -192,7 +191,7 @@ lkmv vrcs request
     | End Date | When the relationship will end (you can use the suggested or set a custom date). |
     | Valid From | When the VRC becomes valid (now or a custom date). |
 
-The tool generates and issues the VRC to the requestor, storing a record in your private configuration. 
+The tool generates and issues the VRC to the requestor, storing a record in your private configuration.
 
 Refer to the sample VRC below:
 
