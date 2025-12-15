@@ -28,6 +28,28 @@ impl StateHandler {
         mut action_rx: UnboundedReceiver<Action>,
         mut interrupt_rx: broadcast::Receiver<Interrupted>,
     ) -> Result<Interrupted> {
-        Ok(Interrupted::UserInt)
+        let state = State {};
+
+        // Send the initial state once
+        self.state_tx.send(state.clone())?;
+
+        let result = loop {
+            tokio::select! {
+                Some(action) = action_rx.recv() => match action {
+                    Action::Exit => {
+                        let _ = terminator.terminate(Interrupted::UserInt);
+
+                        break Interrupted::UserInt;
+                    },
+                    Action::Dummy => {}
+                },
+                // Catch and handle interrupt signal to gracefully shutdown
+                Ok(interrupted) = interrupt_rx.recv() => {
+                    break interrupted;
+                }
+            }
+            self.state_tx.send(state.clone())?;
+        };
+        Ok(result)
     }
 }

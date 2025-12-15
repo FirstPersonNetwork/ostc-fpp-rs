@@ -1,1 +1,4 @@
-pub enum Action {}
+pub enum Action {
+    Exit,
+    Dummy,
+}
