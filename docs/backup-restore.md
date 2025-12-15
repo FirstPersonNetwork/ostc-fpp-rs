@@ -58,6 +58,6 @@ lkmv setup
 
 4. After you entered the recovery phrase, one of the steps will ask if you would like to use your existing DID, select `yes`.
 
-This process will allow to retain the same DID and DID secrets, including the DID document.
+This process will allow you to retain the same DID and DID secrets, including the DID document.
 
 **Note:** The recovery phrase only restores the DID and its secrets, not the full profile configuration, such as contacts, relationships, and logs.

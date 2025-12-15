@@ -73,8 +73,6 @@ The LKMV tool uses the `did:webvh` to create your **Persona DID (P-DID)**. It en
 
 - Robust security by introducing a pre-rotation key and witness proof that approves changes to the DID.
 
-- Robust security by introducing a pre-rotation key and witness proof that approves changes to the DID.  
-
 **Requirements:** A publicly accessible domain to host DID log entries (`did.jsonl`) for successful DID resolution and public key/service endpoint retrieval.
 
 *Sample did:webvh identifier:*
@@ -214,7 +212,7 @@ Follow the prompts to:
 
 ### Host Your DID Document
 
-After setup, LKMV generates `did.jsonl` file for your Persona DID. The file must be hosted at a specific URL matching your configured DID.
+After setup, LKMV generates a `did.jsonl` file for your Persona DID. The file must be hosted at a specific URL matching your configured DID.
 
 The `did:webvh` method resolves your DID by fetching the DID document from a well-known location on the web. If the document is not hosted at the correct URL, the DID cannot be resolved or used.
 

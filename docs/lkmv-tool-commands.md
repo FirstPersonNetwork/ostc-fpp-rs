@@ -1,6 +1,6 @@
 # LKMV Tool Commands
 
-Complete command reference for the LKMV Tool CLI.
+Complete command reference for the LKMV CLI tool.
 
 ## Table of Contents
 
@@ -50,7 +50,7 @@ When using an unlock code to protect secured configuration, use `-u, --unlock-co
 lkmv -u <unlock-code> <command>
 ```
 
-> **Warning:** This exposes your unlock code to the command line history. Avoid using this unless you are using test profile.
+> **Warning:** This exposes your unlock code to the command line history. Avoid using this unless you are using a test profile.
 
 ### DID Formats
 

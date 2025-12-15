@@ -1,6 +1,6 @@
 # LKMV Secure Key Management Design
 
-The lkmv CLI tool requires the use of many secret keys for it to work, at a minimum
+The LKMV CLI tool requires the use of many secret keys for it to work; at a minimum
 the following keys are required:
 
 - **Persona DID**
@@ -10,7 +10,7 @@ the following keys are required:
     this public key.
     - This key is used to identify this account. Can be used for SSH access,
       challenge/response services, etc.
-  - `DECRYPTION_KEY`: Used to encrypt/decrypt data
+  - `ENCRYPTION_KEY`: Used to encrypt/decrypt data.
 
 - **DID Management (WebVH Management Keys)**
   - N x pre-rolled LogEntry update keys (where N = # of keys defined in WebVH Parameters)
@@ -21,7 +21,7 @@ the following keys are required:
 
 All of the above is linked back to the `Persona DID`.
 
-The lkmv tool is designed to be used with physical hardware tokens, such as Nitrokey, Yubikey.
+LKMV is designed to be used with physical hardware tokens, such as those made by Nitrokey or Yubikey.
 
 These tokens **MUST** support the openpgp-card protocol.
 
@@ -29,7 +29,7 @@ These tokens **MUST** support the openpgp-card protocol.
 
 | Path          | Description                                      |
 | ------------- | ------------------------------------------------ |
-| `m/0'/0'/`    | Reserved for lkmv management keys                |
+| `m/0'/0'/`    | Reserved for LKMV management keys                |
 | `m/1'/0'/`    | Reserved for Persona DID Keys                  |
 | `m/2'/1'/`    | Reserved for Persona DID WebVH Management keys |
 | `m/3'/1'/1'/` | Reserved for Relationship DID keys               |
@@ -89,12 +89,12 @@ flowchart TB
 
 ### Starting Key Space mapping
 
-`lkmv` derives key paths from a BIP32 root. Common starting key paths are:
+LKMV derives key paths from a BIP32 root. Common starting key paths are:
 
 - Persona DID Path `m/1'/0'/`
   - `m/1'/0'/0'` :: Persona DID Signing Key
   - `m/1'/0'/1'` :: Persona DID Authentication Key
-  - `m/1'/0'/2'` :: Persona DID Decryption Key
+  - `m/1'/0'/2'` :: Persona DID Encryption Key
 
 - WebVH DID Management Path `m/2'/1'`
   - `m/2'/1'/<n>'` :: Pre-rolled update keys for WebVH LogEntries
@@ -130,8 +130,8 @@ flowchart TB
 There are three configuration stores for the LKMV CLI tool:
 
 1. SecuredConfig :: OS Secure Storage (Key material)
-2. PrivateConfig :: Encrypted sensitive configuration (relationships and DID contacts
-   etc...)
+2. PrivateConfig :: Encrypted sensitive configuration (relationships and DID contacts,
+   etc.)
    - Uses `m/0'/0'/0'` as the derived key for the encryption of PrivateConfig
 3. PublicConfig :: Non-sensitive configuration, contains the encrypted PrivateConfig
 
@@ -141,7 +141,7 @@ Whenever the CLI tool needs to create and sign a verifiable credential, it must
 use the `SIGNING_KEY`.
 
 If you are using a hardware token, it is **_STRONGLY_** recommended to enable MFA
-on the signing key.
+(e.g., touch activation) on the signing key.
 
 ```mermaid
 ---
