@@ -149,7 +149,7 @@ pub async fn create_send_request(
     println!();
     println!(
         "{}{}",
-        style("✅ Succesfully sent Relationship Request to ").color256(CLI_GREEN),
+        style("✅ Successfully sent Relationship Request to ").color256(CLI_GREEN),
         style(&contact.did).color256(CLI_PURPLE)
     );
 
@@ -219,7 +219,7 @@ pub async fn send_rejection(
     println!();
     println!(
         "{}{}",
-        style("✅ Succesfully sent Relationship Request Rejection to ").color256(CLI_GREEN),
+        style("✅ Successfully sent Relationship Request Rejection to ").color256(CLI_GREEN),
         style(respondent).color256(CLI_PURPLE)
     );
 

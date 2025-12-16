@@ -701,7 +701,7 @@ pub async fn interact_vrc_inbound_request(
                 println!();
                 println!(
                     "{}{}",
-                    style("✅ Succesfully sent VRC Request Rejection to ").color256(CLI_GREEN),
+                    style("✅ Successfully sent VRC Request Rejection to ").color256(CLI_GREEN),
                     style(to).color256(CLI_PURPLE)
                 );
 

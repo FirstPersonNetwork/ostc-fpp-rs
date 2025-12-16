@@ -72,7 +72,7 @@ Refer to the sample response below:
 ```bash
 Generated new Relationship DID for contact FrancisP2 :: did:peer:2.Vz6Mkkop...
 
-✅ Succesfully sent Relationship Request to did:webvh:QmQzm...
+✅ Successfully sent Relationship Request to did:webvh:QmQzm...
 ```
 
 For more details, see the [CLI documentation](./lkmv-tool-commands.md/#lkmv-relationships).
@@ -98,7 +98,7 @@ After entering the alias, the tool updates the relationship status to **`Request
 Refer to the sample response below:
 
 ```bash
-✅ Succesfully sent Relationship Request Acceptance to did:webvh:Qmbea...
+✅ Successfully sent Relationship Request Acceptance to did:webvh:Qmbea...
 ```
 
 ### 3. Finalise Relationship Request
@@ -112,7 +112,7 @@ Run `lkmv tasks interact` to fetch the acceptance message. This updates the rela
 Refer to the sample response below:
 
 ```bash
-✅ Succesfully sent Relationship Request Finalize to did:webvh:QmQzm...
+✅ Successfully sent Relationship Request Finalize to did:webvh:QmQzm...
 Task Id: 020bb98e-5460-4d42-b369-bf4a65b4909c Type: Relationship request accepted
 ```
 

@@ -99,7 +99,7 @@ impl Config {
         println!();
         println!(
             "{}{}",
-            style("✅ Succesfully sent Relationship Request Acceptance to ").color256(CLI_GREEN),
+            style("✅ Successfully sent Relationship Request Acceptance to ").color256(CLI_GREEN),
             style(from).color256(CLI_PURPLE)
         );
 
@@ -246,7 +246,7 @@ impl Config {
         println!();
         println!(
             "{}{}",
-            style("✅ Succesfully sent Relationship Request Finalize to ").color256(CLI_GREEN),
+            style("✅ Successfully sent Relationship Request Finalize to ").color256(CLI_GREEN),
             style(from).color256(CLI_PURPLE)
         );
 
