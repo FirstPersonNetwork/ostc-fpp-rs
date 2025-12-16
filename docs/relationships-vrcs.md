@@ -156,13 +156,6 @@ lkmv vrcs request
     | Field | Description |
     |-------|-------------|
     | Reason | Explain why you are requesting a VRC. |
-    <!--
-    | Human-readable name | Your name to include in the VRC (defaults to your configured name). |
-    | AlsoKnownAs | Optional. Include your R-DID (not recommended as R-DIDs are for private communication). |
-    | Relationship Type | The nature of the relationship (e.g., `Coworker`, `Peer`, `Colleague`) or a custom URI. |
-    | Start Date | When the relationship was established. |
-    | End Date | When the relationship will end (if applicable). |
-    -->
 
 3. Review and submit the request. Refer to the sample response below:
 
@@ -186,17 +179,6 @@ lkmv vrcs request
     |-------|-------------|
     | Valid From Date | VRC valid from date of relationship establishment, current date/time, custom date/time |
     | Valid Until Timestamp | VRC valid until a specified date or select **no** if it won't expire |
-    <!--
-    | Human-readable name | Your name to include in the VRC. |
-    | AlsoKnownAs | Optional. Include your R-DID (not recommended as R-DIDs are for private communication). |
-    | Requestor's Human-readable name | The requestor's name (you can modify the suggested value). |
-    | VRC Description | Purpose of the VRC. |
-    | VRC Name | A human-readable identifier for the VRC. |
-    | Relationship Type | The nature of the relationship (you can modify the suggested value). |
-    | Start Date | When the relationship was established (you can use the suggested or set a custom date). |
-    | End Date | When the relationship will end (you can use the suggested or set a custom date). |
-    | Valid From | When the VRC becomes valid (now or a custom date). |
-    -->
 
 The tool generates and issues the VRC to the requestor, storing a record in your private configuration.
 
