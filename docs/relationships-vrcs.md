@@ -72,7 +72,7 @@ Refer to the sample response below:
 ```bash
 Generated new Relationship DID for contact FrancisP2 :: did:peer:2.Vz6Mkkop...
 
-✅ Succesfully sent Relationship Request to did:webvh:QmQzm...
+✅ Successfully sent Relationship Request to did:webvh:QmQzm...
 ```
 
 For more details, see the [CLI documentation](./lkmv-tool-commands.md/#lkmv-relationships).
@@ -98,7 +98,7 @@ After entering the alias, the tool updates the relationship status to **`Request
 Refer to the sample response below:
 
 ```bash
-✅ Succesfully sent Relationship Request Acceptance to did:webvh:Qmbea...
+✅ Successfully sent Relationship Request Acceptance to did:webvh:Qmbea...
 ```
 
 ### 3. Finalise Relationship Request
@@ -112,7 +112,7 @@ Run `lkmv tasks interact` to fetch the acceptance message. This updates the rela
 Refer to the sample response below:
 
 ```bash
-✅ Succesfully sent Relationship Request Finalize to did:webvh:QmQzm...
+✅ Successfully sent Relationship Request Finalize to did:webvh:QmQzm...
 Task Id: 020bb98e-5460-4d42-b369-bf4a65b4909c Type: Relationship request accepted
 ```
 
@@ -155,11 +155,7 @@ lkmv vrcs request
 
     | Field | Description |
     |-------|-------------|
-    | Human-readable name | Your name to include in the VRC (defaults to your configured name). |
-    | AlsoKnownAs | Optional. Include your R-DID (not recommended as R-DIDs are for private communication). |
-    | Relationship Type | The nature of the relationship (e.g., `Coworker`, `Peer`, `Colleague`) or a custom URI. |
-    | Start Date | When the relationship was established. |
-    | End Date | When the relationship will end (if applicable). |
+    | Reason | Explain why you are requesting a VRC. |
 
 3. Review and submit the request. Refer to the sample response below:
 
@@ -175,21 +171,14 @@ lkmv vrcs request
     lkmv tasks interact
     ```
 
-    You'll see tasks with type `VRC Request Received`. Select the task and click **Accept this VRC request**.
+    You'll see tasks with type `VRC Request`. Select the task and click **Accept this VRC request**.
 
 2. Fill in the following fields:
 
     | Field | Description |
     |-------|-------------|
-    | Human-readable name | Your name to include in the VRC. |
-    | AlsoKnownAs | Optional. Include your R-DID (not recommended as R-DIDs are for private communication). |
-    | Requestor's Human-readable name | The requestor's name (you can modify the suggested value). |
-    | VRC Description | Purpose of the VRC. |
-    | VRC Name | A human-readable identifier for the VRC. |
-    | Relationship Type | The nature of the relationship (you can modify the suggested value). |
-    | Start Date | When the relationship was established (you can use the suggested or set a custom date). |
-    | End Date | When the relationship will end (you can use the suggested or set a custom date). |
-    | Valid From | When the VRC becomes valid (now or a custom date). |
+    | Valid From Date | VRC valid from date of relationship establishment, current date/time, custom date/time |
+    | Valid Until Timestamp | VRC valid until a specified date or select **no** if it won't expire |
 
 The tool generates and issues the VRC to the requestor, storing a record in your private configuration.
 
@@ -204,23 +193,14 @@ Issued VRC
   ],
   "type": [
     "VerifiableCredential",
+    "DTGCredential",
     "RelationshipCredential"
   ],
   "issuer": "did:webvh:QmQzm...",
   "validFrom": "2025-12-02T08:58:43Z",
-  "name": "FriendVC",
-  "description": "Be friends",
+  "validUntil": "2026-12-02T00:00:00Z",
   "credentialSubject": {
-    "from": {
-      "did": "did:webvh:QmQzm...",
-      "name": "Alice"
-    },
-    "to": {
-      "did": "did:webvh:Qmbea...",
-      "name": "Bob"
-    },
-    "relationshipType": "Peer",
-    "startDate": "2025-12-02T08:55:36.462471Z"
+    "id": "did:peer:2.Vz6Mksm..."
   },
   "proof": {
     "type": "DataIntegrityProof",
@@ -233,7 +213,7 @@ Issued VRC
 }
 ```
 
-For more details, see the [draft specification](https://github.com/trustoverip/dtgwg-cred-tf/blob/1-provide-draft-vrc-rcard-and-witnessed-exchange-flow/vrc.md) of the VRC.
+For more details, see the [draft specification](https://github.com/trustoverip/dtgwg-cred-tf/blob/14-revised-vrc-spec---v02/dtg.md#core-structure) of the VRC.
 
 ### 3. Claim and Store VRC (Requestor)
 
