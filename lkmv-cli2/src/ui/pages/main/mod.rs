@@ -1,20 +1,22 @@
 use crate::{
-    state_handler::{actions::Action, state::State},
-    ui::{
-        component::{Component, ComponentRender},
-        pages::Props,
+    BORDER_COLOR,
+    state_handler::{
+        actions::Action,
+        state::{MainMenu, State},
     },
+    ui::component::{Component, ComponentRender},
 };
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
 use ratatui::{
     Frame,
     layout::{
-        Constraint::{Fill, Length, Min},
-        Layout, Margin,
+        Alignment,
+        Constraint::{Length, Min, Percentage},
+        Layout, Rect,
     },
     style::Stylize,
     symbols::merge::MergeStrategy,
-    widgets::Block,
+    widgets::{Block, Borders, Paragraph},
 };
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -22,8 +24,21 @@ use tokio::sync::mpsc::UnboundedSender;
 pub struct MainPage {
     /// Action sender
     pub action_tx: UnboundedSender<Action>,
+
     /// State Mapped MainPage Props
     props: Props,
+}
+
+struct Props {
+    main_menu: MainMenu,
+}
+
+impl From<&State> for Props {
+    fn from(state: &State) -> Self {
+        Props {
+            main_menu: state.main_menu.clone(),
+        }
+    }
 }
 
 impl Component for MainPage {
@@ -59,26 +74,77 @@ impl Component for MainPage {
             KeyCode::F(10) => {
                 let _ = self.action_tx.send(Action::Exit);
             }
+            KeyCode::Up => {
+                // Handle Up key
+                let _ = self
+                    .action_tx
+                    .send(Action::MainMenuSelected(self.props.main_menu.prev()));
+            }
+            KeyCode::Down => {
+                // Handle Down key
+                let _ = self
+                    .action_tx
+                    .send(Action::MainMenuSelected(self.props.main_menu.next()));
+            }
             _ => {}
         }
     }
 }
 
+impl MainMenu {
+    /// Render the main menu based on current state
+    fn render(&self, frame: &mut Frame, rect: Rect) {
+        let menu_block = Block::bordered()
+            .merge_borders(MergeStrategy::Fuzzy)
+            .fg(BORDER_COLOR);
+        frame.render_widget(
+            Paragraph::new(format!("Current Menu: {}", self))
+                .dark_gray()
+                .alignment(Alignment::Center)
+                .block(menu_block),
+            rect,
+        );
+    }
+}
+
+// ****************************************************************************
+// Render the page
+// ****************************************************************************
 impl ComponentRender<()> for MainPage {
     fn render(&self, frame: &mut Frame, _props: ()) {
         let [main_top, main_middle, main_bottom] =
-            Layout::vertical([Length(3), Min(0), Length(3)]).areas(frame.area());
+            Layout::vertical([Length(2), Min(0), Length(2)]).areas(frame.area());
 
+        let middle = Layout::horizontal([Percentage(33), Min(0)]).split(main_middle);
+
+        let top_block = Block::new()
+            .borders(Borders::BOTTOM)
+            .merge_borders(MergeStrategy::Fuzzy)
+            .fg(BORDER_COLOR);
         frame.render_widget(
-            Block::bordered().merge_borders(MergeStrategy::Fuzzy),
+            Paragraph::new("Title Area")
+                .dark_gray()
+                .alignment(Alignment::Center)
+                .block(top_block),
             main_top,
         );
+
+        // Middle block
+        // Left = menu
+        // right = actual content
+
+        self.props.main_menu.render(frame, middle[0]);
+        self.props.main_menu.render(frame, middle[1]);
+
+        let bottom_block = Block::new()
+            .borders(Borders::TOP)
+            .merge_borders(MergeStrategy::Fuzzy)
+            .fg(BORDER_COLOR);
         frame.render_widget(
-            Block::bordered().merge_borders(MergeStrategy::Fuzzy),
-            main_middle.outer(Margin::new(1, 1)),
-        );
-        frame.render_widget(
-            Block::bordered().merge_borders(MergeStrategy::Fuzzy),
+            Paragraph::new("Bottom Block")
+                .dark_gray()
+                .alignment(Alignment::Center)
+                .block(bottom_block),
             main_bottom,
         );
     }

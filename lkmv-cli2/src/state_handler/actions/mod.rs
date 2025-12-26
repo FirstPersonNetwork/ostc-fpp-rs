@@ -1,4 +1,7 @@
+use crate::state_handler::state::MainMenu;
+
 pub enum Action {
     Exit,
-    Dummy,
+    /// A main menu item has been selected
+    MainMenuSelected(MainMenu),
 }

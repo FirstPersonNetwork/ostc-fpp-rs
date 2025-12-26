@@ -27,7 +27,7 @@ lkmv = { version = "0.1.0", path = "lkmv" }
 dtg-credentials = { version = "0.1", git = "https://github.com/FirstPersonNetwork/dtg-credentials-rs" }
 
 aes-gcm = "0.10"
-affinidi-tdk = "0.2"
+affinidi-tdk = "0.3"
 affinidi-data-integrity = "0.3"
 anyhow = "1.0"
 base64 = "0.22"
@@ -47,6 +47,7 @@ multibase = "0.9"
 pgp = "0.18"
 # This is locked 0.8 due to *-dalek crates not udpated to rand 0.9
 rand = "0.8"
+ratatui = "0.30"
 regex = "1.12"
 # this is locked to 0.8.x as openpgp-card is only using 0.8 in it's interfaces - checked 0.5.1 version
 secrecy = "0.8"

@@ -28,7 +28,7 @@ impl StateHandler {
         mut action_rx: UnboundedReceiver<Action>,
         mut interrupt_rx: broadcast::Receiver<Interrupted>,
     ) -> Result<Interrupted> {
-        let state = State {};
+        let mut state = State::default();
 
         // Send the initial state once
         self.state_tx.send(state.clone())?;
@@ -41,7 +41,10 @@ impl StateHandler {
 
                         break Interrupted::UserInt;
                     },
-                    Action::Dummy => {}
+                    Action::MainMenuSelected(menu_item) => {
+                        // User has changed main menu selection
+                        state.main_menu = menu_item;
+                    }
                 },
                 // Catch and handle interrupt signal to gracefully shutdown
                 Ok(interrupted) = interrupt_rx.recv() => {

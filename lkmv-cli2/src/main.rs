@@ -1,10 +1,18 @@
 use crate::{state_handler::StateHandler, ui::UiManager};
+use ratatui::style::Color;
 #[cfg(unix)]
 use tokio::signal::unix::signal;
 use tokio::sync::broadcast;
 
 mod state_handler;
 mod ui;
+
+// CLI Color codes
+/// Success state - Completed actions, valid inputs, positive feedback
+pub const CLI_SUCCESS: Color = Color::Rgb(61, 220, 132); // #3DDC84 - Android Green
+
+///Using bright blue for professional, accessible appearance
+pub const BORDER_COLOR: Color = Color::Rgb(97, 175, 239); // #61AFEF - Blue
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
