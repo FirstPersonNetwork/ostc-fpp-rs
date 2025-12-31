@@ -9,10 +9,13 @@ mod ui;
 
 // CLI Color codes
 /// Success state - Completed actions, valid inputs, positive feedback
-pub const CLI_SUCCESS: Color = Color::Rgb(61, 220, 132); // #3DDC84 - Android Green
+pub const COLOR_SUCCESS: Color = Color::Rgb(61, 220, 132); // #3DDC84 - Android Green
 
 ///Using bright blue for professional, accessible appearance
-pub const BORDER_COLOR: Color = Color::Rgb(97, 175, 239); // #61AFEF - Blue
+pub const COLOR_BORDER: Color = Color::Rgb(97, 175, 239); // #61AFEF - Blue
+
+/// Default text color
+pub const COLOR_TEXT_DEFAULT: Color = Color::White;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

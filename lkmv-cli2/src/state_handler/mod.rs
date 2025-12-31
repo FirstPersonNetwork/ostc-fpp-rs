@@ -1,6 +1,9 @@
 use crate::{
     Interrupted, Terminator,
-    state_handler::{actions::Action, state::State},
+    state_handler::{
+        actions::Action,
+        state::{MainPanel, State},
+    },
 };
 use anyhow::Result;
 use tokio::sync::{
@@ -9,6 +12,7 @@ use tokio::sync::{
 };
 
 pub mod actions;
+pub mod main_page;
 pub mod state;
 
 pub struct StateHandler {
@@ -43,7 +47,21 @@ impl StateHandler {
                     },
                     Action::MainMenuSelected(menu_item) => {
                         // User has changed main menu selection
-                        state.main_menu = menu_item;
+                        state.main_page.menu_panel.selected_menu = menu_item;
+                    }
+                    Action::MainPanelSwitch(panel) => {
+                        match panel {
+                            MainPanel::ContentPanel => {
+                                // When switching to ContentPanel, reset any content-specific state if needed
+                                state.main_page.menu_panel.selected = false;
+                                state.main_page.content_panel.selected = true;
+                            },
+                            MainPanel::MainMenu => {
+                                // When switching to MainMenu, reset any content-specific state if needed
+                                state.main_page.menu_panel.selected = true;
+                                state.main_page.content_panel.selected = false;
+                            }
+                        }
                     }
                 },
                 // Catch and handle interrupt signal to gracefully shutdown

@@ -1,48 +1,24 @@
-use std::fmt::Display;
-
-use crossterm::event::KeyCode;
-use ratatui::Frame;
+use crate::state_handler::main_page::MainPageState;
 
 /// State holds the state of the application
 #[derive(Default, Debug, Clone)]
 pub struct State {
-    pub main_menu: MainMenu,
+    pub main_page: MainPageState,
 }
 
 #[derive(Default, Debug, Clone)]
-pub enum MainMenu {
+pub enum MainPanel {
     #[default]
-    Relationships,
-    Tasks,
-    Credentials,
+    MainMenu,
+    ContentPanel,
 }
 
-impl Display for MainMenu {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl MainPanel {
+    /// Switches to the next panel when pressing <TAB>
+    pub fn switch(&self) -> Self {
         match self {
-            MainMenu::Relationships => write!(f, "Relationships"),
-            MainMenu::Tasks => write!(f, "Tasks"),
-            MainMenu::Credentials => write!(f, "Credentials"),
-        }
-    }
-}
-
-impl MainMenu {
-    /// Returns the previous MainMenu item
-    pub fn prev(&self) -> MainMenu {
-        match self {
-            MainMenu::Relationships => MainMenu::Credentials,
-            MainMenu::Tasks => MainMenu::Relationships,
-            MainMenu::Credentials => MainMenu::Tasks,
-        }
-    }
-
-    /// Returns the next MainMenu item
-    pub fn next(&self) -> MainMenu {
-        match self {
-            MainMenu::Relationships => MainMenu::Tasks,
-            MainMenu::Tasks => MainMenu::Credentials,
-            MainMenu::Credentials => MainMenu::Relationships,
+            MainPanel::MainMenu => MainPanel::ContentPanel,
+            MainPanel::ContentPanel => MainPanel::MainMenu,
         }
     }
 }

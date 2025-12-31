@@ -1,8 +1,9 @@
 use crate::{
-    BORDER_COLOR,
+    COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT,
     state_handler::{
         actions::Action,
-        state::{MainMenu, State},
+        main_page::MainPageState,
+        state::{MainPanel, State},
     },
     ui::component::{Component, ComponentRender},
 };
@@ -12,13 +13,16 @@ use ratatui::{
     layout::{
         Alignment,
         Constraint::{Length, Min, Percentage},
-        Layout, Rect,
+        Layout,
     },
     style::Stylize,
     symbols::merge::MergeStrategy,
+    text::Line,
     widgets::{Block, Borders, Paragraph},
 };
 use tokio::sync::mpsc::UnboundedSender;
+
+pub mod components;
 
 /// MainPage handles the UI and the state of the primary lkmv interface
 pub struct MainPage {
@@ -30,13 +34,13 @@ pub struct MainPage {
 }
 
 struct Props {
-    main_menu: MainMenu,
+    main_page: MainPageState,
 }
 
 impl From<&State> for Props {
     fn from(state: &State) -> Self {
         Props {
-            main_menu: state.main_menu.clone(),
+            main_page: state.main_page.clone(),
         }
     }
 }
@@ -76,34 +80,30 @@ impl Component for MainPage {
             }
             KeyCode::Up => {
                 // Handle Up key
-                let _ = self
-                    .action_tx
-                    .send(Action::MainMenuSelected(self.props.main_menu.prev()));
+                if self.props.main_page.menu_panel.selected {
+                    let _ = self.action_tx.send(Action::MainMenuSelected(
+                        self.props.main_page.menu_panel.selected_menu.prev(),
+                    ));
+                }
             }
             KeyCode::Down => {
                 // Handle Down key
-                let _ = self
-                    .action_tx
-                    .send(Action::MainMenuSelected(self.props.main_menu.next()));
+                if self.props.main_page.menu_panel.selected {
+                    let _ = self.action_tx.send(Action::MainMenuSelected(
+                        self.props.main_page.menu_panel.selected_menu.next(),
+                    ));
+                }
+            }
+            KeyCode::Tab => {
+                // Switch active panel
+                let next_panel = match self.props.main_page.menu_panel.selected {
+                    true => MainPanel::ContentPanel,
+                    false => MainPanel::MainMenu,
+                };
+                let _ = self.action_tx.send(Action::MainPanelSwitch(next_panel));
             }
             _ => {}
         }
-    }
-}
-
-impl MainMenu {
-    /// Render the main menu based on current state
-    fn render(&self, frame: &mut Frame, rect: Rect) {
-        let menu_block = Block::bordered()
-            .merge_borders(MergeStrategy::Fuzzy)
-            .fg(BORDER_COLOR);
-        frame.render_widget(
-            Paragraph::new(format!("Current Menu: {}", self))
-                .dark_gray()
-                .alignment(Alignment::Center)
-                .block(menu_block),
-            rect,
-        );
     }
 }
 
@@ -113,37 +113,42 @@ impl MainMenu {
 impl ComponentRender<()> for MainPage {
     fn render(&self, frame: &mut Frame, _props: ()) {
         let [main_top, main_middle, main_bottom] =
-            Layout::vertical([Length(2), Min(0), Length(2)]).areas(frame.area());
+            Layout::vertical([Length(2), Min(0), Length(3)]).areas(frame.area());
 
-        let middle = Layout::horizontal([Percentage(33), Min(0)]).split(main_middle);
+        let top = Layout::horizontal([Percentage(50), Percentage(50)]).split(main_top);
+        let middle = Layout::horizontal([Percentage(20), Min(0)]).split(main_middle);
 
-        let top_block = Block::new()
-            .borders(Borders::BOTTOM)
-            .merge_borders(MergeStrategy::Fuzzy)
-            .fg(BORDER_COLOR);
         frame.render_widget(
-            Paragraph::new("Title Area")
-                .dark_gray()
-                .alignment(Alignment::Center)
-                .block(top_block),
-            main_top,
+            Paragraph::new(" LKMV Dashboard")
+                .fg(COLOR_SUCCESS)
+                .alignment(Alignment::Left),
+            top[0],
+        );
+        frame.render_widget(
+            Paragraph::new(vec![
+                Line::from("Glenn Gore ").fg(COLOR_SUCCESS),
+                Line::from("🆔 did:webvh:scid ").fg(COLOR_TEXT_DEFAULT),
+            ])
+            .alignment(Alignment::Right),
+            top[1],
         );
 
         // Middle block
         // Left = menu
         // right = actual content
 
-        self.props.main_menu.render(frame, middle[0]);
-        self.props.main_menu.render(frame, middle[1]);
+        // Main Menu
+        self.props.main_page.menu_panel.render(frame, middle[0]);
+        self.props.main_page.content_panel.render(frame, middle[1]);
 
         let bottom_block = Block::new()
             .borders(Borders::TOP)
             .merge_borders(MergeStrategy::Fuzzy)
-            .fg(BORDER_COLOR);
+            .fg(COLOR_BORDER);
         frame.render_widget(
-            Paragraph::new("Bottom Block")
+            Paragraph::new("<TAB> to change panels")
                 .dark_gray()
-                .alignment(Alignment::Center)
+                .alignment(Alignment::Left)
                 .block(bottom_block),
             main_bottom,
         );
