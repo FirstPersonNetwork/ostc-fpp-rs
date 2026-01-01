@@ -2,7 +2,7 @@ use crate::{
     COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT,
     state_handler::{
         actions::Action,
-        main_page::MainPageState,
+        main_page::{MainPageState, menu::MainMenu},
         state::{MainPanel, State},
     },
     ui::component::{Component, ComponentRender},
@@ -102,6 +102,18 @@ impl Component for MainPage {
                 };
                 let _ = self.action_tx.send(Action::MainPanelSwitch(next_panel));
             }
+            KeyCode::Enter => {
+                // Handle Enter key
+                if self.props.main_page.menu_panel.selected_menu == MainMenu::Quit {
+                    // Stop the application with a termination action
+                    let _ = self.action_tx.send(Action::Exit);
+                } else if self.props.main_page.menu_panel.selected {
+                    // Switch to the content panel
+                    let _ = self
+                        .action_tx
+                        .send(Action::MainPanelSwitch(MainPanel::ContentPanel));
+                }
+            }
             _ => {}
         }
     }
@@ -139,7 +151,11 @@ impl ComponentRender<()> for MainPage {
 
         // Main Menu
         self.props.main_page.menu_panel.render(frame, middle[0]);
-        self.props.main_page.content_panel.render(frame, middle[1]);
+        self.props.main_page.content_panel.render(
+            frame,
+            middle[1],
+            &self.props.main_page.menu_panel,
+        );
 
         let bottom_block = Block::new()
             .borders(Borders::TOP)
