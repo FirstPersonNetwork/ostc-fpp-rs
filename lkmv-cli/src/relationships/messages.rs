@@ -4,10 +4,7 @@
 
 use crate::{
     CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
-    config::Config,
-    log::LogFamily,
-    relationships::{Relationship, RelationshipState, create_relationship_did},
-    tasks::TaskType,
+    relationships::{RelationshipState, create_relationship_did},
 };
 use affinidi_tdk::{
     TDK,
@@ -16,7 +13,12 @@ use affinidi_tdk::{
 use anyhow::{Result, bail};
 use chrono::Utc;
 use console::style;
-use lkmv::relationships::{RelationshipRequestBody, create_send_message_rejected};
+use lkmv::{
+    config::Config,
+    logs::LogFamily,
+    relationships::{Relationship, RelationshipRequestBody, create_send_message_rejected},
+    tasks::TaskType,
+};
 use serde_json::json;
 use std::{rc::Rc, sync::Mutex, time::SystemTime};
 use uuid::Uuid;

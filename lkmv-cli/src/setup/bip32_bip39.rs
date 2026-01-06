@@ -2,7 +2,7 @@
 *  implementations live here
 */
 
-use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_RED, setup::KeyPurpose};
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_RED};
 use affinidi_tdk::secrets_resolver::{
     crypto::ed25519::ed25519_private_to_x25519_private_key, secrets::Secret,
 };
@@ -11,6 +11,7 @@ use bip39::Mnemonic;
 use console::style;
 use dialoguer::{Confirm, Input, theme::ColorfulTheme};
 use ed25519_dalek_bip32::{DerivationPath, ExtendedSigningKey};
+use lkmv::KeyPurpose;
 use rand::RngCore;
 use zeroize::Zeroize;
 

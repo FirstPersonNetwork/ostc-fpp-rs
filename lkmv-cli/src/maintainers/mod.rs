@@ -3,7 +3,7 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, config::Config};
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED};
 use affinidi_tdk::{
     TDK,
     didcomm::{Message, PackEncryptedOptions},
@@ -12,7 +12,7 @@ use affinidi_tdk::{
 use anyhow::{Result, bail};
 use clap::ArgMatches;
 use console::style;
-use lkmv::{MessageType, maintainers::Maintainer};
+use lkmv::{MessageType, config::Config, maintainers::Maintainer};
 use serde_json::json;
 use uuid::Uuid;
 

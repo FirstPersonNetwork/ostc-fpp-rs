@@ -1,28 +1,30 @@
-use std::{rc::Rc, sync::Mutex};
+use std::{
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE,
-    config::Config,
     interactions::vrc::{
         interact_vrc_inbound, interact_vrc_inbound_request, interact_vrc_outbound_request,
     },
-    log::LogFamily,
-    relationships::messages::send_rejection,
-    tasks::{Task, TaskType, Tasks},
+    relationships::{inbound::ConfigRelationships, messages::send_rejection},
+    tasks::{Task, TaskType, Tasks, fetch::fetch_tasks},
 };
-use affinidi_tdk::TDK;
+use affinidi_tdk::{TDK, messaging::profiles::ATMProfile};
 use anyhow::Result;
-use console::style;
+use console::{StyledObject, Term, style};
 use dialoguer::{Confirm, Input, Select, theme::ColorfulTheme};
-use lkmv::relationships::RelationshipRequestBody;
+use lkmv::{config::Config, logs::LogFamily, relationships::RelationshipRequestBody};
 
-impl Tasks {
+pub trait TasksInteraction {
+    async fn interact(tdk: &TDK, config: &mut Config, term: &Term) -> Result<bool>;
+    async fn interact_task(task: &Rc<Mutex<Task>>, tdk: &TDK, config: &mut Config) -> Result<bool>;
+}
+
+impl TasksInteraction for Tasks {
     /// Console interaction for this task
-    pub async fn interact_task(
-        task: &Rc<Mutex<Task>>,
-        tdk: &TDK,
-        config: &mut Config,
-    ) -> Result<bool> {
+    async fn interact_task(task: &Rc<Mutex<Task>>, tdk: &TDK, config: &mut Config) -> Result<bool> {
         let type_ = { task.lock().unwrap().type_.clone() };
         Ok(match type_ {
             TaskType::RelationshipRequestInbound {
@@ -49,6 +51,68 @@ impl Tasks {
                 false
             }
         })
+    }
+
+    /// Interactive console for handling tasks
+    /// Returns true if changes were made to config
+    async fn interact(tdk: &TDK, config: &mut Config, term: &Term) -> Result<bool> {
+        let mut change_flag = false; // set to true if config changed
+        loop {
+            // fetch tasks in case there are new ones
+            if fetch_tasks(tdk, config, term, &config.persona_did.profile.clone()).await? > 0 {
+                change_flag = true;
+            }
+
+            let profiles: Vec<Arc<ATMProfile>> = config.atm_profiles.values().cloned().collect();
+            for profile in profiles {
+                if fetch_tasks(tdk, config, term, &profile).await? > 0 {
+                    change_flag = true;
+                }
+            }
+
+            if config.private.tasks.tasks.is_empty() {
+                println!(
+                    "{}",
+                    style("There are no tasks to interact with").color256(CLI_ORANGE)
+                );
+                break;
+            }
+
+            let mut select_list: Vec<StyledObject<String>> = config
+                .private
+                .tasks
+                .tasks
+                .iter()
+                .map(|(id, task)| {
+                    style(format!("{} Type: {}", id, task.lock().unwrap().type_))
+                        .color256(CLI_PURPLE)
+                })
+                .collect();
+            select_list.push(style("Exit Task Interaction".to_string()).color256(CLI_ORANGE));
+
+            let selected = Select::with_theme(&ColorfulTheme::default())
+                .with_prompt("Select a task to interact with")
+                .items(&select_list)
+                .default(0)
+                .interact()
+                .unwrap();
+
+            if selected == select_list.len() - 1 {
+                // exit option
+                break;
+            } else if let Some(task) = config.private.tasks.get_by_pos(selected) {
+                if Tasks::interact_task(&task, tdk, config).await? {
+                    change_flag = true;
+                }
+            } else {
+                println!(
+                    "{}",
+                    style("WARN: No valid task selected!").color256(CLI_ORANGE)
+                );
+            }
+        }
+
+        Ok(change_flag)
     }
 }
 

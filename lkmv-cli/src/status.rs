@@ -2,19 +2,26 @@
 *
 */
 
-use std::time::SystemTime;
-
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
-    config::{Config, public_config::PublicConfig},
+    config::{ConfigExtension, PublicConfigExtension},
     messaging::ping_mediator,
 };
 use affinidi_tdk::TDK;
 use anyhow::Result;
 use console::{Term, style};
+use dialoguer::{Password, theme::ColorfulTheme};
+use lkmv::config::{Config, UnlockCode, public_config::PublicConfig};
+use secrecy::SecretString;
+use std::time::SystemTime;
 
 /// Prints diagnostic status to STDOUT
-pub async fn print_status(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>, profile: &str) {
+pub async fn print_status(
+    term: &Term,
+    tdk: &mut TDK,
+    unlock_code: Option<&UnlockCode>,
+    profile: &str,
+) {
     println!(
         "{}",
         style("Linux Kernel Maintainer Validation (LKMV) tool").color256(CLI_BLUE)
@@ -124,7 +131,22 @@ pub async fn print_status(term: &Term, tdk: &mut TDK, unlock_code: Option<&str>,
     }
 
     // load config
-    let config = match Config::load(term, tdk, profile, unlock_code).await {
+    let user_pin = Password::with_theme(&ColorfulTheme::default())
+        .with_prompt("Please enter Token User PIN <blank = default>")
+        .allow_empty_password(true)
+        .interact()
+        .unwrap();
+    let user_pin = if user_pin.is_empty() {
+        SecretString::new("123456".to_string())
+    } else {
+        SecretString::new(user_pin)
+    };
+
+    let config = match Config::load(tdk, profile, unlock_code, &user_pin, &|| {
+        eprintln!("Touch confirmation needed for decryption");
+    })
+    .await
+    {
         Ok(cfg) => {
             println!(
                 "{} {}",

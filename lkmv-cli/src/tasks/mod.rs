@@ -3,109 +3,34 @@
 */
 
 use crate::{
-    CLI_BLUE, CLI_ORANGE, CLI_PURPLE, CLI_RED, config::Config, relationships::Relationship,
-    tasks::fetch::fetch_tasks,
+    CLI_BLUE, CLI_ORANGE, CLI_PURPLE, CLI_RED,
+    tasks::{clear::TasksClear, fetch::fetch_tasks, interact::TasksInteraction},
 };
 use affinidi_tdk::{TDK, messaging::profiles::ATMProfile};
 use anyhow::{Result, bail};
-use chrono::{DateTime, Utc};
 use clap::ArgMatches;
-use console::{StyledObject, Term, style};
-use dialoguer::{Select, theme::ColorfulTheme};
-use dtg_credentials::DTGCredential;
-use lkmv::{relationships::RelationshipRequestBody, vrc::VrcRequest};
-use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    fmt::Display,
-    rc::Rc,
-    sync::{Arc, Mutex},
+use console::{Term, style};
+use lkmv::{
+    config::Config,
+    tasks::{Task, TaskType, Tasks},
 };
+use std::{rc::Rc, sync::Arc};
 
 pub mod clear;
 pub mod fetch;
 pub mod interact;
 
-/// Defined Task Types for LKMV
-#[derive(Clone, Debug, Serialize, Deserialize)]
-#[non_exhaustive]
-pub enum TaskType {
-    RelationshipRequestOutbound {
-        to: Rc<String>,
-    },
-    RelationshipRequestInbound {
-        from: Rc<String>,
-        to: Rc<String>,
-        request: RelationshipRequestBody,
-    },
-    RelationshipRequestRejected,
-    RelationshipRequestAccepted,
-    RelationshipRequestFinalized,
-    TrustPing {
-        from: Rc<String>,
-        to: Rc<String>,
-        relationship: Rc<Mutex<Relationship>>,
-    },
-    TrustPong,
-    VRCRequestOutbound {
-        relationship: Rc<Mutex<Relationship>>,
-    },
-    VRCRequestInbound {
-        request: VrcRequest,
-        relationship: Rc<Mutex<Relationship>>,
-    },
-    VRCRequestRejected,
-    VRCIssued {
-        vrc: Box<DTGCredential>,
-    },
-}
-
-impl Display for TaskType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let friendly_name = match self {
-            TaskType::RelationshipRequestOutbound { .. } => "Relationship Request (Outbound)",
-            TaskType::RelationshipRequestInbound { .. } => "Relationship Request (Inbound)",
-            TaskType::RelationshipRequestRejected => "Relationship Request Rejected",
-            TaskType::RelationshipRequestAccepted => "Relationship Request Accepted",
-            TaskType::RelationshipRequestFinalized => "Relationship Request Finalized",
-            TaskType::TrustPing { .. } => "Trust Ping Sent",
-            TaskType::TrustPong => "Trust Pong Received",
-            TaskType::VRCRequestOutbound { .. } => "VRC Request Sent",
-            TaskType::VRCRequestInbound { .. } => "VRC Request Received",
-            TaskType::VRCRequestRejected => "VRC Request Rejected",
-            TaskType::VRCIssued { .. } => "VRC Issued",
-        };
-        write!(f, "{}", friendly_name)
-    }
-}
-
 // ****************************************************************************
 // Tasks Struct
 // ****************************************************************************
 
-/// Known Tasks that are in progress
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-pub struct Tasks {
-    /// key: Task ID
-    tasks: HashMap<Rc<String>, Rc<Mutex<Task>>>,
+pub trait TasksExtension {
+    fn print_tasks(&self);
 }
 
-/// LKMV Task
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Task {
-    /// ID of task
-    pub id: Rc<String>,
-
-    /// Type of Task
-    pub type_: TaskType,
-
-    /// When was this task created?
-    pub created: DateTime<Utc>,
-}
-
-impl Tasks {
+impl TasksExtension for Tasks {
     /// Prints known tasks to the console
-    pub fn print_tasks(&self) {
+    fn print_tasks(&self) {
         if self.tasks.is_empty() {
             println!(
                 "{}",
@@ -146,104 +71,6 @@ impl Tasks {
             }
         }
     }
-
-    /// Creates and adds a new Task to list of tasks
-    pub fn new_task(&mut self, id: &Rc<String>, type_: TaskType) -> Rc<Mutex<Task>> {
-        let task = Rc::new(Mutex::new(Task {
-            id: id.clone(),
-            type_,
-            created: Utc::now(),
-        }));
-        self.tasks.insert(id.clone(), task.clone());
-        task
-    }
-
-    /// Removes a task by ID
-    pub fn remove(&mut self, id: &Rc<String>) -> bool {
-        self.tasks.remove(id).is_some()
-    }
-
-    /// Returns task at position pos
-    /// Be careful with this, as insertions/removals can change operation
-    pub fn get_by_pos(&self, pos: usize) -> Option<Rc<Mutex<Task>>> {
-        self.tasks.iter().nth(pos).map(|(_, task)| task.clone())
-    }
-
-    /// Retrieves a task by ID or returns None
-    pub fn get_by_id(&self, id: &Rc<String>) -> Option<&Rc<Mutex<Task>>> {
-        self.tasks.get(id)
-    }
-
-    /// Clears all tasks
-    /// Returns true if any tasks were removed
-    /// Returns false if no changes were made
-    pub fn clear(&mut self) -> bool {
-        let flag = !self.tasks.is_empty();
-        self.tasks.clear();
-        flag
-    }
-
-    /// Interactive console for handling tasks
-    /// Returns true if changes were made to config
-    pub async fn interact(tdk: &TDK, config: &mut Config, term: &Term) -> Result<bool> {
-        let mut change_flag = false; // set to true if config changed
-        loop {
-            // fetch tasks in case there are new ones
-            if fetch_tasks(tdk, config, term, &config.persona_did.profile.clone()).await? > 0 {
-                change_flag = true;
-            }
-
-            let profiles: Vec<Arc<ATMProfile>> = config.atm_profiles.values().cloned().collect();
-            for profile in profiles {
-                if fetch_tasks(tdk, config, term, &profile).await? > 0 {
-                    change_flag = true;
-                }
-            }
-
-            if config.private.tasks.tasks.is_empty() {
-                println!(
-                    "{}",
-                    style("There are no tasks to interact with").color256(CLI_ORANGE)
-                );
-                break;
-            }
-
-            let mut select_list: Vec<StyledObject<String>> = config
-                .private
-                .tasks
-                .tasks
-                .iter()
-                .map(|(id, task)| {
-                    style(format!("{} Type: {}", id, task.lock().unwrap().type_))
-                        .color256(CLI_PURPLE)
-                })
-                .collect();
-            select_list.push(style("Exit Task Interaction".to_string()).color256(CLI_ORANGE));
-
-            let selected = Select::with_theme(&ColorfulTheme::default())
-                .with_prompt("Select a task to interact with")
-                .items(&select_list)
-                .default(0)
-                .interact()
-                .unwrap();
-
-            if selected == select_list.len() - 1 {
-                // exit option
-                break;
-            } else if let Some(task) = config.private.tasks.get_by_pos(selected) {
-                if Tasks::interact_task(&task, tdk, config).await? {
-                    change_flag = true;
-                }
-            } else {
-                println!(
-                    "{}",
-                    style("WARN: No valid task selected!").color256(CLI_ORANGE)
-                );
-            }
-        }
-
-        Ok(change_flag)
-    }
 }
 
 // ****************************************************************************
@@ -253,7 +80,7 @@ impl Tasks {
 /// Primary entry point for the Tasks module from the CLI
 pub async fn tasks_entry(
     tdk: TDK,
-    config: &mut crate::config::Config,
+    config: &mut Config,
     profile: &str,
     args: &ArgMatches,
     term: &Term,
@@ -274,7 +101,9 @@ pub async fn tasks_entry(
             };
 
             if config.private.tasks.remove(&Rc::new(id)) {
-                config.save(profile)?;
+                config.save(profile, &|| {
+                    eprintln!("Touch confirmation needed for decryption");
+                })?;
             }
         }
         Some(("fetch", _)) => {
@@ -289,7 +118,9 @@ pub async fn tasks_entry(
                 }
             }
             if change_flag {
-                config.save(profile)?;
+                config.save(profile, &|| {
+                    eprintln!("Touch confirmation needed for decryption");
+                })?;
             }
         }
         Some(("interact", sub_args)) => {
@@ -307,13 +138,17 @@ pub async fn tasks_entry(
                     };
 
                 if Tasks::interact_task(&task, &tdk, config).await? {
-                    config.save(profile)?;
+                    config.save(profile, &|| {
+                        eprintln!("Touch confirmation needed for decryption");
+                    })?;
                     return Ok(());
                 }
             }
 
             if Tasks::interact(&tdk, config, term).await? {
-                config.save(profile)?;
+                config.save(profile, &|| {
+                    eprintln!("Touch confirmation needed for decryption");
+                })?;
             }
         }
         Some(("clear", sub_args)) => {
@@ -322,7 +157,9 @@ pub async fn tasks_entry(
             let remote = sub_args.get_flag("remote");
 
             if Tasks::clear_all(&tdk, config, force, remote).await? {
-                config.save(profile)?;
+                config.save(profile, &|| {
+                    eprintln!("Touch confirmation needed for decryption");
+                })?;
                 return Ok(());
             }
         }

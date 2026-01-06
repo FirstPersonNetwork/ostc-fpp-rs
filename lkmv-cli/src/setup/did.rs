@@ -2,7 +2,7 @@
 *   DID Setup methods
 */
 
-use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, setup::PersonaDIDKeys};
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED};
 use affinidi_tdk::{
     TDK,
     common::config::TDKConfigBuilder,
@@ -18,6 +18,7 @@ use console::style;
 use dialoguer::{Confirm, Input, theme::ColorfulTheme};
 use didwebvh_rs::{DIDWebVHState, parameters::Parameters, url::WebVHURL};
 use ed25519_dalek_bip32::{DerivationPath, ExtendedSigningKey};
+use lkmv::config::PersonaDIDKeys;
 use serde_json::{Value, json};
 use std::{collections::HashMap, rc::Rc};
 use url::Url;

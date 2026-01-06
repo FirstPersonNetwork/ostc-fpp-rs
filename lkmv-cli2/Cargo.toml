@@ -20,7 +20,7 @@ openpgp-card = [
 
 [dependencies]
 lkmv.workspace = true
-ratatui = { git = "https://github.com/ratatui/ratatui", tag = "ratatui-v0.30.0-beta.0" }
+ratatui.workspace = true
 
 aes-gcm.workspace = true
 affinidi-tdk.workspace = true
@@ -49,6 +49,8 @@ serde.workspace = true
 serde_json.workspace = true
 serde_json_canonicalizer.workspace = true
 sha2.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
 sysinfo.workspace = true
 thiserror.workspace = true
 tokio.workspace = true

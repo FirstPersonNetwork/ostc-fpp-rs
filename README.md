@@ -2,9 +2,14 @@
 
 [![Rust](https://img.shields.io/badge/rust-1.88.0%2B-blue.svg?maxAge=3600)](https://github.com/FirstPersonNetwork/lkmv)
 
-A CLI tool for establishing verifiable trust relationships within developer communities using Decentralised Identifiers (DIDs) and Verifiable Credentials (VCs).
+A CLI tool for establishing verifiable trust relationships within developer
+communities using Decentralised Identifiers (DIDs) and Verifiable Credentials
+(VCs).
 
-LKMV implements open standards and protocols to enable *"Know Your Developer"* capabilities, following the [First Person Project white paper](https://www.firstperson.network/white-paper) for establishing and verifying **first-person trust relationships** using Personhood Credentials (PHCs) and Verifiable Relationship Credentials (VRCs).
+LKMV implements open standards and protocols to enable _"Know Your Developer"_
+capabilities, following the [First Person Project white paper](https://www.firstperson.network/white-paper)
+for establishing and verifying **first-person trust relationships** using
+Personhood Credentials (PHCs) and Verifiable Relationship Credentials (VRCs).
 
 ## Table of Contents
 
@@ -67,15 +72,17 @@ lkmv --help
 
 The LKMV tool uses the did:webvh to create your Persona DID. WebVH is a DID method that enhances the existing did:web method, introducing:
 
-The LKMV tool uses the `did:webvh` to create your **Persona DID (P-DID)**. It enhances the existing `did:web` method, providing:  
+The LKMV tool uses the `did:webvh` to create your **Persona DID (P-DID)**. It enhances the existing `did:web` method, providing:
 
 - Portability with a self-certifying identifier (SCID), allowing you to move to a different domain.
 
 - Robust security by introducing a pre-rotation key and witness proof that approves changes to the DID.
 
+- Robust security by introducing a pre-rotation key and witness proof that approves changes to the DID.
+
 **Requirements:** A publicly accessible domain to host DID log entries (`did.jsonl`) for successful DID resolution and public key/service endpoint retrieval.
 
-*Sample did:webvh identifier:*
+_Sample did:webvh identifier:_
 
 ![Sample WebVH DID Method](./docs/assets/didwebvh-sample.png)
 
@@ -90,7 +97,7 @@ DIDComm mediators handle message routing and storage while preserving privacy th
 - Non-repudiation
 - Sender anonymity
 
-*Sample DIDComm message envelopes.*
+_Sample DIDComm message envelopes._
 
 ![Sample DIDComm Message Envelopes](./docs/assets/didcomm-envelopes.png)
 
@@ -168,9 +175,9 @@ For more details, refer to the [Secured Configuration Management](./docs/secured
 
 LKMV currently supports `openpgp-card` as an option to perform cryptographic operations, such as signing and authentication.
 
-Flag | Description |  Default |
------|-------------|----------|
-`openpgp-card` |  OpenPGP-compatible hardware token support | Enabled |
+| Flag           | Description                               | Default |
+| -------------- | ----------------------------------------- | ------- |
+| `openpgp-card` | OpenPGP-compatible hardware token support | Enabled |
 
 To turn off default features, use `--no-default-features` flag on the setup command.
 
@@ -185,7 +192,7 @@ lkmv --no-default-features setup
 1. Install locally from the source.
 
    ```bash
-   cargo install --path . 
+   cargo install --path .
    ```
 
    > **Note:** This will change once the tool is published.
@@ -193,13 +200,13 @@ lkmv --no-default-features setup
 2. Run the setup wizard.
 
    ```bash
-   lkmv setup 
+   lkmv setup
    ```
 
    To set up a named profile instead of **default**, set the `-p/--profile` option.
 
    ```bash
-   lkmv -p profile-1 setup 
+   lkmv -p profile-1 setup
    ```
 
 Follow the prompts to:
@@ -218,8 +225,8 @@ The `did:webvh` method resolves your DID by fetching the DID document from a wel
 **For example:**
 
 - If your configured URL is `https://mydomain.com`, you must host the file at:
-  
-  ```html
+
+  ```
   https://mydomain.com/.well-known/did.jsonl
   ```
 

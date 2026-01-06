@@ -2,14 +2,15 @@
 *   Handles writing of data to the OpenPGP Card
 */
 
-use crate::{
-    CLI_BLUE, CLI_GREEN,
-    setup::{PersonaDIDKeys, KeyInfo, KeyPurpose},
-};
+use crate::{CLI_BLUE, CLI_GREEN};
 use anyhow::{Result, bail};
 use chrono::Utc;
 use console::{Term, style};
 use ed25519_dalek_bip32::VerifyingKey;
+use lkmv::{
+    KeyPurpose,
+    config::{KeyInfo, PersonaDIDKeys},
+};
 use openpgp_card::{Card, ocard::KeyType, state::Open};
 use openpgp_card_rpgp::UploadableKey;
 use pgp::{

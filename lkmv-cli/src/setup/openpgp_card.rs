@@ -6,7 +6,7 @@ use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
     openpgp_card::{
         cards, factory_reset, print_cards, set_cardholder_name, set_signing_touch_policy,
-        ui::AdminPin, write::write_keys_to_card,
+        write::write_keys_to_card,
     },
     setup::PersonaDIDKeys,
 };
@@ -17,6 +17,7 @@ use crossterm::{
     terminal,
 };
 use dialoguer::{Confirm, Select, theme::ColorfulTheme};
+use secrecy::SecretString;
 
 /// Handles storing secrets on an OpenPGP compatible card
 /// Returns:
@@ -24,7 +25,7 @@ use dialoguer::{Confirm, Select, theme::ColorfulTheme};
 /// Some(String): The card identifier of the card used
 pub fn setup_hardware_token(
     term: &Term,
-    admin_pin: &mut AdminPin,
+    admin_pin: &SecretString,
     keys: &PersonaDIDKeys,
 ) -> Result<Option<String>> {
     println!();
@@ -128,7 +129,7 @@ pub fn setup_hardware_token(
     // Open the card in admin mode
 
     // Attempt to write the keys to the card
-    write_keys_to_card(term, selected_card, keys, admin_pin.get_pin())?;
+    write_keys_to_card(term, selected_card, keys, admin_pin)?;
 
     // Set Touch on for the Signing Key
     println!("\n{}\n", style("Best practice is to force an interaction with the hardware token for critical operations, such as signing data.").color256(CLI_BLUE));

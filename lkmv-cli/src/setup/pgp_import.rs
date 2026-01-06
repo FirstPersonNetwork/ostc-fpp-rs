@@ -6,7 +6,6 @@
 
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
-    config::secured_config::KeySourceMaterial,
     setup::{KeyInfo, KeyPurpose},
 };
 use affinidi_tdk::secrets_resolver::secrets::Secret;
@@ -14,6 +13,7 @@ use anyhow::{Context, Result, bail};
 use chrono::{DateTime, MappedLocalTime, TimeDelta, TimeZone, Utc};
 use console::{StyledObject, style};
 use dialoguer::{Confirm, Editor, Input, Password, theme::ColorfulTheme};
+use lkmv::config::secured_config::KeySourceMaterial;
 use pgp::{
     composed::{Deserializable, SignedSecretKey, SignedSecretSubKey},
     crypto::ecdh,

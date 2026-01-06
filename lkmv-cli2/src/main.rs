@@ -1,4 +1,5 @@
 use crate::{state_handler::StateHandler, ui::UiManager};
+use ratatui::style::Color;
 #[cfg(unix)]
 use tokio::signal::unix::signal;
 use tokio::sync::broadcast;

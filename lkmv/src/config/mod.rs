@@ -9,21 +9,19 @@
 * NOTE: Secure Config information is saved item by item as needed to the secure storage
 */
 
+use crate::logs::LogFamily;
 #[cfg(feature = "openpgp-card")]
-use crate::openpgp_card::ui::{AdminPin, UserPin};
 use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
+    KeyPurpose,
+    bip32::Bip32Extension,
     config::{
         private_config::PrivateConfig,
         public_config::PublicConfig,
         secured_config::{
-            KeyInfoConfig, KeySourceMaterial, ProtectionMethod, SecuredConfig, unlock_code_decrypt,
-            unlock_code_encrypt,
+            KeyInfoConfig, KeySourceMaterial, ProtectionMethod, SecuredConfig, unlock_code_encrypt,
         },
     },
-    get_unlock_code,
-    log::LogFamily,
-    setup::{KeyInfo, KeyPurpose, PersonaDIDKeys, bip32_bip39::Bip32Extension, create_unlock_code},
+    errors::LKMVError,
 };
 use affinidi_tdk::{
     TDK,
@@ -31,20 +29,30 @@ use affinidi_tdk::{
     messaging::profiles::ATMProfile,
     secrets_resolver::{SecretsResolver, secrets::Secret},
 };
-use anyhow::{Context, Result, bail};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
-use console::{Term, style};
+use chrono::{DateTime, TimeDelta, Utc};
 use dialoguer::{Password, theme::ColorfulTheme};
 use dtg_credentials::DTGCredential;
 use ed25519_dalek_bip32::ExtendedSigningKey;
-use secrecy::{ExposeSecret, SecretString};
+use secrecy::{ExposeSecret, SecretString, SecretVec};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{collections::HashMap, fmt::Display, fs, rc::Rc, sync::Arc};
+use tracing::warn;
 
 pub mod private_config;
 pub mod public_config;
 pub mod secured_config;
+
+/// Is always a SHA2-256 hash of a user provided passphrase
+pub struct UnlockCode(SecretVec<u8>);
+
+impl UnlockCode {
+    pub fn from_string(s: &str) -> Self {
+        let hash = Sha256::digest(s.as_bytes());
+        UnlockCode(SecretVec::new(hash.to_vec()))
+    }
+}
 
 /// Configuration information for lkmv tool
 /// This is the active configuration used by the application itself
@@ -78,14 +86,14 @@ pub struct Config {
 
     #[cfg(feature = "openpgp-card")]
     /// Hardware token Admin PIN
-    pub token_admin_pin: AdminPin,
+    pub token_admin_pin: Option<SecretString>,
 
     #[cfg(feature = "openpgp-card")]
     /// Hardware token User PIN
-    pub token_user_pin: UserPin,
+    pub token_user_pin: SecretString,
 
     /// Unlock code if required
-    pub unlock_code: Option<[u8; 32]>,
+    pub unlock_code: Option<Vec<u8>>,
 
     /// Holds ATM profiles for relationships
     /// Key: Our local DID for the relationship
@@ -117,7 +125,11 @@ pub struct PersonaDID {
 impl Config {
     /// Handles saving
     /// profile: Configuration profile name to use
-    pub fn save(&self, profile: &str) -> Result<()> {
+    pub fn save(
+        &self,
+        profile: &str,
+        #[cfg(feature = "openpgp-card")] touch_prompt: &(dyn Fn() + Send + Sync),
+    ) -> Result<(), LKMVError> {
         self.public.save(
             profile,
             &self.private,
@@ -129,6 +141,8 @@ impl Config {
             profile,
             self.public.token_id.as_ref(),
             self.unlock_code.as_ref(),
+            #[cfg(feature = "openpgp-card")]
+            touch_prompt,
         )?;
 
         Ok(())
@@ -140,38 +154,33 @@ impl Config {
     /// profile: Configuration profile name to use
     /// unlock_code: Optional if passed in from command line
     pub async fn load(
-        term: &Term,
         tdk: &mut TDK,
         profile: &str,
-        unlock_code: Option<&str>,
-    ) -> Result<Self> {
-        let pc = PublicConfig::load(profile).context("Couldn't load Public Configuration")?;
-
-        let unlock_code = if let Some(unlock_code) = unlock_code {
-            Some(sha2::Sha256::digest(unlock_code.as_bytes()).into())
-        } else if pc.token_id.is_none() && pc.unlock_code {
-            Some(get_unlock_code()?)
-        } else {
-            None
-        };
+        unlock_code: Option<&UnlockCode>,
+        #[cfg(feature = "openpgp-card")] token_user_pin: &SecretString,
+        #[cfg(feature = "openpgp-card")] touch_prompt: &(dyn Fn() + Send + Sync),
+    ) -> Result<Self, LKMVError> {
+        let pc = PublicConfig::load(profile)?;
 
         #[cfg(feature = "openpgp-card")]
-        let mut token_user_pin = UserPin::default();
         let sc = SecuredConfig::load(
-            term,
             profile,
             #[cfg(feature = "openpgp-card")]
-            &mut token_user_pin,
+            token_user_pin,
             pc.token_id.as_ref(),
-            unlock_code.as_ref(),
+            unlock_code,
+            touch_prompt,
         )?;
 
         let bip32_root = ExtendedSigningKey::from_seed(
-            BASE64_URL_SAFE_NO_PAD
-                .decode(&sc.bip32_seed)
-                .context("Couldn't base64 decode BIP32 seed")?
-                .as_slice(),
-        )?;
+            BASE64_URL_SAFE_NO_PAD.decode(&sc.bip32_seed)?.as_slice(),
+        )
+        .map_err(|e| {
+            LKMVError::BIP32(format!(
+                "Couldn't get bip32 root from the secret seed material: {}",
+                e
+            ))
+        })?;
 
         // Unencrypt the private config data
         let private_cfg = if let Some(private_cfg_str) = &pc.private {
@@ -188,7 +197,12 @@ impl Config {
             .did_resolver()
             .resolve(&pc.persona_did)
             .await
-            .context("Couldn't resolve Persona DID")?;
+            .map_err(|e| {
+                LKMVError::Resolver(format!(
+                    "Couldn't resolve Persona DID ({}): {}",
+                    pc.persona_did, e
+                ))
+            })?;
 
         // Create keys from DID Document
         Config::regenerate_persona_keys(tdk, &sc, &bip32_root, &rr.doc).await?;
@@ -242,11 +256,11 @@ impl Config {
             private: private_cfg,
             key_info: sc.key_info.clone(),
             #[cfg(feature = "openpgp-card")]
-            token_admin_pin: AdminPin::default(),
+            token_admin_pin: None,
             #[cfg(feature = "openpgp-card")]
-            token_user_pin,
+            token_user_pin: token_user_pin.clone(),
             protection_method: sc.protection_method.clone(),
-            unlock_code,
+            unlock_code: unlock_code.map(|uc| uc.0.expose_secret().to_owned()),
             atm_profiles,
             vrcs,
         })
@@ -258,7 +272,7 @@ impl Config {
     /// - Authentication (authentication)
     /// - Encryption (key agreement)
     ///
-    pub async fn get_persona_keys(&self, tdk: &TDK) -> Result<PersonaDIDKeys> {
+    pub async fn get_persona_keys(&self, tdk: &TDK) -> Result<PersonaDIDKeys, LKMVError> {
         let signing = if let Some(signing) = self.persona_did.document.assertion_method.first() {
             let Some(secret) = tdk
                 .get_shared_state()
@@ -266,13 +280,16 @@ impl Config {
                 .get_secret(signing.get_id())
                 .await
             else {
-                bail!("Couldn't find secret in TDK for ({})", signing.get_id());
+                return Err(LKMVError::Config(format!(
+                    "Couldn't find secret in TDK for ({})",
+                    signing.get_id()
+                )));
             };
             let Some(ki) = self.key_info.get(signing.get_id()) else {
-                bail!(
+                return Err(LKMVError::Config(format!(
                     "Couldn't find key info in lkmv Config for ({})",
                     signing.get_id()
-                );
+                )));
             };
             KeyInfo {
                 secret,
@@ -281,7 +298,9 @@ impl Config {
                 expiry: None,
             }
         } else {
-            bail!("DID Document does not contain any assertion methods!");
+            return Err(LKMVError::Config(
+                "DID Document does not contain any assertion methods!".to_string(),
+            ));
         };
 
         let authentication =
@@ -292,16 +311,16 @@ impl Config {
                     .get_secret(authentication.get_id())
                     .await
                 else {
-                    bail!(
+                    return Err(LKMVError::Config(format!(
                         "Couldn't find secret in TDK for ({})",
                         authentication.get_id()
-                    );
+                    )));
                 };
                 let Some(ki) = self.key_info.get(authentication.get_id()) else {
-                    bail!(
+                    return Err(LKMVError::Config(format!(
                         "Couldn't find key info in lkmv Config for ({})",
                         authentication.get_id()
-                    );
+                    )));
                 };
                 KeyInfo {
                     secret,
@@ -310,7 +329,9 @@ impl Config {
                     expiry: None,
                 }
             } else {
-                bail!("DID Document does not contain any authentication methods!");
+                return Err(LKMVError::Config(
+                    "DID Document does not contain any authentication methods!".to_string(),
+                ));
             };
 
         let decryption = if let Some(decryption) = self.persona_did.document.key_agreement.first() {
@@ -320,13 +341,16 @@ impl Config {
                 .get_secret(decryption.get_id())
                 .await
             else {
-                bail!("Couldn't find secret in TDK for ({})", decryption.get_id());
+                return Err(LKMVError::Config(format!(
+                    "Couldn't find secret in TDK for ({})",
+                    decryption.get_id()
+                )));
             };
             let Some(ki) = self.key_info.get(decryption.get_id()) else {
-                bail!(
+                return Err(LKMVError::Config(format!(
                     "Couldn't find key info in lkmv Config for ({})",
                     decryption.get_id()
-                );
+                )));
             };
             KeyInfo {
                 secret,
@@ -335,7 +359,9 @@ impl Config {
                 expiry: None,
             }
         } else {
-            bail!("DID Document does not contain any key agreements!");
+            return Err(LKMVError::Config(
+                "DID Document does not contain any key agreements!".to_string(),
+            ));
         };
         Ok(PersonaDIDKeys {
             signing,
@@ -350,14 +376,18 @@ impl Config {
         sc: &SecuredConfig,
         bip32_root: &ExtendedSigningKey,
         doc: &Document,
-    ) -> Result<()> {
+    ) -> Result<(), LKMVError> {
         // Rehydrate DID keys referenced by Verification Methods in the DID Document
         for vm in &doc.verification_method {
             let Some(kp) = sc.key_info.get(vm.id.as_str()) else {
-                bail!(
+                warn!(
                     "Couldn't find DID Verification method key path ({}) in config.",
                     vm.id
                 );
+                return Err(LKMVError::Config(format!(
+                    "Couldn't find DID Verification method key path ({}) in config.",
+                    vm.id
+                )));
             };
 
             // need to match this to VM purpose
@@ -368,10 +398,7 @@ impl Config {
             } else if doc.contains_assertion_method(vm.id.as_str()) {
                 KeyPurpose::Signing
             } else {
-                println!(
-                    "{}",
-                    style("WARN: Unknown DID VM found").color256(CLI_ORANGE)
-                );
+                warn!("Unknown DID VM ({}) found", vm.id);
                 continue;
             };
 
@@ -379,7 +406,12 @@ impl Config {
                 KeySourceMaterial::Derived { path } => {
                     bip32_root.get_secret_from_path(path, k_purpose)?
                 }
-                KeySourceMaterial::Imported { seed } => Secret::from_multibase(seed, None)?,
+                KeySourceMaterial::Imported { seed } => Secret::from_multibase(seed, None)
+                    .map_err(|e| {
+                        LKMVError::Secret(format!(
+                            "Couldn't create secret from multibase for key id. Reason: {e}"
+                        ))
+                    })?,
             };
 
             // Set the Secret key ID correctly
@@ -389,30 +421,6 @@ impl Config {
             tdk.get_shared_state().secrets_resolver.insert(secret).await;
         }
         Ok(())
-    }
-
-    /// Prints information relating to the configuration to console
-    pub fn status(&self) {
-        println!("{}", style("Configured Keys:").color256(CLI_BLUE));
-        for (k, v) in &self.key_info {
-            println!(
-                "  {} {}\n    {} {} {} {}",
-                style("Key #id:").color256(CLI_BLUE),
-                style(k).color256(CLI_PURPLE),
-                style("Purpose:").color256(CLI_BLUE),
-                style(&v.purpose).color256(CLI_GREEN),
-                style("Created:").color256(CLI_BLUE),
-                style(v.create_time).color256(CLI_GREEN)
-            );
-            println!();
-        }
-
-        self.private.relationships.status(
-            &self.private.contacts,
-            &self.public.persona_did,
-            &self.private.vrcs_issued,
-            &self.private.vrcs_received,
-        );
     }
 
     /// Exports the configuration settings to an encrypted file
@@ -445,132 +453,19 @@ impl Config {
         ) {
             Ok(result) => result,
             Err(e) => {
-                println!(
-                    "{}{}",
-                    style("ERROR: Couldn't encrypt settings. Reason: ").color256(CLI_RED),
-                    style(e).color256(CLI_ORANGE)
-                );
+                warn!("ERROR: Couldn't encrypt settings. Reason: {e}");
                 return;
             }
         };
 
         match fs::write(file, BASE64_URL_SAFE_NO_PAD.encode(&secured)) {
             Ok(_) => {
-                println!(
-                    "{}{}{}",
-                    style("Successfully exported settings to file(").color256(CLI_GREEN),
-                    style(file).color256(CLI_PURPLE),
-                    style(")").color256(CLI_GREEN)
-                );
+                warn!("Successfully exported settings to file({file})");
             }
             Err(e) => {
-                println!(
-                    "{}{}{}{}",
-                    style("ERROR: Couldn't write to file (").color256(CLI_RED),
-                    style(file).color256(CLI_PURPLE),
-                    style(". Reason: ").color256(CLI_RED),
-                    style(e).color256(CLI_ORANGE)
-                );
+                warn!("ERROR: Couldn't write to file ({file}). Reason: {e}");
             }
         }
-    }
-
-    /// Import previously exported configuration settings from an encrypted file
-    pub fn import(passphrase: Option<SecretString>, file: &str, profile: &str) -> Result<()> {
-        let content = match fs::read_to_string(file) {
-            Ok(content) => content,
-            Err(e) => {
-                println!(
-                    "{}{}{}{}",
-                    style("ERROR: Couldn't read from file (").color256(CLI_RED),
-                    style(file).color256(CLI_PURPLE),
-                    style(". Reason: ").color256(CLI_RED),
-                    style(e).color256(CLI_ORANGE)
-                );
-                bail!("File read error");
-            }
-        };
-
-        let decoded = match BASE64_URL_SAFE_NO_PAD.decode(content) {
-            Ok(decoded) => decoded,
-            Err(e) => {
-                println!(
-                    "{}{}{}",
-                    style("ERROR: Couldn't base64 decode file content. Reason: ").color256(CLI_RED),
-                    style(e).color256(CLI_ORANGE),
-                    style("")
-                );
-                bail!("base64 decoding error");
-            }
-        };
-
-        let seed_bytes = if let Some(passphrase) = passphrase {
-            Sha256::digest(passphrase.expose_secret())
-                .first_chunk::<32>()
-                .expect("Couldn't get 32 bytes for passphrase hash")
-                .to_owned()
-        } else {
-            Sha256::digest(
-                Password::with_theme(&ColorfulTheme::default())
-                    .with_prompt("Enter passphrase to decrypt imported configuration")
-                    .interact()
-                    .expect("Failed to read passphrase"),
-            )
-            .first_chunk::<32>()
-            .expect("Couldn't get 32 bytes for passphrase hash")
-            .to_owned()
-        };
-
-        let decoded = unlock_code_decrypt(&seed_bytes, &decoded)?;
-
-        let config: ExportedConfig = match serde_json::from_slice(&decoded) {
-            Ok(config) => config,
-            Err(e) => {
-                println!(
-                    "{}{}",
-                    style("ERROR: Couldn't deserialize configuration settings. Reason: ")
-                        .color256(CLI_RED),
-                    style(e).color256(CLI_ORANGE)
-                );
-                bail!("deserialization error");
-            }
-        };
-
-        let passphrase = if config.pc.token_id.is_none() {
-            create_unlock_code()
-        } else {
-            None
-        };
-
-        let bip32_root = ExtendedSigningKey::from_seed(
-            BASE64_URL_SAFE_NO_PAD
-                .decode(&config.sc.bip32_seed)
-                .expect("Couldn't base64 decode BIP32 seed")
-                .as_slice(),
-        )?;
-        let private_seed = PrivateConfig::get_seed(&bip32_root, "m/0'/0'/0'")?;
-
-        let private = if let Some(private) = &config.pc.private {
-            PrivateConfig::load(&private_seed, private)?
-        } else {
-            PrivateConfig::default()
-        };
-
-        config
-            .pc
-            .save(profile, &private, &private_seed)
-            .expect("Couldn't save Public Config");
-        config
-            .sc
-            .save(profile, config.pc.token_id.as_ref(), passphrase.as_ref())
-            .expect("Couldn't save Public Config");
-
-        println!(
-            "{}",
-            style("Successfully imported lkmv configuration settings").color256(CLI_GREEN)
-        );
-
-        Ok(())
     }
 
     /// Handles rejection of a VRC request
@@ -579,7 +474,7 @@ impl Config {
         task_id: &Rc<String>,
         reason: Option<&str>,
         from: &Rc<String>,
-    ) -> Result<()> {
+    ) -> Result<(), LKMVError> {
         let reason = if let Some(reason) = reason {
             reason.to_string()
         } else {
@@ -640,4 +535,25 @@ impl Display for KeyTypes {
         };
         write!(f, "{}", s)
     }
+}
+
+/// Secrets for the Persona DID
+#[derive(Debug)]
+pub struct PersonaDIDKeys {
+    pub signing: KeyInfo,
+    pub authentication: KeyInfo,
+    pub decryption: KeyInfo,
+}
+
+/// Contains relevant key information required for setting up, configuring and managing keys
+#[derive(Clone, Debug)]
+pub struct KeyInfo {
+    /// Secret Key Material that can be used within the TDK environment
+    pub secret: Secret,
+    /// Where did this key come from? Derived from BIP32 or Imported?
+    pub source: KeySourceMaterial,
+
+    /// Section 5.5.2 of RFC 4880 - Expiry time if set is # of days since creation
+    pub expiry: Option<TimeDelta>,
+    pub created: DateTime<Utc>,
 }

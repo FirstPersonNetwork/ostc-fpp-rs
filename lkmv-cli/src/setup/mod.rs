@@ -1,15 +1,10 @@
 /*! Handles the setup of the lkmv CLI tool
 */
 
+#[cfg(feature = "openpgp-card")]
+use crate::setup::openpgp_card::setup_hardware_token;
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_PURPLE, LF_ORG_DID, LF_PUBLIC_MEDIATOR_DID,
-    config::{
-        Config, KeyTypes, PersonaDID,
-        private_config::PrivateConfig,
-        public_config::PublicConfig,
-        secured_config::{KeyInfoConfig, KeySourceMaterial, ProtectionMethod},
-    },
-    log::{LogFamily, LogMessage, Logs},
     setup::{
         bip32_bip39::{
             Bip32Extension, generate_bip39_mnemonic, get_bip32_root, mnemonic_from_recovery_phrase,
@@ -19,28 +14,27 @@ use crate::{
         pgp_import::{PGPKeys, terminal_input_pgp_key},
     },
 };
-#[cfg(feature = "openpgp-card")]
-use crate::{
-    openpgp_card::ui::{AdminPin, UserPin},
-    setup::openpgp_card::setup_hardware_token,
-};
-#[cfg(feature = "openpgp-card")]
-use ::openpgp_card::ocard::KeyType;
-use affinidi_tdk::{
-    TDK, common::config::TDKConfig, messaging::profiles::ATMProfile,
-    secrets_resolver::secrets::Secret,
-};
+use affinidi_tdk::{TDK, common::config::TDKConfig, messaging::profiles::ATMProfile};
 use anyhow::Result;
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use bip39::Mnemonic;
-use chrono::{DateTime, TimeDelta, Utc};
+use chrono::Utc;
 use console::{Term, style};
 use dialoguer::{Confirm, Input, theme::ColorfulTheme};
+use lkmv::{
+    KeyPurpose,
+    config::{
+        Config, KeyInfo, KeyTypes, PersonaDID, PersonaDIDKeys,
+        private_config::PrivateConfig,
+        public_config::PublicConfig,
+        secured_config::{KeyInfoConfig, KeySourceMaterial, ProtectionMethod},
+    },
+    logs::{LogFamily, LogMessage, Logs},
+};
 use secrecy::SecretString;
 use sha2::Digest;
 use std::{
     collections::{HashMap, VecDeque},
-    fmt,
     sync::Arc,
 };
 
@@ -50,60 +44,6 @@ mod did;
 mod openpgp_card;
 pub mod pgp_export;
 mod pgp_import;
-
-/// Tags what the key is used for
-#[derive(Default, Debug, PartialEq)]
-pub enum KeyPurpose {
-    Signing,
-    Authentication,
-    Encryption,
-    #[default]
-    Unknown,
-}
-
-impl fmt::Display for KeyPurpose {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            KeyPurpose::Signing => write!(f, "Signing"),
-            KeyPurpose::Authentication => write!(f, "Authentication"),
-            KeyPurpose::Encryption => write!(f, "Encryption"),
-            KeyPurpose::Unknown => write!(f, "Unknown"),
-        }
-    }
-}
-
-#[cfg(feature = "openpgp-card")]
-impl From<KeyType> for KeyPurpose {
-    fn from(kt: KeyType) -> Self {
-        match kt {
-            KeyType::Signing => KeyPurpose::Signing,
-            KeyType::Authentication => KeyPurpose::Authentication,
-            KeyType::Decryption => KeyPurpose::Encryption,
-            _ => KeyPurpose::Unknown,
-        }
-    }
-}
-
-/// Contains relevant key information required for setting up, configuring and managing keys
-#[derive(Clone, Debug)]
-pub struct KeyInfo {
-    /// Secret Key Material that can be used within the TDK environment
-    pub secret: Secret,
-    /// Where did this key come from? Derived from BIP32 or Imported?
-    pub source: KeySourceMaterial,
-
-    /// Section 5.5.2 of RFC 4880 - Expiry time if set is # of days since creation
-    pub expiry: Option<TimeDelta>,
-    pub created: DateTime<Utc>,
-}
-
-/// Secrets for the Persona DID
-#[derive(Debug)]
-pub struct PersonaDIDKeys {
-    pub signing: KeyInfo,
-    pub authentication: KeyInfo,
-    pub decryption: KeyInfo,
-}
 
 /// Sets up the CLI tool
 pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
@@ -151,8 +91,19 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
     // Use hardware token?
     #[cfg(feature = "openpgp-card")]
     let token_id = {
-        let mut admin_pin = AdminPin::default();
-        setup_hardware_token(term, &mut admin_pin, &p_did_keys)?
+        use dialoguer::Password;
+
+        let admin_pin = Password::with_theme(&ColorfulTheme::default())
+            .with_prompt("Please enter Token Admin PIN <blank = default>")
+            .allow_empty_password(true)
+            .interact()
+            .unwrap();
+        let admin_pin = if admin_pin.is_empty() {
+            SecretString::new("12345678".to_string())
+        } else {
+            SecretString::new(admin_pin)
+        };
+        setup_hardware_token(term, &admin_pin, &p_did_keys)?
     };
     #[cfg(not(feature = "openpgp-card"))]
     let token_id = None;
@@ -160,7 +111,7 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
     // If hardware token is not being used, then ask for an unlock code
     let unlock_code = if token_id.is_none() {
         // Check if an unlock code is desired?
-        create_unlock_code()
+        create_unlock_code().map(|c| c.to_vec())
     } else {
         // No need for an unlock code when using hardware token
         None
@@ -256,16 +207,18 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
         },
         key_info,
         #[cfg(feature = "openpgp-card")]
-        token_admin_pin: AdminPin::default(),
+        token_admin_pin: None,
         #[cfg(feature = "openpgp-card")]
-        token_user_pin: UserPin::default(),
+        token_user_pin: SecretString::new(String::new()),
         protection_method: ProtectionMethod::default(),
         unlock_code,
         atm_profiles: HashMap::new(),
         vrcs: HashMap::new(),
     };
 
-    config.save(profile)?;
+    config.save(profile, &|| {
+        eprintln!("Touch confirmation needed for decryption");
+    })?;
 
     println!("{}", style("Next Steps:").color256(CLI_BLUE));
     println!(

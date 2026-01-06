@@ -3,12 +3,22 @@
 */
 
 use crate::errors::LKMVError;
+#[cfg(feature = "openpgp-card")]
+use ::openpgp_card::ocard::KeyType;
 use affinidi_tdk::didcomm::Message;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 
+pub mod bip32;
+pub mod colors;
+pub mod config;
 pub mod errors;
+pub mod logs;
 pub mod maintainers;
+#[cfg(feature = "openpgp-card")]
+pub mod openpgp_card;
 pub mod relationships;
+pub mod tasks;
 pub mod vrc;
 
 /// Defined Message Types for LKMV
@@ -120,5 +130,42 @@ impl TryFrom<&Message> for MessageType {
 
     fn try_from(value: &Message) -> Result<Self, Self::Error> {
         value.type_.as_str().try_into()
+    }
+}
+
+// ****************************************************************************
+// Secret Key types and conversions
+// ****************************************************************************
+
+/// Tags what the key is used for
+#[derive(Default, Debug, PartialEq)]
+pub enum KeyPurpose {
+    Signing,
+    Authentication,
+    Encryption,
+    #[default]
+    Unknown,
+}
+
+impl fmt::Display for KeyPurpose {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            KeyPurpose::Signing => write!(f, "Signing"),
+            KeyPurpose::Authentication => write!(f, "Authentication"),
+            KeyPurpose::Encryption => write!(f, "Encryption"),
+            KeyPurpose::Unknown => write!(f, "Unknown"),
+        }
+    }
+}
+
+#[cfg(feature = "openpgp-card")]
+impl From<KeyType> for KeyPurpose {
+    fn from(kt: KeyType) -> Self {
+        match kt {
+            KeyType::Signing => KeyPurpose::Signing,
+            KeyType::Authentication => KeyPurpose::Authentication,
+            KeyType::Decryption => KeyPurpose::Encryption,
+            _ => KeyPurpose::Unknown,
+        }
     }
 }

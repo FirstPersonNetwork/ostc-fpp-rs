@@ -1,4 +1,7 @@
-use std::io::{self, Stdout};
+use std::{
+    io::{self, Stdout},
+    time::Duration,
+};
 
 use crate::{
     Interrupted,
@@ -43,6 +46,7 @@ impl UiManager {
         let mut terminal = setup_terminal()?;
 
         let mut crossterm_events = EventStream::new();
+        let mut ticker = tokio::time::interval(Duration::from_millis(250));
 
         // consume the first state to initialize the ui app
         let mut app_router = {
@@ -56,6 +60,8 @@ impl UiManager {
 
         let result: anyhow::Result<Interrupted> = loop {
             tokio::select! {
+                // Tick to terminate the select every N milliseconds
+                _ = ticker.tick() => (),
                 // Catch and handle crossterm events
                maybe_event = crossterm_events.next() => match maybe_event {
                     Some(Ok(Event::Key(key)))  => {
