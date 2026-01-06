@@ -218,7 +218,7 @@ Follow the prompts to:
 
 ### Host Your DID Document
 
-After setup, LKMV generates `did.jsonl` file for your Persona DID. The file must be hosted at a specific URL matching your configured DID.
+After setup, LKMV generates a `did.jsonl` file for your Persona DID. The file must be hosted at a specific URL matching your configured DID.
 
 The `did:webvh` method resolves your DID by fetching the DID document from a well-known location on the web. If the document is not hosted at the correct URL, the DID cannot be resolved or used.
 
@@ -232,7 +232,7 @@ The `did:webvh` method resolves your DID by fetching the DID document from a wel
 
 - If your configured URL is `https://mydomain.com/profile1`, you must host the file at:
 
-  ```
+  ```html
   https://mydomain.com/profile1/did.jsonl
   ```
 

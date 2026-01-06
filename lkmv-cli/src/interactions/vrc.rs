@@ -706,7 +706,7 @@ pub async fn interact_vrc_inbound_request(
                 println!();
                 println!(
                     "{}{}",
-                    style("✅ Succesfully sent VRC Request Rejection to ").color256(CLI_GREEN),
+                    style("✅ Successfully sent VRC Request Rejection to ").color256(CLI_GREEN),
                     style(to).color256(CLI_PURPLE)
                 );
 
@@ -819,8 +819,8 @@ pub async fn handle_accept_vrcs_request(
             "{}",
             style("The timestamp format must be in ISO 8601 Format.").color256(CLI_BLUE)
         );
-        let custom_valid_from: String = Input::with_theme(&ColorfulTheme::default())
-            .with_prompt("Enter a valid from date-time for this VRC (e.g., 2025-12-01T14:09:29+08:00): ")
+        let custom_valid_until: String = Input::with_theme(&ColorfulTheme::default())
+            .with_prompt("Enter a valid until date-time for this VRC (e.g., 2025-12-01T14:09:29+08:00): ")
             .default(now.to_rfc3339_opts(chrono::SecondsFormat::Secs, true))
             .validate_with(|input: &String| -> Result<(), &str> {
                 if DateTime::parse_from_rfc3339(input).is_ok() {
@@ -832,7 +832,7 @@ pub async fn handle_accept_vrcs_request(
             .interact_text()
             .unwrap();
 
-        Some(custom_valid_from.parse().unwrap())
+        Some(custom_valid_until.parse().unwrap())
     };
 
     let mut vrc = DTGCredential::new_vrc(
