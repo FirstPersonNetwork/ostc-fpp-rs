@@ -1,5 +1,4 @@
 use crate::{
-    COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT,
     state_handler::{
         actions::Action,
         main_page::{MainPageState, menu::MainMenu},
@@ -8,6 +7,7 @@ use crate::{
     ui::component::{Component, ComponentRender},
 };
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
+use lkmv::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
 use ratatui::{
     Frame,
     layout::{

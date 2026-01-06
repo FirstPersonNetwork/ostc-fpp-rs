@@ -1,7 +1,5 @@
-use crate::{
-    COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT,
-    state_handler::main_page::menu::{MainMenu, MenuPanelState},
-};
+use crate::state_handler::main_page::menu::{MainMenu, MenuPanelState};
+use lkmv::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
 use ratatui::{
     Frame,
     layout::{Alignment, Rect},

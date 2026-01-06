@@ -9,21 +9,19 @@
 */
 
 #[cfg(feature = "openpgp-card")]
-use crate::openpgp_card::ui::UserPin;
-use crate::{
-    CLI_ORANGE, CLI_RED,
-    config::{Config, KeyTypes},
-};
+use crate::config::{Config, KeyTypes, UnlockCode};
+use crate::errors::LKMVError;
 use aes_gcm::{AeadCore, Aes256Gcm, KeyInit, aead::Aead};
-use anyhow::{Context, Result, bail};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use chrono::{DateTime, Utc};
-use console::{Term, style};
 use keyring::Entry;
 use rand::{SeedableRng, rngs::StdRng};
 use secrecy::ExposeSecret;
+#[cfg(feature = "openpgp-card")]
+use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use tracing::{error, warn};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Constants for storing secure info in the OS Secure Store
@@ -83,11 +81,11 @@ impl SecuredConfigFormat {
     /// Loads secret info from the OS Secure Store
     pub fn unlock(
         &self,
-        term: &Term,
-        #[cfg(feature = "openpgp-card")] user_pin: &mut UserPin,
+        #[cfg(feature = "openpgp-card")] user_pin: &SecretString,
         token: Option<&String>,
-        unlock: Option<&[u8; 32]>,
-    ) -> Result<SecuredConfig> {
+        unlock: Option<&UnlockCode>,
+        touch_prompt: &(dyn Fn() + Send + Sync),
+    ) -> Result<SecuredConfig, LKMVError> {
         let raw_bytes = match self {
             SecuredConfigFormat::TokenEncrypted { esk, data } => {
                 // Token Encrypted format
@@ -97,54 +95,54 @@ impl SecuredConfigFormat {
                         use crate::openpgp_card::crypt::token_decrypt;
 
                         token_decrypt(
-                            term,
                             #[cfg(feature = "openpgp-card")]
                             user_pin,
                             token,
-                            &BASE64_URL_SAFE_NO_PAD
-                                .decode(esk)
-                                .context("Couldn't base64 decode TokenEncrypted ESK")?,
-                            &BASE64_URL_SAFE_NO_PAD
-                                .decode(data)
-                                .context("Couldn't base64 decode TokenEncrypted SecuredConfig")?,
+                            &BASE64_URL_SAFE_NO_PAD.decode(esk)?,
+                            &BASE64_URL_SAFE_NO_PAD.decode(data)?,
+                            touch_prompt,
                         )?
                     }
                     #[cfg(not(feature = "openpgp-card"))]
-                    bail!(
-                        "Token has been configured, but no openpgp-card feature-flag has been enabled! exiting..."
-                    );
+                    {
+                        warn!(
+                            "Token has been configured, but no openpgp-card feature-flag has been enabled! exiting..."
+                        );
+                        return Err(LKMVError::Config("Token has been configured, but no openpgp-card feature-flag has been enabled! exiting.".to_string()));
+                    }
                 } else {
-                    bail!(
+                    warn!(
                         "Secured Config is Token Encrypted, but no token identifier has been provided!"
                     );
+                    return Err(LKMVError::Config("Secured Config is Token Encrypted, but no token identifier has been provided!".to_string()));
                 }
             }
             SecuredConfigFormat::PasswordEncrypted { data } => {
                 // Password Encrypted format
                 if let Some(unlock) = unlock {
                     unlock_code_decrypt(
-                        unlock,
-                        &BASE64_URL_SAFE_NO_PAD
-                            .decode(data)
-                            .context("Couldn't base64 decode password encrypted SecuredConfig")?,
+                        unlock.0.expose_secret().first_chunk::<32>().unwrap(),
+                        &BASE64_URL_SAFE_NO_PAD.decode(data)?,
                     )
-                    .context("Couldn't decrypt password encrypted SecuredConfig")?
+                    .map_err(|e| {
+                        LKMVError::Decrypt(format!(
+                            "Couldn't decrypt password encrypted SecuredConfig. Reason: {e}"
+                        ))
+                    })?
                 } else {
-                    bail!(
-                        "Secured Config is Password Encrypted, but no unlock code has been provided!"
-                    );
+                    return Err(LKMVError::Config(
+                        "Secured Config is Password Encrypted, but no unlock code has been provided!".to_string()
+                    ));
                 }
             }
             SecuredConfigFormat::PlainText { text } => {
                 // Plaintext format - no checks needed
 
-                BASE64_URL_SAFE_NO_PAD
-                    .decode(text)
-                    .context("Couldn't base64 decode plaintext SecuredConfig")?
+                BASE64_URL_SAFE_NO_PAD.decode(text)?
             }
         };
 
-        serde_json::from_slice(raw_bytes.as_slice()).context("Couldn't deserialize SecuredConfig")
+        Ok(serde_json::from_slice(raw_bytes.as_slice())?)
     }
 }
 
@@ -184,35 +182,37 @@ impl SecuredConfig {
         &self,
         profile: &str,
         token: Option<&String>,
-        unlock: Option<&[u8; 32]>,
-    ) -> Result<()> {
-        let entry = Entry::new(SERVICE, profile)?;
+        unlock: Option<&Vec<u8>>,
+        #[cfg(feature = "openpgp-card")] touch_prompt: &(dyn Fn() + Send + Sync),
+    ) -> Result<(), LKMVError> {
+        let entry = Entry::new(SERVICE, profile).map_err(|e| {
+            LKMVError::Config(format!(
+                "Couldn't open OS Secure Store for profile ({profile}). Reason: {e}"
+            ))
+        })?;
 
         // Serialize SecuredConfig to byte array
-        let input =
-            serde_json::to_vec(&self).context("Couldn't serialize Secured Configuration")?;
+        let input = serde_json::to_vec(&self)?;
 
         let formatted = if let Some(token) = token {
             #[cfg(feature = "openpgp-card")]
             {
                 use crate::openpgp_card::crypt::token_encrypt;
 
-                let (esk, data) = token_encrypt(token, &input)?;
+                let (esk, data) = token_encrypt(token, &input, touch_prompt)?;
                 SecuredConfigFormat::TokenEncrypted {
                     esk: BASE64_URL_SAFE_NO_PAD.encode(&esk),
                     data: BASE64_URL_SAFE_NO_PAD.encode(&data),
                 }
             }
             #[cfg(not(feature = "openpgp-card"))]
-            bail!(
-                "Token has been configured, but no openpgp-card feature-flag has been enabled! exiting..."
-            );
+            return Err(LKMVError::Config( "Token has been configured, but no openpgp-card feature-flag has been enabled! exiting...".to_string()));
         } else if let Some(unlock) = unlock {
             SecuredConfigFormat::PasswordEncrypted {
-                data: BASE64_URL_SAFE_NO_PAD.encode(
-                    unlock_code_encrypt(unlock, &input)
-                        .context("Couldn't encrypt SecuredConfig")?,
-                ),
+                data: BASE64_URL_SAFE_NO_PAD.encode(unlock_code_encrypt(
+                    unlock.first_chunk::<32>().unwrap(),
+                    &input,
+                )?),
             }
         } else {
             // Plain-text
@@ -222,11 +222,13 @@ impl SecuredConfig {
         };
 
         // Save this to the OS Secure Store
-        entry.set_secret(
-            serde_json::to_string_pretty(&formatted)
-                .context("Couldn't serialize SecuredConfigFormat")?
-                .as_bytes(),
-        )?;
+        entry
+            .set_secret(serde_json::to_string_pretty(&formatted)?.as_bytes())
+            .map_err(|e| {
+                LKMVError::Config(format!(
+                    "Couldn't save encrypted config to the OS Secure Store. Reason: {e}"
+                ))
+            })?;
         Ok(())
     }
 
@@ -236,44 +238,44 @@ impl SecuredConfig {
     /// If token is None and unlock is false, assumes no protection apart from the OS Secure Store
     /// itself
     pub fn load(
-        term: &Term,
         profile: &str,
-        #[cfg(feature = "openpgp-card")] user_pin: &mut UserPin,
+        #[cfg(feature = "openpgp-card")] user_pin: &SecretString,
         token: Option<&String>,
-        unlock: Option<&[u8; 32]>,
-    ) -> Result<Self> {
-        let entry = Entry::new(SERVICE, profile)?;
-        let raw_secured_config: SecuredConfigFormat =
-            match entry.get_secret() {
-                Ok(secret) => match serde_json::from_slice(secret.as_slice()) {
-                    Ok(format) => format,
-                    Err(e) => {
-                        println!(
-                "{}{}",
-                style("ERROR: Format of SecuredConfig in OS Secure store is invalid! Reason: ")
-                    .color256(CLI_RED),
-                    style(e).color256(CLI_ORANGE)
-            );
-                        bail!("Couldn't load lkmv secured configuration");
-                    }
-                },
+        unlock: Option<&UnlockCode>,
+        #[cfg(feature = "openpgp-card")] touch_prompt: &(dyn Fn() + Send + Sync),
+    ) -> Result<Self, LKMVError> {
+        let entry = Entry::new(SERVICE, profile).map_err(|e| {
+            LKMVError::Config(format!(
+                "Couldn't access OS Secure Store for profile ({profile}). Reason: {e}",
+            ))
+        })?;
+
+        let raw_secured_config: SecuredConfigFormat = match entry.get_secret() {
+            Ok(secret) => match serde_json::from_slice(secret.as_slice()) {
+                Ok(format) => format,
                 Err(e) => {
-                    println!(
-                "{}{}",
-                style("ERROR: Couldn't find Secure Config in the OS Secret Store. Fatal Error: ")
-                    .color256(CLI_RED),
-                    style(e).color256(CLI_ORANGE)
-            );
-                    bail!("Couldn't find lkmv secured configuration");
+                    error!(
+                        "ERROR: Format of SecuredConfig in OS Secure store is invalid! Reason: {e}"
+                    );
+                    return Err(LKMVError::Config(format!(
+                        "Couldn't load lkmv secured configuration. Reason: {e}"
+                    )));
                 }
-            };
+            },
+            Err(e) => {
+                error!("Couldn't find Secure Config in the OS Secret Store. Fatal Error: {e}");
+                return Err(LKMVError::Config(format!(
+                    "Couldn't find lkmv secured configuration. Reason: {e}"
+                )));
+            }
+        };
 
         raw_secured_config.unlock(
-            term,
             #[cfg(feature = "openpgp-card")]
             user_pin,
             token,
             unlock,
+            touch_prompt,
         )
     }
 }
@@ -307,7 +309,7 @@ pub enum KeySourceMaterial {
 }
 
 /// Creates an AES-256 key from the hash of the unlock code and attempts to encrypt using it
-pub fn unlock_code_encrypt(unlock: &[u8; 32], input: &[u8]) -> Result<Vec<u8>> {
+pub fn unlock_code_encrypt(unlock: &[u8; 32], input: &[u8]) -> Result<Vec<u8>, LKMVError> {
     let mut rng = StdRng::from_seed(*unlock);
     let key = Aes256Gcm::generate_key(&mut rng);
     let nonce = Aes256Gcm::generate_nonce(&mut rng);
@@ -316,18 +318,16 @@ pub fn unlock_code_encrypt(unlock: &[u8; 32], input: &[u8]) -> Result<Vec<u8>> {
     match cipher.encrypt(&nonce, input) {
         Ok(encrypted) => Ok(encrypted),
         Err(e) => {
-            println!(
-                "{}{}",
-                style("ERROR: Couldn't encrypt data. Reason: ").color256(CLI_RED),
-                style(e).color256(CLI_ORANGE)
-            );
-            bail!(e);
+            error!("Couldn't encrypt data. Reason: {e}");
+            Err(LKMVError::Encrypt(format!(
+                "Couldn't encrypt data. Reason: {e}"
+            )))
         }
     }
 }
 
 /// Creates an AES-256 key from the hash of the unlock code and attempts to decrypt using it
-pub fn unlock_code_decrypt(unlock: &[u8; 32], input: &[u8]) -> Result<Vec<u8>> {
+pub fn unlock_code_decrypt(unlock: &[u8; 32], input: &[u8]) -> Result<Vec<u8>, LKMVError> {
     let mut rng = StdRng::from_seed(*unlock);
     let key = Aes256Gcm::generate_key(&mut rng);
     let nonce = Aes256Gcm::generate_nonce(&mut rng);
@@ -336,16 +336,10 @@ pub fn unlock_code_decrypt(unlock: &[u8; 32], input: &[u8]) -> Result<Vec<u8>> {
     match cipher.decrypt(&nonce, input) {
         Ok(decrypted) => Ok(decrypted),
         Err(e) => {
-            println!(
-                "{}{}",
-                style("ERROR: Couldn't decrypt data. Reason: ").color256(CLI_RED),
-                style(e).color256(CLI_ORANGE)
-            );
-            println!(
-                "  {}",
-                style("Likely due to using an incorrect unlock code!").color256(CLI_ORANGE)
-            );
-            bail!(e);
+            error!("Couldn't decrypt data. Likely due to incorrect unlock code! Reason: {e}");
+            Err(LKMVError::Decrypt(format!(
+                "Couldn't decrypt data, likely due to incorrect unlock code! Reason: {e}"
+            )))
         }
     }
 }

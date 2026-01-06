@@ -1,10 +1,4 @@
-use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, CLI_WHITE,
-    config::Config,
-    log::LogFamily,
-    relationships::Relationship,
-    tasks::{Task, TaskType},
-};
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, CLI_WHITE};
 use affinidi_data_integrity::DataIntegrityProof;
 use affinidi_tdk::{
     TDK,
@@ -16,7 +10,13 @@ use clap::ArgMatches;
 use console::style;
 use dialoguer::{Confirm, Input, Select, theme::ColorfulTheme};
 use dtg_credentials::{DTGCommon, DTGCredential};
-use lkmv::vrc::{DtgCredentialMessage, VRCRequestReject, VrcRequest};
+use lkmv::{
+    config::Config,
+    logs::LogFamily,
+    relationships::Relationship,
+    tasks::{Task, TaskType},
+    vrc::{DtgCredentialMessage, VRCRequestReject, VrcRequest},
+};
 use std::{collections::HashSet, rc::Rc, sync::Mutex};
 
 pub trait Print {
@@ -50,7 +50,9 @@ pub async fn vrcs_entry(
     match args.subcommand() {
         Some(("request", _)) => {
             if vrcs_interactive_request(&tdk, config).await? {
-                config.save(profile)?;
+                config.save(profile, &|| {
+                    eprintln!("Touch confirmation needed for decryption");
+                })?;
             }
         }
         Some(("list", sub_args)) => {
@@ -82,7 +84,10 @@ pub async fn vrcs_entry(
         Some(("remove", sub_args)) => {
             if let Some(id) = sub_args.get_one::<String>("id") {
                 remove_vrc_by_id(config, &Rc::new(id.to_string()));
-                config.save(profile)?;
+
+                config.save(profile, &|| {
+                    eprintln!("Touch confirmation needed for decryption");
+                })?;
             } else {
                 println!(
                     "{}",

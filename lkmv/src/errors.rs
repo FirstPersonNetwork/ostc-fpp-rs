@@ -14,7 +14,7 @@ pub enum LKMVError {
     #[error("Missing Secret Key Material. Key-ID: {0}")]
     MissingSecretKeyMaterial(String),
 
-    #[error("Serialize/Deseriale Error: {0}")]
+    #[error("Serialize/Deserialize Error: {0}")]
     Serde(#[from] serde_json::Error),
 
     #[error("DataIntegrityProof Error: {0}")]
@@ -25,4 +25,32 @@ pub enum LKMVError {
 
     #[error("DIDComm Error: {0}")]
     DIDComm(#[from] didcomm::error::Error),
+
+    #[error("BIP32 Error: {0}")]
+    BIP32(String),
+
+    #[error("Key Secret Error: {0}")]
+    Secret(String),
+
+    #[error("BASE64 Decode Error: {0}")]
+    Base64Decode(#[from] base64::DecodeError),
+
+    #[error("DID Resolver Error: {0}")]
+    Resolver(String),
+
+    #[error("Config Error: {0}")]
+    Config(String),
+
+    #[cfg(feature = "openpgp-card")]
+    #[error("Token Error: {0}")]
+    Token(String),
+
+    #[error("Encrypt Error: {0}")]
+    Encrypt(String),
+
+    #[error("Decrypt Error: {0}")]
+    Decrypt(String),
+
+    #[error("Contacts Error: {0}")]
+    Contact(String),
 }

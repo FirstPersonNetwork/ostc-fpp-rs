@@ -3,15 +3,14 @@
 */
 
 use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, LF_PUBLIC_MEDIATOR_DID,
     config::{Config, private_config::PrivateConfig},
-    log::Logs,
+    errors::LKMVError,
+    logs::Logs,
 };
-use anyhow::{Context, Result, bail};
-use console::style;
 use secrecy::SecretVec;
 use serde::{Deserialize, Serialize};
 use std::{env, fs, path::Path, rc::Rc};
+use tracing::warn;
 
 /// Primary structure used for storing [crate::config::Config] data that is not sensitive
 #[derive(Clone, Serialize, Deserialize, Debug)]
@@ -51,7 +50,7 @@ impl From<&Config> for PublicConfig {
 }
 
 /// Private helper to determine where the config file is located
-fn get_config_path(profile: &str) -> Result<String> {
+fn get_config_path(profile: &str) -> Result<String, LKMVError> {
     let path = if let Ok(config_path) = env::var("LKMV_CONFIG_PATH") {
         if config_path.ends_with('/') {
             config_path
@@ -63,7 +62,9 @@ fn get_config_path(profile: &str) -> Result<String> {
     {
         [home_str, "/.config/lkmv/"].concat()
     } else {
-        bail!("Couldn't determine Home directory");
+        return Err(LKMVError::Config(
+            "Couldn't determine Home directory".to_string(),
+        ));
     };
 
     if profile == "default" {
@@ -81,7 +82,7 @@ impl PublicConfig {
         profile: &str,
         private: &PrivateConfig,
         private_seed: &SecretVec<u8>,
-    ) -> Result<()> {
+    ) -> Result<(), LKMVError> {
         let cfg_path = get_config_path(profile)?;
         let path = Path::new(&cfg_path);
 
@@ -90,7 +91,13 @@ impl PublicConfig {
             && !parent_path.exists()
         {
             // Create parent directories
-            fs::create_dir_all(parent_path)?;
+            fs::create_dir_all(parent_path).map_err(|e| {
+                LKMVError::Config(format!(
+                    "Couldn't create parent directory ({}): {}",
+                    parent_path.to_string_lossy(),
+                    e
+                ))
+            })?;
         }
 
         let public = PublicConfig {
@@ -98,79 +105,36 @@ impl PublicConfig {
             ..self.clone()
         };
         // Write config to disk
-        fs::write(path, serde_json::to_string_pretty(&public)?)?;
+        fs::write(path, serde_json::to_string_pretty(&public)?).map_err(|e| {
+            LKMVError::Config(format!(
+                "Couldn't write public config to file ({}): {}",
+                path.to_string_lossy(),
+                e
+            ))
+        })?;
 
         Ok(())
     }
 
     /// Loads from disk the public information for LKMV to unlock it's secrets from the OS Secure
     /// Store
-    pub fn load(profile: &str) -> Result<Self> {
+    pub fn load(profile: &str) -> Result<Self, LKMVError> {
         let cfg_path = get_config_path(profile)?;
         let path = Path::new(&cfg_path);
 
-        let file = fs::File::open(path).context(format!(
-            "Couldn't load lkmv configuration file ({}) from disk",
-            &cfg_path
-        ))?;
+        let file = fs::File::open(path).map_err(|e| {
+            LKMVError::Config(format!(
+                "Couldn't load lkmv configuration file ({}) from disk: {e}",
+                &cfg_path
+            ))
+        })?;
 
         match serde_json::from_reader(file) {
             Ok(s) => Ok(s),
             Err(e) => {
-                println!(
-                    "{}{}",
-                    style("ERROR: Couldn't Deserialize PublicConfig. Reason: ").color256(CLI_RED),
-                    style(e).color256(CLI_ORANGE)
-                );
-                bail!("Deserialization error")
+                warn!("Couldn't Deserialize PublicConfig. Reason: {e}");
+                Err(e.into())
             }
-        }
-    }
-
-    /// Prints information relating to the Public configuration to console
-    pub fn status(&self) {
-        println!();
-        println!("{}", style("Configuration information").color256(CLI_BLUE));
-        println!("{}", style("=========================").color256(CLI_BLUE));
-        if let Some(token_id) = &self.token_id {
-            println!(
-                "{} {}",
-                style("Hardware Token:").color256(CLI_BLUE),
-                style(token_id).color256(CLI_PURPLE)
-            );
-            println!(
-                "{} {}",
-                style("Using unlock code?").color256(CLI_BLUE),
-                style("NOT-REQUIRED").color256(CLI_PURPLE)
-            );
-        } else {
-            println!(
-                "{} {}",
-                style("Hardware Token:").color256(CLI_BLUE),
-                style("No hardware token configured").color256(CLI_ORANGE)
-            );
-            print!("{} ", style("Using unlock code?").color256(CLI_BLUE));
-            if self.unlock_code {
-                println!("{}", style("YES").color256(CLI_GREEN));
-            } else {
-                println!("{}", style("NO").color256(CLI_ORANGE));
-            }
-        }
-
-        println!(
-            "{} {}",
-            style("Persona DID:").color256(CLI_BLUE),
-            style(&self.persona_did).color256(CLI_PURPLE)
-        );
-        print!("{} ", style("Mediator DID:").color256(CLI_BLUE));
-        if self.mediator_did == LF_PUBLIC_MEDIATOR_DID {
-            println!("{}", style(LF_PUBLIC_MEDIATOR_DID).color256(CLI_GREEN));
-        } else {
-            println!(
-                "{} {}",
-                style(&self.mediator_did).color256(CLI_ORANGE),
-                style("Mediator is customised (not an issue if deliberate)").color256(CLI_BLUE)
-            );
         }
     }
 }

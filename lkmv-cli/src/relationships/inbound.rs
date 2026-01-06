@@ -4,9 +4,7 @@
 
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE,
-    config::Config,
-    log::LogFamily,
-    relationships::{Relationship, RelationshipState, create_relationship_did},
+    relationships::{RelationshipState, create_relationship_did},
 };
 use affinidi_tdk::{
     TDK,
@@ -16,19 +14,53 @@ use anyhow::{Result, bail};
 use chrono::Utc;
 use console::style;
 use dialoguer::{Confirm, Input, theme::ColorfulTheme};
-use lkmv::relationships::create_send_message_accepted;
+use lkmv::{
+    config::Config,
+    logs::LogFamily,
+    relationships::{Relationship, create_send_message_accepted},
+};
 use serde_json::json;
 use std::{rc::Rc, sync::Mutex, time::SystemTime};
 use uuid::Uuid;
 
-impl Config {
+pub trait ConfigRelationships {
+    async fn handle_relationship_request_send_accept(
+        &mut self,
+        tdk: &TDK,
+        from: &Rc<String>,
+        task_id: &Rc<String>,
+        their_did: &str,
+    ) -> Result<()>;
+
+    fn handle_relationship_reject(
+        &mut self,
+        task_id: &Rc<String>,
+        reason: Option<&str>,
+    ) -> Result<()>;
+
+    async fn handle_relationship_inbound_accept(
+        &mut self,
+        tdk: &TDK,
+        from: &Rc<String>,
+        task_id: &Rc<String>,
+        r_did: &str,
+    ) -> Result<()>;
+
+    async fn handle_relationship_inbound_finalize(
+        &mut self,
+        from: &Rc<String>,
+        task_id: &Rc<String>,
+    ) -> Result<()>;
+}
+
+impl ConfigRelationships for Config {
     /// Accepts an incoming relationship request from a remote party and sends the acceptance
     /// message back to them
     /// tdk: Trust Development Kit instance
     /// from: The remote party's P-DID
     /// task_id: what task_id should be used for this relationship request?
     /// their_did:What DID is the initiator requesting to use for the relationship after setup?
-    pub async fn handle_relationship_request_send_accept(
+    async fn handle_relationship_request_send_accept(
         &mut self,
         tdk: &TDK,
         from: &Rc<String>,
@@ -127,7 +159,7 @@ impl Config {
     }
 
     /// Handles rejection of a relationship request
-    pub fn handle_relationship_reject(
+    fn handle_relationship_reject(
         &mut self,
         task_id: &Rc<String>,
         reason: Option<&str>,
@@ -178,7 +210,7 @@ impl Config {
 
     /// Handles the inbound accept message from a remote party, this triggers the finalize
     /// relationship establishment message
-    pub async fn handle_relationship_inbound_accept(
+    async fn handle_relationship_inbound_accept(
         &mut self,
         tdk: &TDK,
         from: &Rc<String>,
@@ -264,7 +296,7 @@ impl Config {
     }
 
     /// Handles the last message of the relationship establishment process
-    pub async fn handle_relationship_inbound_finalize(
+    async fn handle_relationship_inbound_finalize(
         &mut self,
         from: &Rc<String>,
         task_id: &Rc<String>,

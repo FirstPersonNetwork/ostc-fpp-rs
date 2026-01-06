@@ -4,9 +4,7 @@
 
 use std::{rc::Rc, sync::Mutex};
 
-use crate::{
-    CLI_ORANGE, CLI_PURPLE, CLI_RED, config::Config, log::LogFamily, relationships::Relationship,
-};
+use crate::{CLI_ORANGE, CLI_PURPLE, CLI_RED};
 use affinidi_tdk::{
     TDK,
     didcomm::{Message, PackEncryptedOptions},
@@ -14,6 +12,7 @@ use affinidi_tdk::{
 };
 use anyhow::{Result, bail};
 use console::style;
+use lkmv::{config::Config, logs::LogFamily, relationships::Relationship};
 
 /// Pings the mediator to check connectivity
 /// uses the persona-DID as the TDK/ATM Profile

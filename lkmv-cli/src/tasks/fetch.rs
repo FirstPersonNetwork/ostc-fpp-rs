@@ -2,10 +2,9 @@ use std::{rc::Rc, sync::Arc};
 
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
-    config::Config,
     interactions::vrc::handle_inbound_vrc_issued,
-    log::LogFamily,
     messaging::{handle_inbound_ping, handle_inbound_pong},
+    relationships::inbound::ConfigRelationships,
     tasks::TaskType,
 };
 use affinidi_tdk::{
@@ -19,6 +18,8 @@ use anyhow::{Result, anyhow};
 use console::{Term, style};
 use lkmv::{
     MessageType,
+    config::Config,
+    logs::LogFamily,
     relationships::{RelationshipAcceptBody, RelationshipRejectBody},
     vrc::VRCRequestReject,
 };

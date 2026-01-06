@@ -2,60 +2,33 @@
 *  Managing known contacts is useful and easy to establish relationships with others
 */
 
-use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
-    log::{LogFamily, Logs},
-    relationships::{RelationshipState, Relationships},
-};
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED};
 use affinidi_tdk::TDK;
 use anyhow::{Result, bail};
 use clap::{ArgMatches, Id};
-use console::{StyledObject, style};
-use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, rc::Rc};
+use console::style;
+use lkmv::{
+    config::private_config::Contacts,
+    logs::Logs,
+    relationships::{RelationshipState, Relationships},
+};
 
-/// A record for a single known Contact
-#[derive(Clone, Debug, Deserialize, Serialize)]
-pub struct Contact {
-    /// DID representing the contact
-    pub did: Rc<String>,
+pub trait ContactsExtension {
+    async fn contacts_entry(
+        &mut self,
+        tdk: TDK,
+        args: &ArgMatches,
+        relationships: &Relationships,
+        logs: &mut Logs,
+    ) -> Result<bool>;
 
-    /// Optional alias for the DID
-    pub alias: Option<String>,
+    fn print_list(&self, relationships: &Relationships);
 }
 
-impl Contact {
-    /// Returns Alias if it exists, otherwise returns "N/A"
-    pub fn alias(&self) -> StyledObject<String> {
-        if let Some(alias) = &self.alias {
-            style(alias.to_string()).color256(CLI_GREEN)
-        } else {
-            style("N/A".to_string()).color256(CLI_ORANGE)
-        }
-    }
-}
-
-// ****************************************************************************
-// Contacts Collection
-// ****************************************************************************
-
-/// Contains all known contacts
-/// Uses Reference Counters to avoid duplicating Contact instances
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-#[serde(from = "ContactsShadow")]
-pub struct Contacts {
-    /// Contacts with key being DID
-    pub contacts: HashMap<Rc<String>, Rc<Contact>>,
-
-    /// Helps with finding a DID by it's alias
-    #[serde(skip)]
-    pub aliases: HashMap<String, Rc<Contact>>,
-}
-
-impl Contacts {
+impl ContactsExtension for Contacts {
     /// Primary entry point for all Contact Management related functionality
     /// Returns true if config changed and needs to be saved
-    pub async fn contacts_entry(
+    async fn contacts_entry(
         &mut self,
         tdk: TDK,
         args: &ArgMatches,
@@ -151,102 +124,6 @@ impl Contacts {
         })
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.contacts.is_empty()
-    }
-
-    /// Adds a new contact
-    /// tdk: Trust Development Kit instance
-    /// contact_did: DID of the contact to add
-    /// alias: Optional alias for the contact
-    /// check_did: Whether to check if the DID is valid
-    pub async fn add_contact(
-        &mut self,
-        tdk: &TDK,
-        contact_did: &str,
-        alias: Option<String>,
-        check_did: bool,
-        logs: &mut Logs,
-    ) -> Result<Rc<Contact>> {
-        if check_did {
-            match tdk.did_resolver().resolve(contact_did).await {
-                Ok(_) => {}
-                Err(e) => {
-                    println!(
-                        "{}{}{}",
-                        style("ERROR: Couldn't resolve DID ").color256(CLI_RED),
-                        style(contact_did).color256(CLI_PURPLE),
-                        style(format!(" Reason: {}", e)).color256(CLI_ORANGE)
-                    );
-                    bail!("Could not resolve DID");
-                }
-            }
-        }
-
-        let contact_did = Rc::new(contact_did.to_string());
-
-        if let Some(alias) = &alias
-            && self.aliases.contains_key(alias)
-        {
-            println!(
-                "{} {}{}{}",
-                style("ERROR: Duplicate alias detected!").color256(CLI_RED),
-                style("alias(").color256(CLI_ORANGE),
-                style(alias).color256(CLI_PURPLE),
-                style(") must be removed first").color256(CLI_ORANGE)
-            );
-            bail!("Duplicate alias detected")
-        }
-
-        let contact = Rc::new(Contact {
-            did: contact_did.clone(),
-            alias: alias.clone(),
-        });
-
-        self.contacts.insert(contact_did.clone(), contact.clone());
-
-        if let Some(alias) = &alias {
-            self.aliases.insert(alias.clone(), contact.clone());
-        }
-
-        logs.insert(
-            LogFamily::Contact,
-            format!(
-                "Added contact ({}) alias({})",
-                contact_did,
-                alias.as_deref().unwrap_or("N/A")
-            ),
-        );
-
-        Ok(contact)
-    }
-
-    /// Removes a contact (by DID or Alias)
-    /// Returns Contact if contact was found and removed
-    fn remove_contact(&mut self, logs: &mut Logs, id: &str) -> Option<Rc<Contact>> {
-        if let Some(contact) = self.find_contact(id) {
-            if let Some(alias) = &contact.alias {
-                self.aliases.remove(alias);
-            }
-
-            let result = self.contacts.remove(&contact.did);
-
-            if result.is_some() {
-                logs.insert(
-                    LogFamily::Contact,
-                    format!(
-                        "Removed contact ({}) alias({})",
-                        contact.did,
-                        contact.alias.as_deref().unwrap_or("N/A")
-                    ),
-                );
-            }
-            result
-        } else {
-            None
-        }
-    }
-
     // Dumps contct information to the console
     fn print_list(&self, relationships: &Relationships) {
         if self.is_empty() {
@@ -289,39 +166,5 @@ impl Contacts {
                 relationship_status
             );
         }
-    }
-
-    /// Finds a contact by alias or DID
-    /// will look for alias first, then DID
-    pub fn find_contact(&self, id: &str) -> Option<Rc<Contact>> {
-        if let Some(contact) = self.aliases.get(id) {
-            Some(contact.clone())
-        } else {
-            #[allow(clippy::unnecessary_to_owned)] // Because using RC's
-            self.contacts.get(&(id.to_string())).cloned()
-        }
-    }
-}
-
-/// Private Shadow struct to help with deserializing Contacts and recreating the aliases map
-#[derive(Deserialize)]
-struct ContactsShadow {
-    contacts: HashMap<Rc<String>, Rc<Contact>>,
-}
-
-impl From<ContactsShadow> for Contacts {
-    fn from(shadow: ContactsShadow) -> Self {
-        let mut contacts = Contacts {
-            contacts: shadow.contacts,
-            aliases: HashMap::new(),
-        };
-
-        for contact in contacts.contacts.values() {
-            if let Some(alias) = &contact.alias {
-                contacts.aliases.insert(alias.clone(), contact.clone());
-            }
-        }
-
-        contacts
     }
 }

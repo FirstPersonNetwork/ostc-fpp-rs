@@ -4,96 +4,63 @@
 
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
-    config::{
-        Config, KeyTypes,
-        secured_config::{KeyInfoConfig, KeySourceMaterial},
-    },
-    contacts::Contacts,
-    log::LogFamily,
     relationships::messages::create_send_request,
-    setup::{KeyPurpose, bip32_bip39::Bip32Extension},
-    tasks::TaskType,
 };
 use affinidi_tdk::{
     TDK,
     did_peer::DIDPeerKeys,
     didcomm::PackEncryptedOptions,
     dids::DID,
-    messaging::{profiles::ATMProfile, protocols::Protocols},
+    messaging::protocols::Protocols,
     secrets_resolver::{
         SecretsResolver, crypto::ed25519::ed25519_private_to_x25519_private_key, secrets::Secret,
     },
 };
 use anyhow::{Result, bail};
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use clap::ArgMatches;
 use console::style;
-use ed25519_dalek_bip32::{DerivationPath, ExtendedSigningKey};
-use lkmv::vrc::Vrcs;
-use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    fmt::Display,
-    rc::Rc,
-    sync::{Arc, Mutex},
+use ed25519_dalek_bip32::DerivationPath;
+use lkmv::{
+    config::{
+        Config, KeyTypes,
+        private_config::Contacts,
+        secured_config::{KeyInfoConfig, KeySourceMaterial},
+    },
+    logs::LogFamily,
+    relationships::{RelationshipState, Relationships},
+    tasks::TaskType,
+    vrc::Vrcs,
 };
+use std::rc::Rc;
 
 pub mod inbound;
 pub mod messages;
-
-#[derive(Clone, Debug, Hash, Serialize, Deserialize, PartialEq, Eq)]
-pub enum RelationshipState {
-    /// Relationship Request has been sent to the remote party
-    RequestSent,
-
-    /// Relationship Request has been accepted by respondent, need to finalise the relationship
-    /// still
-    RequestAccepted,
-
-    /// Relationship Rejected by respondent
-    RequestRejected,
-
-    /// Relationship is established
-    Established,
-
-    /// There is no relationship
-    None,
-}
-
-impl Display for RelationshipState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let state_str = match self {
-            RelationshipState::RequestSent => "Request Sent",
-            RelationshipState::RequestAccepted => "Request Accepted",
-            RelationshipState::RequestRejected => "Request Rejected",
-            RelationshipState::Established => "Established",
-            RelationshipState::None => "None",
-        };
-        write!(f, "{}", state_str)
-    }
-}
 
 // ****************************************************************************
 // Relationships
 // ****************************************************************************
 
-#[derive(Clone, Debug, Default, Deserialize, Serialize)]
-#[serde(from = "RelationshipsShadow", into = "RelationshipsShadow")]
-pub struct Relationships {
-    /// Mapping relationships by the remote P-DID
-    relationships: HashMap<Rc<String>, Rc<Mutex<Relationship>>>,
-
-    /*
-    /// Mapping relationships by our R-DIDs
-    pub r_map: HashMap<Rc<String>, Vec<HashSet<Rc<Relationship>>>>,
-    */
-    /// latest BIP32 path pointer to use for new keys
-    pub path_pointer: u32,
+pub trait RelationshipsExtension {
+    fn status(
+        &self,
+        contacts: &Contacts,
+        our_p_did: &Rc<String>,
+        vrcs_sent: &Vrcs,
+        vrcs_received: &Vrcs,
+    );
+    fn print_relationships(
+        &self,
+        contacts: &Contacts,
+        our_p_did: &Rc<String>,
+        vrcs_sent: &Vrcs,
+        vrcs_received: &Vrcs,
+    );
 }
 
-impl Relationships {
+impl RelationshipsExtension for Relationships {
     /// Prints Relationship status to the console
-    pub fn status(
+    fn status(
         &self,
         contacts: &Contacts,
         our_p_did: &Rc<String>,
@@ -121,7 +88,7 @@ impl Relationships {
         self.print_relationships(contacts, our_p_did, vrcs_sent, vrcs_received);
     }
 
-    pub fn print_relationships(
+    fn print_relationships(
         &self,
         contacts: &Contacts,
         our_p_did: &Rc<String>,
@@ -133,12 +100,14 @@ impl Relationships {
         } else {
             for r in self.relationships.values() {
                 let r = r.lock().unwrap();
-                let remote_p_did_alias =
-                    if let Some(contact) = contacts.find_contact(&r.remote_p_did) {
-                        contact.alias()
-                    } else {
-                        style("N/A".to_string()).color256(CLI_ORANGE)
-                    };
+                let remote_p_did_alias = if let Some(contact) =
+                    contacts.find_contact(&r.remote_p_did)
+                    && let Some(alias) = &contact.alias
+                {
+                    style(alias.to_string()).color256(CLI_GREEN)
+                } else {
+                    style("N/A".to_string()).color256(CLI_ORANGE)
+                };
 
                 println!(
                     "  {}{}{}{}",
@@ -201,220 +170,6 @@ impl Relationships {
             }
         }
     }
-
-    /// Removes a relationship by it's task_id
-    pub fn remove_by_task_id(
-        &mut self,
-        id: &Rc<String>,
-        vrcs_issued: &mut Vrcs,
-        vrcs_recieved: &mut Vrcs,
-    ) -> Option<Rc<Mutex<Relationship>>> {
-        if let Some(relationship) = self
-            .relationships
-            .values()
-            .find(|f| f.lock().unwrap().task_id == *id)
-            .cloned()
-        {
-            self.remove(
-                &relationship.lock().unwrap().remote_did,
-                vrcs_issued,
-                vrcs_recieved,
-            )
-        } else {
-            None
-        }
-    }
-
-    /// Removes a relationship by it's key, removes associated information tagged to the
-    /// relationship such as VRCs
-    /// Returns
-    /// relationship removed if successful
-    /// None if not found
-    /// Error if something went wrong
-    pub fn remove(
-        &mut self,
-        key: &Rc<String>,
-        vrcs_issued: &mut Vrcs,
-        vrcs_recieved: &mut Vrcs,
-    ) -> Option<Rc<Mutex<Relationship>>> {
-        // Find and remove any VRCs associated with this relationship
-        vrcs_issued.remove_relationship(key);
-        vrcs_recieved.remove_relationship(key);
-
-        self.relationships.remove(key)
-    }
-
-    /// Gets a relationship using the remote P-DID key
-    pub fn get(&self, p_did: &Rc<String>) -> Option<Rc<Mutex<Relationship>>> {
-        self.relationships.get(p_did).cloned()
-    }
-
-    /// Finds a relationship by it's task ID
-    pub fn find_by_task_id(&self, task_id: &Rc<String>) -> Option<Rc<Mutex<Relationship>>> {
-        self.relationships
-            .values()
-            .find(|f| &f.lock().unwrap().task_id == task_id)
-            .cloned()
-    }
-
-    /// Finds a relationship by it's remote DID (could be P-DID or R-DID)
-    pub fn find_by_remote_did(&self, did: &Rc<String>) -> Option<Rc<Mutex<Relationship>>> {
-        self.relationships
-            .values()
-            .find(|r| {
-                let lock = r.lock().unwrap();
-                lock.remote_did == *did || lock.remote_p_did == *did
-            })
-            .cloned()
-    }
-
-    /// Generates ATM Profiles for established relationships where the local r-did is different
-    /// than the local p-did
-    pub async fn generate_profiles(
-        &self,
-        tdk: &TDK,
-        our_p_did: &Rc<String>,
-        mediator: &str,
-        bip32_root: &ExtendedSigningKey,
-        key_info: &HashMap<String, KeyInfoConfig>,
-    ) -> Result<HashMap<Rc<String>, Arc<ATMProfile>>> {
-        let atm = tdk.atm.clone().unwrap();
-
-        let mut profiles: HashMap<Rc<String>, Arc<ATMProfile>> = HashMap::new();
-
-        for relationship in self.relationships.values() {
-            let (our_did, state) = {
-                let lock = relationship.lock().unwrap();
-                (lock.our_did.clone(), lock.state.clone())
-            };
-            if state == RelationshipState::Established && &our_did != our_p_did {
-                // Create an ATMProfile for this relationship
-                let profile =
-                    ATMProfile::new(&atm, None, our_did.to_string(), Some(mediator.to_string()))
-                        .await?;
-                profiles.insert(our_did.clone(), atm.profile_add(&profile, false).await?);
-
-                // Generate secrets for this DID
-                let secrets: Vec<Secret> = key_info
-                    .iter()
-                    .filter_map(|(k, v)| {
-                        if k.starts_with(our_did.as_str()) {
-                            if let KeySourceMaterial::Derived { path } = &v.path {
-                                if let Some(kp) = match v.purpose {
-                                    KeyTypes::RelationshipVerification => Some(KeyPurpose::Signing),
-                                    KeyTypes::RelationshipEncryption => {
-                                        Some(KeyPurpose::Encryption)
-                                    }
-                                    _ => None,
-                                } {
-                                    bip32_root.get_secret_from_path(path, kp).ok().map(|mut s| {
-                                        s.id = k.clone();
-                                        s
-                                    })
-                                } else {
-                                    None
-                                }
-                            } else {
-                                None
-                            }
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
-                tdk.get_shared_state()
-                    .secrets_resolver
-                    .insert_vec(&secrets)
-                    .await;
-            }
-        }
-
-        Ok(profiles)
-    }
-
-    /// Filters relationships and only returns those that are established
-    pub fn get_established_relationships(&self) -> Vec<Rc<Mutex<Relationship>>> {
-        self.relationships
-            .values()
-            .filter_map(|r| {
-                let lock = r.lock().unwrap();
-                if lock.state == RelationshipState::Established {
-                    Some(r.clone())
-                } else {
-                    None
-                }
-            })
-            .collect()
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
-pub struct Relationship {
-    /// Task ID that this relationship may be attached to
-    pub task_id: Rc<String>,
-
-    /// What DID are we using in this relationship?
-    pub our_did: Rc<String>,
-
-    /// What is the DID of the remote party in this relationship?
-    pub remote_did: Rc<String>,
-
-    /// What is the remote end persona DID?
-    /// NOTE: This may be the same as the remote did itself, or it may be a random r-did
-    pub remote_p_did: Rc<String>,
-
-    /// When was this relationship created?
-    pub created: DateTime<Utc>,
-
-    /// State machine status of this relationship
-    pub state: RelationshipState,
-}
-
-/// Used to serialize the more complex Relationships structure to SecuredConfig
-#[derive(Clone, Debug, Default, Serialize, Deserialize)]
-#[serde(default)]
-pub struct RelationshipsShadow {
-    pub relationships: Vec<Rc<Mutex<Relationship>>>,
-    pub path_pointer: u32,
-}
-
-impl From<Relationships> for RelationshipsShadow {
-    fn from(value: Relationships) -> Self {
-        let relationships = value
-            .relationships
-            .values()
-            .cloned()
-            .collect::<Vec<Rc<Mutex<Relationship>>>>();
-        RelationshipsShadow {
-            relationships,
-            path_pointer: value.path_pointer,
-        }
-    }
-}
-
-impl From<RelationshipsShadow> for Relationships {
-    fn from(value: RelationshipsShadow) -> Self {
-        let mut relationships: HashMap<Rc<String>, Rc<Mutex<Relationship>>> = HashMap::new();
-        //let mut r_map: HashMap<Rc<String>, Vec<HashSet<Rc<Relationship>>>> = HashMap::new();
-
-        for relationship in value.relationships {
-            let remote_did = relationship.lock().unwrap().remote_p_did.clone();
-            relationships.insert(remote_did.clone(), relationship.clone());
-
-            /*
-                        r_map
-                            .entry(relationship.our_did.clone())
-                            .or_default()
-                            .push(HashSet::from([relationship.clone()]));
-            */
-        }
-
-        Relationships {
-            relationships,
-            //r_map,
-            path_pointer: value.path_pointer,
-        }
-    }
 }
 
 // ****************************************************************************
@@ -470,7 +225,9 @@ pub async fn relationships_entry(
             )
             .await?;
 
-            config.save(profile)?;
+            config.save(profile, &|| {
+                eprintln!("Touch confirmation needed for decryption");
+            })?;
         }
         Some(("ping", sub_args)) => {
             let remote_did = if let Some(did) = sub_args.get_one::<String>("remote") {
@@ -485,7 +242,9 @@ pub async fn relationships_entry(
 
             remote_ping(&tdk, config, &remote_did).await?;
 
-            config.save(profile)?;
+            config.save(profile, &|| {
+                eprintln!("Touch confirmation needed for decryption");
+            })?;
         }
         Some(("remove", sub_args)) => {
             let remote_did = if let Some(did) = sub_args.get_one::<String>("remote") {
@@ -539,7 +298,9 @@ pub async fn relationships_entry(
                 style(remote_p_did).color256(CLI_GREEN)
             );
 
-            config.save(profile)?;
+            config.save(profile, &|| {
+                eprintln!("Touch confirmation needed for decryption");
+            })?;
         }
         _ => {
             println!(

@@ -4,8 +4,10 @@
 
 use crate::{
     cli::cli,
-    config::Config,
+    config::ConfigExtension,
+    contacts::ContactsExtension,
     interactions::vrc::vrcs_entry,
+    log::LogsExtension,
     maintainers::maintainers_entry,
     relationships::relationships_entry,
     setup::{cli_setup, pgp_export::ask_export_persona_did_keys},
@@ -15,6 +17,7 @@ use affinidi_tdk::{TDK, common::config::TDKConfigBuilder};
 use anyhow::{Context, Result, bail};
 use console::{Term, style};
 use dialoguer::{Password, theme::ColorfulTheme};
+use lkmv::config::{Config, UnlockCode};
 use secrecy::SecretString;
 use sha2::Digest;
 use status::print_status;
@@ -64,7 +67,7 @@ fn initialize(term: &Term) {
 
 /// Loads lkmv with Trust Development Kit (TDK) and Config
 /// This does not need to be called for setup!
-async fn load(term: &Term, profile: &str) -> Result<(TDK, Config)> {
+async fn load(profile: &str) -> Result<(TDK, Config)> {
     // Instantiate the TDK
     let mut tdk = TDK::new(
         TDKConfigBuilder::new()
@@ -74,14 +77,29 @@ async fn load(term: &Term, profile: &str) -> Result<(TDK, Config)> {
     )
     .await?;
 
+    let user_pin = Password::with_theme(&ColorfulTheme::default())
+        .with_prompt("Please enter Token User PIN <blank = default>")
+        .allow_empty_password(true)
+        .interact()
+        .unwrap();
+    let user_pin = if user_pin.is_empty() {
+        SecretString::new("123456".to_string())
+    } else {
+        SecretString::new(user_pin)
+    };
+
     let config = match Config::load(
-        term,
         &mut tdk,
         profile,
         cli()
             .get_matches()
             .get_one::<String>("unlock-code")
-            .map(|s| s.as_str()),
+            .map(|s| UnlockCode::from_string(s.as_str()))
+            .as_ref(),
+        &user_pin,
+        &|| {
+            eprintln!("Touch confirmation needed for decryption");
+        },
     )
     .await
     {
@@ -265,7 +283,7 @@ async fn main() -> Result<()> {
 async fn lkmv(term: &Term, profile: &str) -> Result<()> {
     match cli().get_matches().subcommand() {
         Some(("logs", _)) => {
-            let (_, config) = load(term, profile).await?;
+            let (_, config) = load(profile).await?;
 
             config.public.logs.show_all();
         }
@@ -283,7 +301,8 @@ async fn lkmv(term: &Term, profile: &str) -> Result<()> {
                 cli()
                     .get_matches()
                     .get_one::<String>("unlock-code")
-                    .map(|s| s.as_str()),
+                    .map(|s| UnlockCode::from_string(s))
+                    .as_ref(),
                 profile,
             )
             .await;
@@ -312,7 +331,7 @@ async fn lkmv(term: &Term, profile: &str) -> Result<()> {
             }
         }
         Some(("export", args)) => {
-            let (tdk, config) = load(term, profile).await?;
+            let (tdk, config) = load(profile).await?;
 
             match args.subcommand() {
                 Some(("pgp-keys", sub_args)) => {
@@ -353,7 +372,7 @@ async fn lkmv(term: &Term, profile: &str) -> Result<()> {
             }
         }
         Some(("contacts", args)) => {
-            let (tdk, mut config) = load(term, profile).await?;
+            let (tdk, mut config) = load(profile).await?;
 
             if config
                 .private
@@ -367,26 +386,28 @@ async fn lkmv(term: &Term, profile: &str) -> Result<()> {
                 .await?
             {
                 // Need to save config
-                config.save(profile)?;
+                config.save(profile, &|| {
+                    eprintln!("Touch confirmation needed for decryption");
+                })?;
             }
         }
         Some(("relationships", args)) => {
-            let (tdk, mut config) = load(term, profile).await?;
+            let (tdk, mut config) = load(profile).await?;
 
             relationships_entry(tdk, &mut config, profile, args).await?;
         }
         Some(("tasks", args)) => {
-            let (tdk, mut config) = load(term, profile).await?;
+            let (tdk, mut config) = load(profile).await?;
 
             tasks_entry(tdk, &mut config, profile, args, term).await?;
         }
         Some(("vrcs", args)) => {
-            let (tdk, mut config) = load(term, profile).await?;
+            let (tdk, mut config) = load(profile).await?;
 
             vrcs_entry(tdk, &mut config, profile, args).await?;
         }
         Some(("maintainers", args)) => {
-            let (tdk, mut config) = load(term, profile).await?;
+            let (tdk, mut config) = load(profile).await?;
 
             maintainers_entry(tdk, &mut config, args).await?;
         }

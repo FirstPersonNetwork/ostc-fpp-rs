@@ -2,7 +2,7 @@
 *   Clears Tasks locally and remotely
 */
 
-use crate::{CLI_BLUE, CLI_GREEN, config::Config, tasks::Tasks};
+use crate::{CLI_BLUE, CLI_GREEN, tasks::Tasks};
 use affinidi_tdk::{
     TDK,
     messaging::{
@@ -13,17 +13,17 @@ use affinidi_tdk::{
 use anyhow::Result;
 use console::style;
 use dialoguer::{Confirm, theme::ColorfulTheme};
+use lkmv::config::Config;
 
-impl Tasks {
+pub trait TasksClear {
+    async fn clear_all(tdk: &TDK, config: &mut Config, force: bool, remote: bool) -> Result<bool>;
+}
+
+impl TasksClear for Tasks {
     /// Clears all tasks
     /// force: Whether to ask for confirmation (no if true)
     /// remote: Deletes all messages on the DIDComm mediator if true
-    pub async fn clear_all(
-        tdk: &TDK,
-        config: &mut Config,
-        force: bool,
-        remote: bool,
-    ) -> Result<bool> {
+    async fn clear_all(tdk: &TDK, config: &mut Config, force: bool, remote: bool) -> Result<bool> {
         let atm = tdk.atm.clone().unwrap();
         let mut change_flag = false;
 

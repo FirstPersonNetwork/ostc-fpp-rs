@@ -2,15 +2,13 @@
 *   Handles everything todo with openpgp-card tokens
 */
 
-use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, openpgp_card::ui::AdminPin,
-    setup::KeyPurpose,
-};
+use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED};
 use affinidi_tdk::secrets_resolver::multicodec::{ED25519_PUB, MultiEncodedBuf, X25519_PUB};
 use anyhow::Result;
 use card_backend_pcsc::PcscBackend;
 use chrono::{DateTime, Utc};
 use console::{Term, style};
+use lkmv::KeyPurpose;
 use openpgp_card::{
     Card,
     ocard::{
@@ -21,10 +19,9 @@ use openpgp_card::{
     },
     state::{Open, Transaction},
 };
+use secrecy::SecretString;
 use std::fmt;
 
-pub mod crypt;
-pub mod ui;
 pub mod write;
 
 pub struct KeySlotInfo {
@@ -110,14 +107,6 @@ pub fn cards() -> Result<Vec<Card<Open>>> {
     }
 
     Ok(cards)
-}
-
-/// Opens a specific openpgp-card by an identifier
-pub fn open_card(token_id: &str) -> Result<Card<Open>> {
-    let cards = PcscBackend::card_backends(None)?;
-    let card = Card::<Open>::open_by_ident(cards, token_id)?;
-
-    Ok(card)
 }
 
 /// Formats the cardholder name
@@ -397,8 +386,12 @@ pub fn print_key_info(ki: &KeySlotInfo) {
         match status {
             KeyStatus::Imported => print!("{}", style(status).color256(CLI_GREEN)),
             KeyStatus::Generated => print!("{}", style(status).color256(CLI_ORANGE)),
-            KeyStatus::NotPresent => print!("{}", style(status).color256(CLI_RED)),
-            KeyStatus::Unknown(_) => print!("{}", style(status).color256(CLI_RED)),
+            KeyStatus::NotPresent => {
+                print!("{}", style(status).color256(CLI_RED))
+            }
+            KeyStatus::Unknown(_) => {
+                print!("{}", style(status).color256(CLI_RED))
+            }
         }
         print!("{}", style(")").color256(CLI_BLUE));
     }
@@ -443,10 +436,10 @@ pub fn factory_reset(term: &Term, card: &mut Card<Open>) -> Result<()> {
 pub fn set_signing_touch_policy(
     term: &Term,
     card: &mut Card<Open>,
-    admin_pin: &mut AdminPin,
+    admin_pin: &SecretString,
 ) -> Result<()> {
     let mut open_card = card.transaction()?;
-    open_card.verify_admin_pin(admin_pin.get_pin().clone())?;
+    open_card.verify_admin_pin(admin_pin.clone())?;
     let mut card = open_card.to_admin_card(None)?;
 
     print!(
@@ -468,11 +461,11 @@ pub fn set_signing_touch_policy(
 pub fn set_cardholder_name(
     term: &Term,
     card: &mut Card<Open>,
-    admin_pin: &mut AdminPin,
+    admin_pin: &SecretString,
     name: &str,
 ) -> Result<()> {
     let mut open_card = card.transaction()?;
-    open_card.verify_admin_pin(admin_pin.get_pin().clone())?;
+    open_card.verify_admin_pin(admin_pin.clone())?;
     let mut card = open_card.to_admin_card(None)?;
 
     print!(

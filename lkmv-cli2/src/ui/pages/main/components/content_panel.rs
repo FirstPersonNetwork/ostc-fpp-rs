@@ -1,3 +1,10 @@
+use crate::state_handler::main_page::{
+    content::ContentPanelState,
+    menu::{MainMenu, MenuPanelState},
+};
+use lkmv::colors::{
+    COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_WARNING, COLOR_WARNING_ACCESSIBLE_RED,
+};
 use ratatui::{
     Frame,
     layout::{Alignment, Rect},
@@ -5,14 +12,6 @@ use ratatui::{
     symbols::merge::MergeStrategy,
     text::Line,
     widgets::{Block, Paragraph},
-};
-
-use crate::{
-    COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_WARNING, COLOR_WARNING_ACCESSIBLE_RED,
-    state_handler::main_page::{
-        content::ContentPanelState,
-        menu::{MainMenu, MenuPanelState},
-    },
 };
 
 // ****************************************************************************
