@@ -24,7 +24,7 @@ use ed25519_dalek_bip32::DerivationPath;
 use lkmv::{
     config::{
         Config, KeyTypes,
-        private_config::Contacts,
+        protected_config::Contacts,
         secured_config::{KeyInfoConfig, KeySourceMaterial},
     },
     logs::LogFamily,

@@ -4,7 +4,7 @@
 * 1. [Config]: Represents the active in-memory application config
 * 2. [secured_config::SecuredConfig]: Represents [Config] info that is stored securely (key info)
 * 3. [public_config::PublicConfig]: Represents [Config] info that is stored in plaintext on disk
-* 4. [private_config::PrivateConfig]: Represents [Config] info that is encryoted and stored on disk
+* 4. [protected_config::ProtectedConfig]: Represents [Config] info that is encryoted and stored on disk
 *
 * NOTE: Secure Config information is saved item by item as needed to the secure storage
 */
@@ -15,7 +15,7 @@ use crate::{
     KeyPurpose,
     bip32::Bip32Extension,
     config::{
-        private_config::PrivateConfig,
+        protected_config::ProtectedConfig,
         public_config::PublicConfig,
         secured_config::{
             KeyInfoConfig, KeySourceMaterial, ProtectionMethod, SecuredConfig, unlock_code_encrypt,
@@ -40,7 +40,7 @@ use sha2::{Digest, Sha256};
 use std::{collections::HashMap, fmt::Display, fs, rc::Rc, sync::Arc};
 use tracing::warn;
 
-pub mod private_config;
+pub mod protected_config;
 pub mod public_config;
 pub mod secured_config;
 
@@ -54,6 +54,33 @@ impl UnlockCode {
     }
 }
 
+/// How is the config protected?
+#[derive(Clone, Serialize, Deserialize, Debug)]
+pub enum ConfigProtectionType {
+    /// Requires a hardware token with the Token ID to unlock config
+    /// Will need to provide the USER PIN to the token
+    Token(String),
+
+    /// Requires an unlock passphrase to unlock config
+    /// Will need to provide the unlock passphrase
+    Encrypted,
+
+    /// Is not encrypted in any way
+    Plaintext,
+}
+
+#[cfg(feature = "openpgp-card")]
+/// If the token requires interaction then these methods help with user interaction
+/// touch_notify() is called before the token may require touch
+/// touch_completed() is called after the token operation has been completed
+pub trait TokenInteractions: Send + Sync {
+    /// Notifies application that a token touch is required
+    fn touch_notify(&self);
+
+    /// Notifies application that token has completed it's operation
+    fn touch_completed(&self);
+}
+
 /// Configuration information for lkmv tool
 /// This is the active configuration used by the application itself
 /// When you want to load/save this configuration, it will become:
@@ -65,7 +92,7 @@ pub struct Config {
     pub public: PublicConfig,
 
     /// Private sensitive config items which are encrypted on disk
-    pub private: PrivateConfig,
+    pub private: ProtectedConfig,
 
     /// Root node of derivative keys
     pub bip32_root: ExtendedSigningKey,
@@ -133,13 +160,17 @@ impl Config {
         self.public.save(
             profile,
             &self.private,
-            &PrivateConfig::get_seed(&self.bip32_root, "m/0'/0'/0'").unwrap(),
+            &ProtectedConfig::get_seed(&self.bip32_root, "m/0'/0'/0'").unwrap(),
         )?;
 
         let sc = SecuredConfig::from(self);
         sc.save(
             profile,
-            self.public.token_id.as_ref(),
+            if let ConfigProtectionType::Token(token) = &self.public.protection {
+                Some(token)
+            } else {
+                None
+            },
             self.unlock_code.as_ref(),
             #[cfg(feature = "openpgp-card")]
             touch_prompt,
@@ -148,27 +179,39 @@ impl Config {
         Ok(())
     }
 
-    /// Loads Configuration from Public and Secured Configuration
+    /// STEP 1 of loading the configuration,
+    /// This can be used to determine if additional user information may be required to unlock the
+    /// configuration.
+    /// Specifically see the [PublicConfig::protection] as to what you may need to provide
+    pub fn load_step1(profile: &str) -> Result<PublicConfig, LKMVError> {
+        PublicConfig::load(profile)
+    }
+
+    /// STEP 2 of loading the configuration. Takes the output and additional information from
+    /// [Config::load_step1]
     /// term: Console terminal manipulation
     /// tdk: Where secrets and config info will be stored
     /// profile: Configuration profile name to use
-    /// unlock_code: Optional if passed in from command line
-    pub async fn load(
+    /// unlock_passphrase: Optional if passed in from command line
+    pub async fn load_step2(
         tdk: &mut TDK,
         profile: &str,
-        unlock_code: Option<&UnlockCode>,
+        public_config: PublicConfig,
+        unlock_passphrase: Option<&UnlockCode>,
         #[cfg(feature = "openpgp-card")] token_user_pin: &SecretString,
-        #[cfg(feature = "openpgp-card")] touch_prompt: &(dyn Fn() + Send + Sync),
+        #[cfg(feature = "openpgp-card")] touch_prompt: &impl TokenInteractions,
     ) -> Result<Self, LKMVError> {
-        let pc = PublicConfig::load(profile)?;
-
         #[cfg(feature = "openpgp-card")]
         let sc = SecuredConfig::load(
             profile,
             #[cfg(feature = "openpgp-card")]
             token_user_pin,
-            pc.token_id.as_ref(),
-            unlock_code,
+            if let ConfigProtectionType::Token(token) = &public_config.protection {
+                Some(token)
+            } else {
+                None
+            },
+            unlock_passphrase,
             touch_prompt,
         )?;
 
@@ -183,24 +226,24 @@ impl Config {
         })?;
 
         // Unencrypt the private config data
-        let private_cfg = if let Some(private_cfg_str) = &pc.private {
-            PrivateConfig::load(
-                &PrivateConfig::get_seed(&bip32_root, "m/0'/0'/0'")?,
+        let private_cfg = if let Some(private_cfg_str) = &public_config.private {
+            ProtectedConfig::load(
+                &ProtectedConfig::get_seed(&bip32_root, "m/0'/0'/0'")?,
                 private_cfg_str,
             )?
         } else {
-            PrivateConfig::default()
+            ProtectedConfig::default()
         };
 
         // All config info has been loaded, load DID Document and regenerate keys
         let rr = tdk
             .did_resolver()
-            .resolve(&pc.persona_did)
+            .resolve(&public_config.persona_did)
             .await
             .map_err(|e| {
                 LKMVError::Resolver(format!(
                     "Couldn't resolve Persona DID ({}): {}",
-                    pc.persona_did, e
+                    public_config.persona_did, e
                 ))
             })?;
 
@@ -211,8 +254,8 @@ impl Config {
         let persona_profile = ATMProfile::new(
             tdk.atm.as_ref().unwrap(),
             Some("Persona DID".to_string()),
-            pc.persona_did.to_string(),
-            Some(pc.mediator_did.clone()),
+            public_config.persona_did.to_string(),
+            Some(public_config.mediator_did.clone()),
         )
         .await?;
 
@@ -225,8 +268,8 @@ impl Config {
             .relationships
             .generate_profiles(
                 tdk,
-                &pc.persona_did,
-                &pc.mediator_did,
+                &public_config.persona_did,
+                &public_config.mediator_did,
                 &bip32_root,
                 &sc.key_info,
             )
@@ -252,7 +295,7 @@ impl Config {
                 profile: persona_profile,
             },
             bip32_seed: SecretString::new(sc.bip32_seed.clone()),
-            public: pc,
+            public: public_config,
             private: private_cfg,
             key_info: sc.key_info.clone(),
             #[cfg(feature = "openpgp-card")]
@@ -260,7 +303,7 @@ impl Config {
             #[cfg(feature = "openpgp-card")]
             token_user_pin: token_user_pin.clone(),
             protection_method: sc.protection_method.clone(),
-            unlock_code: unlock_code.map(|uc| uc.0.expose_secret().to_owned()),
+            unlock_code: unlock_passphrase.map(|uc| uc.0.expose_secret().to_owned()),
             atm_profiles,
             vrcs,
         })

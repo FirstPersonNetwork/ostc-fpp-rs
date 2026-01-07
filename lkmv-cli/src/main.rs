@@ -17,7 +17,7 @@ use affinidi_tdk::{TDK, common::config::TDKConfigBuilder};
 use anyhow::{Context, Result, bail};
 use console::{Term, style};
 use dialoguer::{Password, theme::ColorfulTheme};
-use lkmv::config::{Config, UnlockCode};
+use lkmv::config::{Config, ConfigProtectionType, TokenInteractions, UnlockCode};
 use secrecy::SecretString;
 use sha2::Digest;
 use status::print_status;
@@ -77,29 +77,60 @@ async fn load(profile: &str) -> Result<(TDK, Config)> {
     )
     .await?;
 
-    let user_pin = Password::with_theme(&ColorfulTheme::default())
-        .with_prompt("Please enter Token User PIN <blank = default>")
-        .allow_empty_password(true)
-        .interact()
-        .unwrap();
-    let user_pin = if user_pin.is_empty() {
-        SecretString::new("123456".to_string())
-    } else {
-        SecretString::new(user_pin)
+    struct A;
+    impl TokenInteractions for A {
+        fn touch_notify(&self) {
+            eprintln!("Touch confirmation needed for decryption");
+        }
+        fn touch_completed(&self) {
+            eprintln!("Touch ompleted");
+        }
+    }
+    let a = A;
+
+    let public_config = Config::load_step1(profile)?;
+
+    let (user_pin, unlock_passphrase) = match &public_config.protection {
+        ConfigProtectionType::Token { .. } => {
+            let user_pin = Password::with_theme(&ColorfulTheme::default())
+                .with_prompt("Please enter Token User PIN <blank = default>")
+                .allow_empty_password(true)
+                .interact()
+                .unwrap();
+            let user_pin = if user_pin.is_empty() {
+                SecretString::new("123456".to_string())
+            } else {
+                SecretString::new(user_pin)
+            };
+
+            (user_pin, None)
+        }
+        ConfigProtectionType::Encrypted => {
+            let passphrase =
+                if let Some(passphrase) = cli().get_matches().get_one::<String>("unlock-code") {
+                    passphrase.to_string()
+                } else {
+                    Password::with_theme(&ColorfulTheme::default())
+                        .with_prompt("Please enter unlock passphrase")
+                        .allow_empty_password(false)
+                        .interact()
+                        .unwrap()
+                };
+            (
+                SecretString::new(String::new()),
+                Some(UnlockCode::from_string(&passphrase)),
+            )
+        }
+        ConfigProtectionType::Plaintext => (SecretString::new(String::new()), None),
     };
 
-    let config = match Config::load(
+    let config = match Config::load_step2(
         &mut tdk,
         profile,
-        cli()
-            .get_matches()
-            .get_one::<String>("unlock-code")
-            .map(|s| UnlockCode::from_string(s.as_str()))
-            .as_ref(),
+        public_config,
+        unlock_passphrase.as_ref(),
         &user_pin,
-        &|| {
-            eprintln!("Touch confirmation needed for decryption");
-        },
+        &a,
     )
     .await
     {
@@ -295,17 +326,7 @@ async fn lkmv(term: &Term, profile: &str) -> Result<()> {
                 None,
             )
             .await?;
-            print_status(
-                term,
-                &mut tdk,
-                cli()
-                    .get_matches()
-                    .get_one::<String>("unlock-code")
-                    .map(|s| UnlockCode::from_string(s))
-                    .as_ref(),
-                profile,
-            )
-            .await;
+            print_status(term, &mut tdk, profile).await;
         }
         Some(("setup", args)) => {
             if let Some(args) = args.subcommand_matches("import") {

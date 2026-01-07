@@ -1,4 +1,4 @@
-/*! Configuration information that is required that should be treated as private/sensitive
+/*! Configuration information that needs to be protected
 *   but is not as critical as private key information which is stored in the OS Secure Store
 */
 
@@ -171,10 +171,10 @@ impl From<ContactsShadow> for Contacts {
     }
 }
 
-/// Primary structure used for storing private [crate::config::Config] data that is sensitive but
+/// Primary structure used for storing protected [crate::config::Config] data that is sensitive but
 /// not key data
 #[derive(Clone, Default, Serialize, Deserialize, Debug)]
-pub struct PrivateConfig {
+pub struct ProtectedConfig {
     /// Known contacts and associated information
     pub contacts: Contacts,
 
@@ -195,8 +195,8 @@ pub struct PrivateConfig {
     pub vrcs_received: Vrcs,
 }
 
-impl PrivateConfig {
-    /// Converts PrivateConfig to an encrypted BASE64 string for saving to disk
+impl ProtectedConfig {
+    /// Converts ProtectedConfig to an encrypted BASE64 string for saving to disk
     pub fn save(&self, seed_bytes: &SecretVec<u8>) -> Result<String, LKMVError> {
         let bytes = serde_json::to_vec(self)?;
 
@@ -209,7 +209,7 @@ impl PrivateConfig {
         }
     }
 
-    pub fn load(seed_bytes: &SecretVec<u8>, input: &str) -> Result<PrivateConfig, LKMVError> {
+    pub fn load(seed_bytes: &SecretVec<u8>, input: &str) -> Result<ProtectedConfig, LKMVError> {
         let bytes = BASE64_URL_SAFE_NO_PAD.decode(input)?;
 
         let bytes = unlock_code_decrypt(

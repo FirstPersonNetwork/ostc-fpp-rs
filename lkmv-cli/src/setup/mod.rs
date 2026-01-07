@@ -24,8 +24,8 @@ use dialoguer::{Confirm, Input, theme::ColorfulTheme};
 use lkmv::{
     KeyPurpose,
     config::{
-        Config, KeyInfo, KeyTypes, PersonaDID, PersonaDIDKeys,
-        private_config::PrivateConfig,
+        Config, ConfigProtectionType, KeyInfo, KeyTypes, PersonaDID, PersonaDIDKeys,
+        protected_config::ProtectedConfig,
         public_config::PublicConfig,
         secured_config::{KeyInfoConfig, KeySourceMaterial, ProtectionMethod},
     },
@@ -171,14 +171,21 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
     )
     .await?;
 
+    let protection = if let Some(token) = token_id {
+        ConfigProtectionType::Token(token)
+    } else if unlock_code.is_some() {
+        ConfigProtectionType::Encrypted
+    } else {
+        ConfigProtectionType::Plaintext
+    };
+
     // Initial Configuration state
     let config = Config {
         bip32_root: get_bip32_root(mnemonic.to_entropy().as_slice())?,
         bip32_seed: SecretString::new(BASE64_URL_SAFE_NO_PAD.encode(mnemonic.to_entropy())),
         public: PublicConfig {
-            token_id,
+            protection,
             persona_did: p_did.did.clone(),
-            unlock_code: unlock_code.is_some(),
             mediator_did: mediator_did.clone(),
             private: None,
             logs: Logs {
@@ -192,7 +199,7 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
             friendly_name,
             lk_did,
         },
-        private: PrivateConfig::default(),
+        private: ProtectedConfig::default(),
         persona_did: PersonaDID {
             document: p_did.document,
             profile: Arc::new(

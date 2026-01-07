@@ -3,7 +3,7 @@
 */
 
 use crate::{
-    config::{Config, private_config::PrivateConfig},
+    config::{Config, ConfigProtectionType, protected_config::ProtectedConfig},
     errors::LKMVError,
     logs::Logs,
 };
@@ -15,13 +15,8 @@ use tracing::warn;
 /// Primary structure used for storing [crate::config::Config] data that is not sensitive
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct PublicConfig {
-    /// Identifier for a hardware token if being used
-    pub token_id: Option<String>,
-
-    /// Use an unlock code if hardware token isn't being used?
-    /// true: Will take a unlock code --> Sha256 hash --> decrypt key
-    /// false: Plain text retrieval from the OS Secure Store
-    pub unlock_code: bool,
+    /// How is the configuration protected?
+    pub protection: ConfigProtectionType,
 
     /// Persona DID
     pub persona_did: Rc<String>,
@@ -80,7 +75,7 @@ impl PublicConfig {
     pub fn save(
         &self,
         profile: &str,
-        private: &PrivateConfig,
+        private: &ProtectedConfig,
         private_seed: &SecretVec<u8>,
     ) -> Result<(), LKMVError> {
         let cfg_path = get_config_path(profile)?;

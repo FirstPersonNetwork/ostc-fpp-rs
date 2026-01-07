@@ -3,7 +3,7 @@
 */
 
 use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
+    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, cli,
     config::{ConfigExtension, PublicConfigExtension},
     messaging::ping_mediator,
 };
@@ -11,17 +11,14 @@ use affinidi_tdk::TDK;
 use anyhow::Result;
 use console::{Term, style};
 use dialoguer::{Password, theme::ColorfulTheme};
-use lkmv::config::{Config, UnlockCode, public_config::PublicConfig};
+use lkmv::config::{
+    Config, ConfigProtectionType, TokenInteractions, UnlockCode, public_config::PublicConfig,
+};
 use secrecy::SecretString;
 use std::time::SystemTime;
 
 /// Prints diagnostic status to STDOUT
-pub async fn print_status(
-    term: &Term,
-    tdk: &mut TDK,
-    unlock_code: Option<&UnlockCode>,
-    profile: &str,
-) {
+pub async fn print_status(term: &Term, tdk: &mut TDK, profile: &str) {
     println!(
         "{}",
         style("Linux Kernel Maintainer Validation (LKMV) tool").color256(CLI_BLUE)
@@ -130,21 +127,72 @@ pub async fn print_status(
         }
     }
 
-    // load config
-    let user_pin = Password::with_theme(&ColorfulTheme::default())
-        .with_prompt("Please enter Token User PIN <blank = default>")
-        .allow_empty_password(true)
-        .interact()
-        .unwrap();
-    let user_pin = if user_pin.is_empty() {
-        SecretString::new("123456".to_string())
-    } else {
-        SecretString::new(user_pin)
+    struct A;
+    impl TokenInteractions for A {
+        fn touch_notify(&self) {
+            eprintln!("Touch confirmation needed for decryption");
+        }
+        fn touch_completed(&self) {
+            eprintln!("Touch ompleted");
+        }
+    }
+    let a = A;
+
+    let public_config = match Config::load_step1(profile) {
+        Ok(pc) => pc,
+        Err(e) => {
+            println!(
+                "{}{}",
+                style("ERROR: Couldn't complete step1 of loading config. Reason: ")
+                    .color256(CLI_RED),
+                style(e).color256(CLI_ORANGE)
+            );
+            return;
+        }
     };
 
-    let config = match Config::load(tdk, profile, unlock_code, &user_pin, &|| {
-        eprintln!("Touch confirmation needed for decryption");
-    })
+    let (user_pin, unlock_passphrase) = match &public_config.protection {
+        ConfigProtectionType::Token { .. } => {
+            let user_pin = Password::with_theme(&ColorfulTheme::default())
+                .with_prompt("Please enter Token User PIN <blank = default>")
+                .allow_empty_password(true)
+                .interact()
+                .unwrap();
+            let user_pin = if user_pin.is_empty() {
+                SecretString::new("123456".to_string())
+            } else {
+                SecretString::new(user_pin)
+            };
+
+            (user_pin, None)
+        }
+        ConfigProtectionType::Encrypted => {
+            let passphrase =
+                if let Some(passphrase) = cli().get_matches().get_one::<String>("unlock-code") {
+                    passphrase.to_string()
+                } else {
+                    Password::with_theme(&ColorfulTheme::default())
+                        .with_prompt("Please enter unlock passphrase")
+                        .allow_empty_password(false)
+                        .interact()
+                        .unwrap()
+                };
+            (
+                SecretString::new(String::new()),
+                Some(UnlockCode::from_string(&passphrase)),
+            )
+        }
+        ConfigProtectionType::Plaintext => (SecretString::new(String::new()), None),
+    };
+
+    let config = match Config::load_step2(
+        tdk,
+        profile,
+        public_config,
+        unlock_passphrase.as_ref(),
+        &user_pin,
+        &a,
+    )
     .await
     {
         Ok(cfg) => {

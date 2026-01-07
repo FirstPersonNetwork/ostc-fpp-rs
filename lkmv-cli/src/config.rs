@@ -10,8 +10,8 @@ use console::style;
 use dialoguer::{Password, theme::ColorfulTheme};
 use ed25519_dalek_bip32::ExtendedSigningKey;
 use lkmv::config::{
-    Config, ExportedConfig, private_config::PrivateConfig, public_config::PublicConfig,
-    secured_config::unlock_code_decrypt,
+    Config, ConfigProtectionType, ExportedConfig, protected_config::ProtectedConfig,
+    public_config::PublicConfig, secured_config::unlock_code_decrypt,
 };
 use secrecy::{ExposeSecret, SecretString};
 use sha2::{Digest, Sha256};
@@ -84,7 +84,7 @@ impl ConfigExtension for Config {
             }
         };
 
-        let passphrase = if config.pc.token_id.is_none() {
+        let passphrase = if let ConfigProtectionType::Encrypted = config.pc.protection {
             create_unlock_code()
         } else {
             None
@@ -96,12 +96,12 @@ impl ConfigExtension for Config {
                 .expect("Couldn't base64 decode BIP32 seed")
                 .as_slice(),
         )?;
-        let private_seed = PrivateConfig::get_seed(&bip32_root, "m/0'/0'/0'")?;
+        let private_seed = ProtectedConfig::get_seed(&bip32_root, "m/0'/0'/0'")?;
 
         let private = if let Some(private) = &config.pc.private {
-            PrivateConfig::load(&private_seed, private)?
+            ProtectedConfig::load(&private_seed, private)?
         } else {
-            PrivateConfig::default()
+            ProtectedConfig::default()
         };
 
         config
@@ -112,7 +112,11 @@ impl ConfigExtension for Config {
             .sc
             .save(
                 profile,
-                config.pc.token_id.as_ref(),
+                if let ConfigProtectionType::Token(token) = &config.pc.protection {
+                    Some(token)
+                } else {
+                    None
+                },
                 passphrase.map(|pp| pp.to_vec()).as_ref(),
                 &|| {
                     eprintln!("Touch confirmation needed for decryption");
@@ -163,28 +167,22 @@ impl PublicConfigExtension for PublicConfig {
         println!();
         println!("{}", style("Configuration information").color256(CLI_BLUE));
         println!("{}", style("=========================").color256(CLI_BLUE));
-        if let Some(token_id) = &self.token_id {
-            println!(
-                "{} {}",
-                style("Hardware Token:").color256(CLI_BLUE),
-                style(token_id).color256(CLI_PURPLE)
-            );
-            println!(
-                "{} {}",
-                style("Using unlock code?").color256(CLI_BLUE),
-                style("NOT-REQUIRED").color256(CLI_PURPLE)
-            );
-        } else {
-            println!(
-                "{} {}",
-                style("Hardware Token:").color256(CLI_BLUE),
-                style("No hardware token configured").color256(CLI_ORANGE)
-            );
-            print!("{} ", style("Using unlock code?").color256(CLI_BLUE));
-            if self.unlock_code {
-                println!("{}", style("YES").color256(CLI_GREEN));
-            } else {
-                println!("{}", style("NO").color256(CLI_ORANGE));
+        print!("{} ", style("Protection:").color256(CLI_BLUE));
+        match &self.protection {
+            ConfigProtectionType::Plaintext => {
+                println!("{}", style("Plaintext").color256(CLI_RED));
+            }
+            ConfigProtectionType::Encrypted => {
+                println!(
+                    "{}",
+                    style("ENCRYPTED with unlock passphrase").color256(CLI_GREEN)
+                );
+            }
+            ConfigProtectionType::Token(token_id) => {
+                println!(
+                    "{}",
+                    style(format!("HARDWARE TOKEN ({})", token_id)).color256(CLI_GREEN)
+                );
             }
         }
 

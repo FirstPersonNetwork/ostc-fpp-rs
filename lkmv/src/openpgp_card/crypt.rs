@@ -2,7 +2,10 @@
 */
 
 use crate::{
-    config::secured_config::{unlock_code_decrypt, unlock_code_encrypt},
+    config::{
+        TokenInteractions,
+        secured_config::{unlock_code_decrypt, unlock_code_encrypt},
+    },
     errors::LKMVError,
     openpgp_card::open_card,
 };
@@ -85,13 +88,16 @@ pub fn token_encrypt(
 
 /// Uses the decrypt key on the token to decrypt ESK
 /// Then the secret seed from the ESK is used to decrypt the data payload using AES-GCM
-pub fn token_decrypt(
+pub fn token_decrypt<T>(
     user_pin: &SecretString,
     token_id: &str,
     esk: &[u8],
     data: &[u8],
-    touch_prompt: &(dyn Fn() + Send + Sync),
-) -> Result<Vec<u8>, LKMVError> {
+    touch_prompt: &T,
+) -> Result<Vec<u8>, LKMVError>
+where
+    T: TokenInteractions + Send + Sync,
+{
     info!("Unlocking hardware token");
 
     let mut card = open_card(token_id)?;
@@ -106,8 +112,10 @@ pub fn token_decrypt(
     card.to_user_card(None)
         .map_err(|e| LKMVError::Token(format!("Couldn't unlock user mode on token: {e}")))?;
 
-    let cs = CardSlot::init_from_card(&mut card, KeyType::Decryption, touch_prompt)
+    let binding = || touch_prompt.touch_notify();
+    let cs = CardSlot::init_from_card(&mut card, KeyType::Decryption, &binding)
         .map_err(|e| LKMVError::Token(format!("Couldn't init decryption key from token: {e}")))?;
+    touch_prompt.touch_completed();
 
     // Convert the raw ESK bytes back into a Public Key Encrypted Session Key
     let raw_br = BufReader::new(esk);

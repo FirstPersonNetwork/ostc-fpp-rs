@@ -8,7 +8,7 @@ use anyhow::{Result, bail};
 use clap::{ArgMatches, Id};
 use console::style;
 use lkmv::{
-    config::private_config::Contacts,
+    config::protected_config::Contacts,
     logs::Logs,
     relationships::{RelationshipState, Relationships},
 };
