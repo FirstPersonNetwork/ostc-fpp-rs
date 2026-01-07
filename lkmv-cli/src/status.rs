@@ -3,7 +3,7 @@
 */
 
 use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, cli,
+    cli,
     config::{ConfigExtension, PublicConfigExtension},
     messaging::ping_mediator,
 };
@@ -11,8 +11,11 @@ use affinidi_tdk::TDK;
 use anyhow::Result;
 use console::{Term, style};
 use dialoguer::{Password, theme::ColorfulTheme};
-use lkmv::config::{
-    Config, ConfigProtectionType, TokenInteractions, UnlockCode, public_config::PublicConfig,
+use lkmv::{
+    colors::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED},
+    config::{
+        Config, ConfigProtectionType, TokenInteractions, UnlockCode, public_config::PublicConfig,
+    },
 };
 use secrecy::SecretString;
 use std::time::SystemTime;

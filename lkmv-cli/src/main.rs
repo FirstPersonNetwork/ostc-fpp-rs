@@ -17,7 +17,10 @@ use affinidi_tdk::{TDK, common::config::TDKConfigBuilder};
 use anyhow::{Context, Result, bail};
 use console::{Term, style};
 use dialoguer::{Password, theme::ColorfulTheme};
-use lkmv::config::{Config, ConfigProtectionType, TokenInteractions, UnlockCode};
+use lkmv::{
+    colors::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED},
+    config::{Config, ConfigProtectionType, TokenInteractions, UnlockCode},
+};
 use secrecy::SecretString;
 use sha2::Digest;
 use status::print_status;
@@ -38,14 +41,6 @@ mod relationships;
 mod setup;
 mod status;
 mod tasks;
-
-// CLI Color codes
-const CLI_BLUE: u8 = 69; // Use for general information
-const CLI_GREEN: u8 = 34; // Use for Successful text
-const CLI_RED: u8 = 9; // Use for Error messages
-const CLI_ORANGE: u8 = 214; // Use for cautionary data
-const CLI_PURPLE: u8 = 165; // Use for Example data
-const CLI_WHITE: u8 = 15;
 
 /// Primary Linux Kernel Mediator DID
 const LF_PUBLIC_MEDIATOR_DID: &str =

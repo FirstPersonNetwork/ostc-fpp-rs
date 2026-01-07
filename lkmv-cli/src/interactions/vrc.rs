@@ -1,4 +1,3 @@
-use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, CLI_WHITE};
 use affinidi_data_integrity::DataIntegrityProof;
 use affinidi_tdk::{
     TDK,
@@ -11,6 +10,7 @@ use console::style;
 use dialoguer::{Confirm, Input, Select, theme::ColorfulTheme};
 use dtg_credentials::{DTGCommon, DTGCredential};
 use lkmv::{
+    colors::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, CLI_WHITE},
     config::Config,
     logs::LogFamily,
     relationships::Relationship,
