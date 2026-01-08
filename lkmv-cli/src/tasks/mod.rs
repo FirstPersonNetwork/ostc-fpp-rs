@@ -101,9 +101,13 @@ pub async fn tasks_entry(
             };
 
             if config.private.tasks.remove(&Rc::new(id)) {
-                config.save(profile, &|| {
-                    eprintln!("Touch confirmation needed for decryption");
-                })?;
+                config.save(
+                    profile,
+                    #[cfg(feature = "openpgp-card")]
+                    &|| {
+                        eprintln!("Touch confirmation needed for decryption");
+                    },
+                )?;
             }
         }
         Some(("fetch", _)) => {
@@ -118,9 +122,13 @@ pub async fn tasks_entry(
                 }
             }
             if change_flag {
-                config.save(profile, &|| {
-                    eprintln!("Touch confirmation needed for decryption");
-                })?;
+                config.save(
+                    profile,
+                    #[cfg(feature = "openpgp-card")]
+                    &|| {
+                        eprintln!("Touch confirmation needed for decryption");
+                    },
+                )?;
             }
         }
         Some(("interact", sub_args)) => {
@@ -138,17 +146,25 @@ pub async fn tasks_entry(
                     };
 
                 if Tasks::interact_task(&task, &tdk, config).await? {
-                    config.save(profile, &|| {
-                        eprintln!("Touch confirmation needed for decryption");
-                    })?;
+                    config.save(
+                        profile,
+                        #[cfg(feature = "openpgp-card")]
+                        &|| {
+                            eprintln!("Touch confirmation needed for decryption");
+                        },
+                    )?;
                     return Ok(());
                 }
             }
 
             if Tasks::interact(&tdk, config, term).await? {
-                config.save(profile, &|| {
-                    eprintln!("Touch confirmation needed for decryption");
-                })?;
+                config.save(
+                    profile,
+                    #[cfg(feature = "openpgp-card")]
+                    &|| {
+                        eprintln!("Touch confirmation needed for decryption");
+                    },
+                )?;
             }
         }
         Some(("clear", sub_args)) => {
@@ -157,9 +173,13 @@ pub async fn tasks_entry(
             let remote = sub_args.get_flag("remote");
 
             if Tasks::clear_all(&tdk, config, force, remote).await? {
-                config.save(profile, &|| {
-                    eprintln!("Touch confirmation needed for decryption");
-                })?;
+                config.save(
+                    profile,
+                    #[cfg(feature = "openpgp-card")]
+                    &|| {
+                        eprintln!("Touch confirmation needed for decryption");
+                    },
+                )?;
                 return Ok(());
             }
         }

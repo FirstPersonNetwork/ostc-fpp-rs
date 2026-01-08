@@ -1,24 +1,16 @@
-use crate::state_handler::main_page::MainPageState;
+use crate::state_handler::{main_page::MainPageState, setup_page::SetupPageState};
 
 /// State holds the state of the application
 #[derive(Default, Debug, Clone)]
 pub struct State {
+    pub active_page: ActivePage,
     pub main_page: MainPageState,
+    pub setup_page: SetupPageState,
 }
 
-#[derive(Default, Debug, Clone)]
-pub enum MainPanel {
+#[derive(Default, Debug, Clone, Copy)]
+pub enum ActivePage {
     #[default]
-    MainMenu,
-    ContentPanel,
-}
-
-impl MainPanel {
-    /// Switches to the next panel when pressing <TAB>
-    pub fn switch(&self) -> Self {
-        match self {
-            MainPanel::MainMenu => MainPanel::ContentPanel,
-            MainPanel::ContentPanel => MainPanel::MainMenu,
-        }
-    }
+    Main,
+    Setup,
 }

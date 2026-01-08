@@ -1,4 +1,4 @@
-use crate::state_handler::{main_page::menu::MainMenu, state::MainPanel};
+use crate::state_handler::main_page::{MainPanel, menu::MainMenu};
 
 pub enum Action {
     Exit,

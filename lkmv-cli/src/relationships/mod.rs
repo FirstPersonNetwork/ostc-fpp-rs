@@ -225,9 +225,13 @@ pub async fn relationships_entry(
             )
             .await?;
 
-            config.save(profile, &|| {
-                eprintln!("Touch confirmation needed for decryption");
-            })?;
+            config.save(
+                profile,
+                #[cfg(feature = "openpgp-card")]
+                &|| {
+                    eprintln!("Touch confirmation needed for decryption");
+                },
+            )?;
         }
         Some(("ping", sub_args)) => {
             let remote_did = if let Some(did) = sub_args.get_one::<String>("remote") {
@@ -242,9 +246,13 @@ pub async fn relationships_entry(
 
             remote_ping(&tdk, config, &remote_did).await?;
 
-            config.save(profile, &|| {
-                eprintln!("Touch confirmation needed for decryption");
-            })?;
+            config.save(
+                profile,
+                #[cfg(feature = "openpgp-card")]
+                &|| {
+                    eprintln!("Touch confirmation needed for decryption");
+                },
+            )?;
         }
         Some(("remove", sub_args)) => {
             let remote_did = if let Some(did) = sub_args.get_one::<String>("remote") {
@@ -298,9 +306,13 @@ pub async fn relationships_entry(
                 style(remote_p_did).color256(CLI_GREEN)
             );
 
-            config.save(profile, &|| {
-                eprintln!("Touch confirmation needed for decryption");
-            })?;
+            config.save(
+                profile,
+                #[cfg(feature = "openpgp-card")]
+                &|| {
+                    eprintln!("Touch confirmation needed for decryption");
+                },
+            )?;
         }
         _ => {
             println!(

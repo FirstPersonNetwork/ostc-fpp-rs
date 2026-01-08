@@ -118,6 +118,7 @@ impl ConfigExtension for Config {
                     None
                 },
                 passphrase.map(|pp| pp.to_vec()).as_ref(),
+                #[cfg(feature = "openpgp-card")]
                 &|| {
                     eprintln!("Touch confirmation needed for decryption");
                 },

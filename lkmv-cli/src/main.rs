@@ -17,9 +17,11 @@ use affinidi_tdk::{TDK, common::config::TDKConfigBuilder};
 use anyhow::{Context, Result, bail};
 use console::{Term, style};
 use dialoguer::{Password, theme::ColorfulTheme};
+#[cfg(feature = "openpgp-card")]
+use lkmv::config::TokenInteractions;
 use lkmv::{
     colors::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED},
-    config::{Config, ConfigProtectionType, TokenInteractions, UnlockCode},
+    config::{Config, ConfigProtectionType, UnlockCode},
 };
 use secrecy::SecretString;
 use sha2::Digest;
@@ -72,16 +74,19 @@ async fn load(profile: &str) -> Result<(TDK, Config)> {
     )
     .await?;
 
-    struct A;
-    impl TokenInteractions for A {
-        fn touch_notify(&self) {
-            eprintln!("Touch confirmation needed for decryption");
+    #[cfg(feature = "openpgp-card")]
+    let a = {
+        struct A;
+        impl TokenInteractions for A {
+            fn touch_notify(&self) {
+                eprintln!("Touch confirmation needed for decryption");
+            }
+            fn touch_completed(&self) {
+                eprintln!("Touch ompleted");
+            }
         }
-        fn touch_completed(&self) {
-            eprintln!("Touch ompleted");
-        }
-    }
-    let a = A;
+        A
+    };
 
     let public_config = Config::load_step1(profile)?;
 
@@ -124,7 +129,9 @@ async fn load(profile: &str) -> Result<(TDK, Config)> {
         profile,
         public_config,
         unlock_passphrase.as_ref(),
+        #[cfg(feature = "openpgp-card")]
         &user_pin,
+        #[cfg(feature = "openpgp-card")]
         &a,
     )
     .await
@@ -402,9 +409,13 @@ async fn lkmv(term: &Term, profile: &str) -> Result<()> {
                 .await?
             {
                 // Need to save config
-                config.save(profile, &|| {
-                    eprintln!("Touch confirmation needed for decryption");
-                })?;
+                config.save(
+                    profile,
+                    #[cfg(feature = "openpgp-card")]
+                    &|| {
+                        eprintln!("Touch confirmation needed for decryption");
+                    },
+                )?;
             }
         }
         Some(("relationships", args)) => {

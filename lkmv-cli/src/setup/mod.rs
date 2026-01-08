@@ -223,9 +223,13 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
         vrcs: HashMap::new(),
     };
 
-    config.save(profile, &|| {
-        eprintln!("Touch confirmation needed for decryption");
-    })?;
+    config.save(
+        profile,
+        #[cfg(feature = "openpgp-card")]
+        &|| {
+            eprintln!("Touch confirmation needed for decryption");
+        },
+    )?;
 
     println!("{}", style("Next Steps:").color256(CLI_BLUE));
     println!(

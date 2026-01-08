@@ -12,3 +12,20 @@ pub struct MainPageState {
     /// State related to the content panel
     pub content_panel: ContentPanelState,
 }
+
+#[derive(Default, Debug, Clone)]
+pub enum MainPanel {
+    #[default]
+    MainMenu,
+    ContentPanel,
+}
+
+impl MainPanel {
+    /// Switches to the next panel when pressing <TAB>
+    pub fn switch(&self) -> Self {
+        match self {
+            MainPanel::MainMenu => MainPanel::ContentPanel,
+            MainPanel::ContentPanel => MainPanel::MainMenu,
+        }
+    }
+}

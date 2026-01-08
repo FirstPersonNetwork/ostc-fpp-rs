@@ -9,8 +9,11 @@
 */
 
 #[cfg(feature = "openpgp-card")]
-use crate::config::{Config, KeyTypes, UnlockCode};
-use crate::{config::TokenInteractions, errors::LKMVError};
+use crate::config::TokenInteractions;
+use crate::{
+    config::{Config, KeyTypes, UnlockCode},
+    errors::LKMVError,
+};
 use aes_gcm::{AeadCore, Aes256Gcm, KeyInit, aead::Aead};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use chrono::{DateTime, Utc};
@@ -84,7 +87,7 @@ impl SecuredConfigFormat {
         #[cfg(feature = "openpgp-card")] user_pin: &SecretString,
         token: Option<&String>,
         unlock: Option<&UnlockCode>,
-        touch_prompt: &impl TokenInteractions,
+        #[cfg(feature = "openpgp-card")] touch_prompt: &impl TokenInteractions,
     ) -> Result<SecuredConfig, LKMVError> {
         let raw_bytes = match self {
             SecuredConfigFormat::TokenEncrypted { esk, data } => {
@@ -275,6 +278,7 @@ impl SecuredConfig {
             user_pin,
             token,
             unlock,
+            #[cfg(feature = "openpgp-card")]
             touch_prompt,
         )
     }

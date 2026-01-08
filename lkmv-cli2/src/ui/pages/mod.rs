@@ -3,7 +3,10 @@ use ratatui::Frame;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
-    state_handler::{actions::Action, state::State},
+    state_handler::{
+        actions::Action,
+        state::{ActivePage, State},
+    },
     ui::{
         component::{Component, ComponentRender},
         pages::{main::MainPage, setup::SetupPage},
@@ -13,19 +16,14 @@ use crate::{
 pub mod main;
 pub mod setup;
 
-enum ActivePage {
-    MainPage,
-    SetupPage,
-}
-
 struct Props {
     active_page: ActivePage,
 }
 
 impl From<&State> for Props {
-    fn from(_: &State) -> Self {
+    fn from(state: &State) -> Self {
         Props {
-            active_page: ActivePage::MainPage,
+            active_page: state.active_page,
         }
     }
 }
@@ -40,8 +38,8 @@ pub struct AppRouter {
 impl AppRouter {
     fn get_active_page_component_mut(&mut self) -> &mut dyn Component {
         match self.props.active_page {
-            ActivePage::MainPage => &mut self.main_page,
-            ActivePage::SetupPage => &mut self.setup_page,
+            ActivePage::Main => &mut self.main_page,
+            ActivePage::Setup => &mut self.setup_page,
         }
     }
 }
@@ -80,8 +78,8 @@ impl Component for AppRouter {
 impl ComponentRender<()> for AppRouter {
     fn render(&self, frame: &mut Frame, props: ()) {
         match self.props.active_page {
-            ActivePage::MainPage => self.main_page.render(frame, props),
-            ActivePage::SetupPage => self.main_page.render(frame, props),
+            ActivePage::Main => self.main_page.render(frame, props),
+            ActivePage::Setup => self.setup_page.render(frame, props),
         }
     }
 }

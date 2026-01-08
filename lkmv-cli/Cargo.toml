@@ -16,10 +16,11 @@ openpgp-card = [
   "dep:openpgp-card",
   "dep:card-backend-pcsc",
   "dep:openpgp-card-rpgp",
+  "lkmv/openpgp-card",
 ]
 
 [dependencies]
-lkmv.workspace = true
+lkmv = { workspace = true, default-features = false }
 
 aes-gcm.workspace = true
 affinidi-tdk.workspace = true

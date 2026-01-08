@@ -50,9 +50,13 @@ pub async fn vrcs_entry(
     match args.subcommand() {
         Some(("request", _)) => {
             if vrcs_interactive_request(&tdk, config).await? {
-                config.save(profile, &|| {
-                    eprintln!("Touch confirmation needed for decryption");
-                })?;
+                config.save(
+                    profile,
+                    #[cfg(feature = "openpgp-card")]
+                    &|| {
+                        eprintln!("Touch confirmation needed for decryption");
+                    },
+                )?;
             }
         }
         Some(("list", sub_args)) => {
@@ -85,9 +89,13 @@ pub async fn vrcs_entry(
             if let Some(id) = sub_args.get_one::<String>("id") {
                 remove_vrc_by_id(config, &Rc::new(id.to_string()));
 
-                config.save(profile, &|| {
-                    eprintln!("Touch confirmation needed for decryption");
-                })?;
+                config.save(
+                    profile,
+                    #[cfg(feature = "openpgp-card")]
+                    &|| {
+                        eprintln!("Touch confirmation needed for decryption");
+                    },
+                )?;
             } else {
                 println!(
                     "{}",

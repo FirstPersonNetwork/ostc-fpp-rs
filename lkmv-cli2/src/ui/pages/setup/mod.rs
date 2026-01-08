@@ -5,7 +5,7 @@ use crate::{
         pages::Props,
     },
 };
-use crossterm::event::{KeyEvent, KeyEventKind};
+use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
 use ratatui::Frame;
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -22,6 +22,18 @@ impl ComponentRender<()> for SetupPage {
 }
 
 impl Component for SetupPage {
+    fn handle_key_event(&mut self, key: KeyEvent) {
+        if key.kind != KeyEventKind::Press {
+            return;
+        }
+        match key.code {
+            KeyCode::F(10) => {
+                let _ = self.action_tx.send(Action::Exit);
+            }
+            _ => {}
+        }
+    }
+
     fn new(state: &State, action_tx: UnboundedSender<Action>) -> Self
     where
         Self: Sized,
@@ -42,12 +54,6 @@ impl Component for SetupPage {
             props: Props::from(state),
             // propagate the update to the child components
             ..self
-        }
-    }
-
-    fn handle_key_event(&mut self, key: KeyEvent) {
-        if key.kind != KeyEventKind::Press {
-            return;
         }
     }
 }

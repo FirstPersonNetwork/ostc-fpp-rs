@@ -53,7 +53,10 @@ impl UiManager {
             match state_rx.recv().await {
                 Some(state) => AppRouter::new(&state, self.action_tx.clone()),
                 _ => {
-                    return Err(anyhow::anyhow!("could not get the initial state"));
+                    let _ = restore_terminal(&mut terminal);
+                    return Err(anyhow::anyhow!(
+                        "could not get the initial application state"
+                    ));
                 }
             }
         };

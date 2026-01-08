@@ -167,7 +167,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Setup the initial state
     let (terminator, mut interrupt_rx) = create_termination();
-    let (state, state_rx) = StateHandler::new();
+    let (state, state_rx) = StateHandler::new(&profile);
     let (ui_manager, action_rx) = UiManager::new();
 
     tokio::try_join!(

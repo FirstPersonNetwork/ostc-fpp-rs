@@ -13,7 +13,7 @@ use std::{env, fs, path::Path, rc::Rc};
 use tracing::warn;
 
 /// Primary structure used for storing [crate::config::Config] data that is not sensitive
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub struct PublicConfig {
     /// How is the configuration protected?
     pub protection: ConfigProtectionType,
@@ -117,12 +117,8 @@ impl PublicConfig {
         let cfg_path = get_config_path(profile)?;
         let path = Path::new(&cfg_path);
 
-        let file = fs::File::open(path).map_err(|e| {
-            LKMVError::Config(format!(
-                "Couldn't load lkmv configuration file ({}) from disk: {e}",
-                &cfg_path
-            ))
-        })?;
+        let file =
+            fs::File::open(path).map_err(|e| LKMVError::ConfigNotFound(cfg_path.to_string(), e))?;
 
         match serde_json::from_reader(file) {
             Ok(s) => Ok(s),

@@ -1,8 +1,8 @@
 use crate::{
     state_handler::{
         actions::Action,
-        main_page::{MainPageState, menu::MainMenu},
-        state::{MainPanel, State},
+        main_page::{MainPageState, MainPanel, menu::MainMenu},
+        state::State,
     },
     ui::component::{Component, ComponentRender},
 };

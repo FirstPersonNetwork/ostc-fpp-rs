@@ -20,7 +20,7 @@ license = "Apache-2.0"
 repository = "https://github.com/FirstPersonNetwork/lkmv-rs"
 
 [workspace.dependencies]
-lkmv = { version = "0.1.0", path = "lkmv" }
+lkmv = { version = "0.1.0", path = "lkmv", default-features = false }
 
 # Decentralized Trust Graph Credentials
 # NOTE: When this is published, switch from git to crates.io

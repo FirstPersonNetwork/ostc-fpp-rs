@@ -11,11 +11,11 @@ use affinidi_tdk::TDK;
 use anyhow::Result;
 use console::{Term, style};
 use dialoguer::{Password, theme::ColorfulTheme};
+#[cfg(feature = "openpgp-card")]
+use lkmv::config::TokenInteractions;
 use lkmv::{
     colors::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED},
-    config::{
-        Config, ConfigProtectionType, TokenInteractions, UnlockCode, public_config::PublicConfig,
-    },
+    config::{Config, ConfigProtectionType, UnlockCode, public_config::PublicConfig},
 };
 use secrecy::SecretString;
 use std::time::SystemTime;
@@ -130,16 +130,19 @@ pub async fn print_status(term: &Term, tdk: &mut TDK, profile: &str) {
         }
     }
 
-    struct A;
-    impl TokenInteractions for A {
-        fn touch_notify(&self) {
-            eprintln!("Touch confirmation needed for decryption");
+    #[cfg(feature = "openpgp-card")]
+    let a = {
+        struct A;
+        impl TokenInteractions for A {
+            fn touch_notify(&self) {
+                eprintln!("Touch confirmation needed for decryption");
+            }
+            fn touch_completed(&self) {
+                eprintln!("Touch ompleted");
+            }
         }
-        fn touch_completed(&self) {
-            eprintln!("Touch ompleted");
-        }
-    }
-    let a = A;
+        A
+    };
 
     let public_config = match Config::load_step1(profile) {
         Ok(pc) => pc,
@@ -193,7 +196,9 @@ pub async fn print_status(term: &Term, tdk: &mut TDK, profile: &str) {
         profile,
         public_config,
         unlock_passphrase.as_ref(),
+        #[cfg(feature = "openpgp-card")]
         &user_pin,
+        #[cfg(feature = "openpgp-card")]
         &a,
     )
     .await

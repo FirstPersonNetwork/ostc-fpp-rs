@@ -41,6 +41,9 @@ pub enum LKMVError {
     #[error("Config Error: {0}")]
     Config(String),
 
+    #[error("Config Not Found! path({0}")]
+    ConfigNotFound(String, std::io::Error),
+
     #[cfg(feature = "openpgp-card")]
     #[error("Token Error: {0}")]
     Token(String),

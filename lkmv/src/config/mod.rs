@@ -10,7 +10,6 @@
 */
 
 use crate::logs::LogFamily;
-#[cfg(feature = "openpgp-card")]
 use crate::{
     KeyPurpose,
     bip32::Bip32Extension,
@@ -55,7 +54,7 @@ impl UnlockCode {
 }
 
 /// How is the config protected?
-#[derive(Clone, Serialize, Deserialize, Debug)]
+#[derive(Clone, Serialize, Deserialize, Debug, Default)]
 pub enum ConfigProtectionType {
     /// Requires a hardware token with the Token ID to unlock config
     /// Will need to provide the USER PIN to the token
@@ -63,6 +62,7 @@ pub enum ConfigProtectionType {
 
     /// Requires an unlock passphrase to unlock config
     /// Will need to provide the unlock passphrase
+    #[default]
     Encrypted,
 
     /// Is not encrypted in any way
@@ -111,12 +111,12 @@ pub struct Config {
     /// What protection method is being used for [SecuredConfig]
     pub protection_method: ProtectionMethod,
 
-    #[cfg(feature = "openpgp-card")]
     /// Hardware token Admin PIN
+    #[cfg(feature = "openpgp-card")]
     pub token_admin_pin: Option<SecretString>,
 
-    #[cfg(feature = "openpgp-card")]
     /// Hardware token User PIN
+    #[cfg(feature = "openpgp-card")]
     pub token_user_pin: SecretString,
 
     /// Unlock code if required
@@ -140,7 +140,7 @@ pub struct ExportedConfig {
 }
 
 /// Our public Persona DID used to identify ourselves within the Linux Foundation ecosystem
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct PersonaDID {
     /// Resolved DID Document for this DID
     pub document: Document,
@@ -201,7 +201,6 @@ impl Config {
         #[cfg(feature = "openpgp-card")] token_user_pin: &SecretString,
         #[cfg(feature = "openpgp-card")] touch_prompt: &impl TokenInteractions,
     ) -> Result<Self, LKMVError> {
-        #[cfg(feature = "openpgp-card")]
         let sc = SecuredConfig::load(
             profile,
             #[cfg(feature = "openpgp-card")]
@@ -212,6 +211,7 @@ impl Config {
                 None
             },
             unlock_passphrase,
+            #[cfg(feature = "openpgp-card")]
             touch_prompt,
         )?;
 
