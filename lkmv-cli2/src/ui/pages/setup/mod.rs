@@ -27,7 +27,7 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, active_page: ActivePag
     }
 
     line1.push_span(Span::styled(
-        " → ○ Identity → ○ Mediator → ○ Host DID → ○ Verify ",
+        " → ○ Key Management → ○ Mediator → ○ DID → ○ Verify ",
         Style::new().fg(COLOR_DARK_GRAY),
     ));
 

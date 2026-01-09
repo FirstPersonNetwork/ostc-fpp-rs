@@ -153,9 +153,15 @@ fn render_left_panel(frame: &mut Frame, rect: Rect, state: &ChoiceState) {
         ),
         Line::default(),
         Line::styled("You will:", Style::new().fg(COLOR_TEXT_DEFAULT)),
-        Line::styled("• Set up identity", Style::new().fg(COLOR_TEXT_DEFAULT)),
+        Line::styled(
+            "• Set up key management",
+            Style::new().fg(COLOR_TEXT_DEFAULT),
+        ),
         Line::styled("• Choose mediator", Style::new().fg(COLOR_TEXT_DEFAULT)),
-        Line::styled("• Create DID", Style::new().fg(COLOR_TEXT_DEFAULT)),
+        Line::styled(
+            "• Create your Decentralized Identifier (DID)",
+            Style::new().fg(COLOR_TEXT_DEFAULT),
+        ),
         Line::styled("• Verify setup", Style::new().fg(COLOR_TEXT_DEFAULT)),
     ];
 
