@@ -1,4 +1,6 @@
-use lkmv::colors::{COLOR_BORDER, COLOR_DARK_GRAY, COLOR_ORANGE, COLOR_SUCCESS};
+use lkmv::colors::{
+    COLOR_BORDER, COLOR_DARK_GRAY, COLOR_ORANGE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT,
+};
 use ratatui::{
     Frame,
     layout::{Alignment, Rect},
@@ -28,8 +30,24 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, active_page: ActivePag
         line1.push_span(Span::styled("✓ Choice", Style::new().fg(COLOR_SUCCESS)));
     }
 
+    if let ActivePage::SetupBIP32KeyInitialization = active_page {
+        step = 2;
+        line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
+        line1.push_span(Span::styled(
+            "● Key Management",
+            Style::new().fg(COLOR_ORANGE).bold(),
+        ));
+    } else if let ActivePage::SetupImportBackup = active_page {
+        step = 2;
+        line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
+        line1.push_span(Span::styled(
+            "● Locate Backup",
+            Style::new().fg(COLOR_ORANGE).bold(),
+        ));
+    }
+
     line1.push_span(Span::styled(
-        " → ○ Key Management → ○ Mediator → ○ DID → ○ Verify ",
+        " → ○ Mediator → ○ DID → ○ Verify ",
         Style::new().fg(COLOR_DARK_GRAY),
     ));
 

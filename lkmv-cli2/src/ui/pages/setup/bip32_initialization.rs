@@ -10,7 +10,7 @@ use crate::{
     },
 };
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
-use lkmv::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
+use lkmv::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED};
 use ratatui::{
     Frame,
     layout::{
@@ -91,6 +91,19 @@ impl ComponentRender<()> for SetupBIP32InitializePage {
             Layout::vertical([Length(3), Min(0), Length(3)]).areas(frame.area());
 
         render_setup_header(frame, top, self.props.active_page);
+
+        frame.render_widget(
+            Paragraph::new(Line::styled(
+                "NOT IMPLEMENTED YET",
+                Style::new().fg(COLOR_WARNING_ACCESSIBLE_RED).bold(),
+            ))
+            .block(
+                Block::bordered()
+                    .fg(COLOR_WARNING_ACCESSIBLE_RED)
+                    .padding(Padding::proportional(1)),
+            ),
+            middle,
+        );
 
         let bottom_line = Line::from(vec![
             Span::styled("[F10]", Style::new().fg(COLOR_BORDER).bold()),
