@@ -27,27 +27,25 @@ use tokio::sync::mpsc::UnboundedSender;
 
 pub struct Props {
     active_page: ActivePage,
-    choice_state: SetupPages,
 }
 
 impl From<&State> for Props {
     fn from(state: &State) -> Self {
         Props {
             active_page: state.active_page,
-            choice_state: state.setup_page.active_page.clone(),
         }
     }
 }
 
-/// SetupChoicePage handles the UI and the state for the initial setup interface
-pub struct SetupChoicePage {
+/// SetupBIP32InitializePage handles the UI and the state for how the BIP32 phrase is created
+pub struct SetupBIP32InitializePage {
     /// Action sender
     pub action_tx: UnboundedSender<Action>,
     /// State Mapped SetupPage Props
     pub props: Props,
 }
 
-impl Component for SetupChoicePage {
+impl Component for SetupBIP32InitializePage {
     fn handle_key_event(&mut self, key: KeyEvent) {
         if key.kind != KeyEventKind::Press {
             return;
@@ -55,30 +53,6 @@ impl Component for SetupChoicePage {
         match key.code {
             KeyCode::F(10) => {
                 let _ = self.action_tx.send(Action::Exit);
-            }
-            KeyCode::Tab | KeyCode::Left | KeyCode::Right => {
-                // Switch active panel
-                if let SetupPages::Choice(choice_state) = &self.props.choice_state {
-                    let _ = self.action_tx.send(Action::SetupChoicePanelSwitch(
-                        choice_state.active_panel.switch(),
-                    ));
-                }
-            }
-            KeyCode::Enter => {
-                if let SetupPages::Choice(choice_state) = &self.props.choice_state {
-                    match choice_state.active_panel {
-                        ChoicePanel::Left => {
-                            let _ = self.action_tx.send(Action::SetupChoiceSelectedPath(
-                                ActivePage::SetupBIP32KeyInitialization,
-                            ));
-                        }
-                        ChoicePanel::Right => {
-                            let _ = self.action_tx.send(Action::SetupChoiceSelectedPath(
-                                ActivePage::SetupImportBackup,
-                            ));
-                        }
-                    }
-                }
             }
             _ => {}
         }
@@ -88,7 +62,7 @@ impl Component for SetupChoicePage {
     where
         Self: Sized,
     {
-        SetupChoicePage {
+        SetupBIP32InitializePage {
             action_tx: action_tx.clone(),
             // set the props
             props: Props::from(state),
@@ -100,7 +74,7 @@ impl Component for SetupChoicePage {
     where
         Self: Sized,
     {
-        SetupChoicePage {
+        SetupBIP32InitializePage {
             props: Props::from(state),
             // propagate the update to the child components
             ..self
@@ -111,32 +85,14 @@ impl Component for SetupChoicePage {
 // ****************************************************************************
 // Primary Render function for this page
 // ****************************************************************************
-impl ComponentRender<()> for SetupChoicePage {
+impl ComponentRender<()> for SetupBIP32InitializePage {
     fn render(&self, frame: &mut Frame, _props: ()) {
-        let state = if let SetupPages::Choice(state) = &self.props.choice_state {
-            state
-        } else {
-            &ChoiceState::default()
-        };
-
         let [top, middle, bottom] =
             Layout::vertical([Length(3), Min(0), Length(3)]).areas(frame.area());
 
         render_setup_header(frame, top, self.props.active_page);
 
-        // Render the middle selection boxes
-        let middle = Layout::horizontal([Percentage(50), Percentage(50)]).split(middle);
-        let middle_left = middle[0].inner(Margin::new(2, 0));
-        let middle_right = middle[1].inner(Margin::new(2, 0));
-
-        render_left_panel(frame, middle_left, state);
-        render_right_panel(frame, middle_right, state);
-
         let bottom_line = Line::from(vec![
-            Span::styled("[TAB]", Style::new().fg(COLOR_BORDER).bold()),
-            Span::styled(" to navigate  |  ", Style::new().fg(COLOR_TEXT_DEFAULT)),
-            Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
-            Span::styled(" to select  |  ", Style::new().fg(COLOR_TEXT_DEFAULT)),
             Span::styled("[F10]", Style::new().fg(COLOR_BORDER).bold()),
             Span::styled(" to quit", Style::new().fg(COLOR_TEXT_DEFAULT)),
         ]);

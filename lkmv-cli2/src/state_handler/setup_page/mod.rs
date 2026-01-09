@@ -7,6 +7,7 @@ pub struct SetupPageState {
 #[derive(Clone, Debug)]
 pub enum SetupPages {
     Choice(ChoiceState),
+    KeyRecovery,
 }
 
 impl Default for SetupPages {
@@ -40,3 +41,7 @@ impl ChoicePanel {
         }
     }
 }
+
+// ****************************************************************************
+// Key Recovery
+// ****************************************************************************

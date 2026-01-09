@@ -9,7 +9,9 @@ use ratatui::{
 
 use crate::state_handler::state::ActivePage;
 
+pub mod bip32_initialization;
 pub mod choice;
+pub mod import_backup;
 
 /// Renders the top headline for the setup pages
 pub fn render_setup_header(frame: &mut Frame, rect: Rect, active_page: ActivePage) {
@@ -32,7 +34,7 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, active_page: ActivePag
     ));
 
     let line2 = Line::from(Span::styled(
-        format!("Step {}/5", step),
+        format!("Section {}/5", step),
         Style::new().fg(COLOR_BORDER),
     ));
 

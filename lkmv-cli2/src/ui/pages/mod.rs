@@ -9,7 +9,13 @@ use crate::{
     },
     ui::{
         component::{Component, ComponentRender},
-        pages::{main::MainPage, setup::choice::SetupChoicePage},
+        pages::{
+            main::MainPage,
+            setup::{
+                bip32_initialization::SetupBIP32InitializePage, choice::SetupChoicePage,
+                import_backup::SetupImportBackupPage,
+            },
+        },
     },
 };
 
@@ -33,6 +39,8 @@ pub struct AppRouter {
     //
     main_page: MainPage,
     setup_choice_page: SetupChoicePage,
+    setup_bip32_key_init: SetupBIP32InitializePage,
+    setup_import_backup: SetupImportBackupPage,
 }
 
 impl AppRouter {
@@ -40,6 +48,8 @@ impl AppRouter {
         match self.props.active_page {
             ActivePage::Main => &mut self.main_page,
             ActivePage::SetupChoice => &mut self.setup_choice_page,
+            ActivePage::SetupBIP32KeyInitialization => &mut self.setup_bip32_key_init,
+            ActivePage::SetupImportBackup => &mut self.setup_import_backup,
         }
     }
 }
@@ -54,6 +64,8 @@ impl Component for AppRouter {
             //
             main_page: MainPage::new(state, action_tx.clone()),
             setup_choice_page: SetupChoicePage::new(state, action_tx.clone()),
+            setup_bip32_key_init: SetupBIP32InitializePage::new(state, action_tx.clone()),
+            setup_import_backup: SetupImportBackupPage::new(state, action_tx.clone()),
         }
         .move_with_state(state)
     }
@@ -67,6 +79,8 @@ impl Component for AppRouter {
             //
             main_page: self.main_page.move_with_state(state),
             setup_choice_page: self.setup_choice_page.move_with_state(state),
+            setup_bip32_key_init: self.setup_bip32_key_init.move_with_state(state),
+            setup_import_backup: self.setup_import_backup.move_with_state(state),
         }
     }
 
@@ -80,6 +94,10 @@ impl ComponentRender<()> for AppRouter {
         match self.props.active_page {
             ActivePage::Main => self.main_page.render(frame, props),
             ActivePage::SetupChoice => self.setup_choice_page.render(frame, props),
+            ActivePage::SetupBIP32KeyInitialization => {
+                self.setup_bip32_key_init.render(frame, props)
+            }
+            ActivePage::SetupImportBackup => self.setup_import_backup.render(frame, props),
         }
     }
 }

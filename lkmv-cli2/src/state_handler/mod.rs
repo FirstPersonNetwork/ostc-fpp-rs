@@ -85,8 +85,13 @@ impl StateHandler {
                         }
                     },
                     Action::SetupChoicePanelSwitch(choice_panel) => {
-                        let SetupPages::Choice(choice_state) = &mut state.setup_page.active_page;
-                        choice_state.active_panel = choice_panel;
+                        if let SetupPages::Choice(choice_state) = &mut state.setup_page.active_page {
+                            choice_state.active_panel = choice_panel;
+                        }
+                    }
+                    Action::SetupChoiceSelectedPath(active_page) => {
+                        // User has chosen their setup starting path
+                        state.active_page = active_page;
                     }
                 },
                 // Catch and handle interrupt signal to gracefully shutdown
