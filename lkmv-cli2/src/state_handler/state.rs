@@ -12,5 +12,7 @@ pub struct State {
 pub enum ActivePage {
     #[default]
     Main,
-    Setup,
+
+    // Setup is comprised of multiple screens, handled in setup_page module
+    SetupChoice, // Choose generate vs import
 }

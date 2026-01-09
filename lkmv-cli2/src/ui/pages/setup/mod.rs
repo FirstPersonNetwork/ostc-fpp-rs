@@ -1,59 +1,45 @@
-use crate::{
-    state_handler::{actions::Action, state::State},
-    ui::{
-        component::{Component, ComponentRender},
-        pages::Props,
-    },
+use lkmv::colors::{COLOR_BORDER, COLOR_DARK_GRAY, COLOR_ORANGE, COLOR_SUCCESS};
+use ratatui::{
+    Frame,
+    layout::{Alignment, Rect},
+    style::Style,
+    text::{Line, Span},
+    widgets::{Block, Padding, Paragraph},
 };
-use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
-use ratatui::Frame;
-use tokio::sync::mpsc::UnboundedSender;
 
-/// SetupPage handles the UI and the state for the initial setup interface
-pub struct SetupPage {
-    /// Action sender
-    pub action_tx: UnboundedSender<Action>,
-    /// State Mapped SetupPage Props
-    props: Props,
-}
+use crate::state_handler::state::ActivePage;
 
-impl ComponentRender<()> for SetupPage {
-    fn render(&self, frame: &mut Frame, _props: ()) {}
-}
+pub mod choice;
 
-impl Component for SetupPage {
-    fn handle_key_event(&mut self, key: KeyEvent) {
-        if key.kind != KeyEventKind::Press {
-            return;
-        }
-        match key.code {
-            KeyCode::F(10) => {
-                let _ = self.action_tx.send(Action::Exit);
-            }
-            _ => {}
-        }
+/// Renders the top headline for the setup pages
+pub fn render_setup_header(frame: &mut Frame, rect: Rect, active_page: ActivePage) {
+    let mut line1 = Line::default();
+    let mut step = 0;
+
+    if let ActivePage::SetupChoice = active_page {
+        step = 1;
+        line1.push_span(Span::styled(
+            "● Choice",
+            Style::new().fg(COLOR_ORANGE).bold(),
+        ));
+    } else {
+        line1.push_span(Span::styled("✓ Choice", Style::new().fg(COLOR_SUCCESS)));
     }
 
-    fn new(state: &State, action_tx: UnboundedSender<Action>) -> Self
-    where
-        Self: Sized,
-    {
-        SetupPage {
-            action_tx: action_tx.clone(),
-            // set the props
-            props: Props::from(state),
-        }
-        .move_with_state(state)
-    }
+    line1.push_span(Span::styled(
+        " → ○ Identity → ○ Mediator → ○ Host DID → ○ Verify ",
+        Style::new().fg(COLOR_DARK_GRAY),
+    ));
 
-    fn move_with_state(self, state: &State) -> Self
-    where
-        Self: Sized,
-    {
-        SetupPage {
-            props: Props::from(state),
-            // propagate the update to the child components
-            ..self
-        }
-    }
+    let line2 = Line::from(Span::styled(
+        format!("Step {}/5", step),
+        Style::new().fg(COLOR_BORDER),
+    ));
+
+    frame.render_widget(
+        Paragraph::new(vec![line1, line2])
+            .alignment(Alignment::Left)
+            .block(Block::new().padding(Padding::new(2, 0, 0, 0))),
+        rect,
+    );
 }

@@ -1,6 +1,6 @@
 use crate::{
     Interrupted, Terminator,
-    state_handler::{actions::Action, main_page::MainPanel, state::State},
+    state_handler::{actions::Action, main_page::MainPanel, setup_page::SetupPages, state::State},
 };
 use anyhow::Result;
 use lkmv::config::{Config, public_config::PublicConfig};
@@ -45,7 +45,7 @@ impl StateHandler {
             Ok(pc) => pc,
             Err(lkmv::errors::LKMVError::ConfigNotFound(_, _)) => {
                 // Configuration not found, start in setup mode
-                state.active_page = state::ActivePage::Setup;
+                state.active_page = state::ActivePage::SetupChoice;
                 PublicConfig::default()
             }
             Err(e) => {
@@ -69,7 +69,7 @@ impl StateHandler {
                     Action::MainMenuSelected(menu_item) => {
                         // User has changed main menu selection
                         state.main_page.menu_panel.selected_menu = menu_item;
-                    }
+                    },
                     Action::MainPanelSwitch(panel) => {
                         match panel {
                             MainPanel::ContentPanel => {
@@ -83,6 +83,10 @@ impl StateHandler {
                                 state.main_page.content_panel.selected = false;
                             }
                         }
+                    },
+                    Action::SetupChoicePanelSwitch(choice_panel) => {
+                        let SetupPages::Choice(choice_state) = &mut state.setup_page.active_page;
+                        choice_state.active_panel = choice_panel;
                     }
                 },
                 // Catch and handle interrupt signal to gracefully shutdown

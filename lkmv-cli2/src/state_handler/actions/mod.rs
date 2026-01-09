@@ -1,4 +1,7 @@
-use crate::state_handler::main_page::{MainPanel, menu::MainMenu};
+use crate::state_handler::{
+    main_page::{MainPanel, menu::MainMenu},
+    setup_page::ChoicePanel,
+};
 
 pub enum Action {
     Exit,
@@ -7,4 +10,8 @@ pub enum Action {
 
     /// Active Panel switched to
     MainPanelSwitch(MainPanel),
+
+    // SETUP Pages
+    /// Active Panel switched to
+    SetupChoicePanelSwitch(ChoicePanel),
 }

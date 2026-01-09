@@ -9,7 +9,7 @@ use crate::{
     },
     ui::{
         component::{Component, ComponentRender},
-        pages::{main::MainPage, setup::SetupPage},
+        pages::{main::MainPage, setup::choice::SetupChoicePage},
     },
 };
 
@@ -32,14 +32,14 @@ pub struct AppRouter {
     props: Props,
     //
     main_page: MainPage,
-    setup_page: SetupPage,
+    setup_choice_page: SetupChoicePage,
 }
 
 impl AppRouter {
     fn get_active_page_component_mut(&mut self) -> &mut dyn Component {
         match self.props.active_page {
             ActivePage::Main => &mut self.main_page,
-            ActivePage::Setup => &mut self.setup_page,
+            ActivePage::SetupChoice => &mut self.setup_choice_page,
         }
     }
 }
@@ -53,7 +53,7 @@ impl Component for AppRouter {
             props: Props::from(state),
             //
             main_page: MainPage::new(state, action_tx.clone()),
-            setup_page: SetupPage::new(state, action_tx.clone()),
+            setup_choice_page: SetupChoicePage::new(state, action_tx.clone()),
         }
         .move_with_state(state)
     }
@@ -66,7 +66,7 @@ impl Component for AppRouter {
             props: Props::from(state),
             //
             main_page: self.main_page.move_with_state(state),
-            setup_page: self.setup_page.move_with_state(state),
+            setup_choice_page: self.setup_choice_page.move_with_state(state),
         }
     }
 
@@ -79,7 +79,7 @@ impl ComponentRender<()> for AppRouter {
     fn render(&self, frame: &mut Frame, props: ()) {
         match self.props.active_page {
             ActivePage::Main => self.main_page.render(frame, props),
-            ActivePage::Setup => self.setup_page.render(frame, props),
+            ActivePage::SetupChoice => self.setup_choice_page.render(frame, props),
         }
     }
 }

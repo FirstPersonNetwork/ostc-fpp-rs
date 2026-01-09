@@ -6,7 +6,7 @@ use ratatui::{
     style::Stylize,
     symbols::merge::MergeStrategy,
     text::Line,
-    widgets::{Block, Paragraph},
+    widgets::{Block, BorderType, Paragraph},
 };
 use strum::IntoEnumIterator;
 
@@ -21,6 +21,7 @@ impl MenuPanelState {
         let menu_block = if self.selected {
             Block::bordered()
                 .merge_borders(MergeStrategy::Fuzzy)
+                .border_type(BorderType::Double)
                 .fg(COLOR_SUCCESS)
                 .title("Menu")
         } else {

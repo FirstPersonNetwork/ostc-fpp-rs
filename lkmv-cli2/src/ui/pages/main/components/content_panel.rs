@@ -3,7 +3,7 @@ use crate::state_handler::main_page::{
     menu::{MainMenu, MenuPanelState},
 };
 use lkmv::colors::{
-    COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_WARNING, COLOR_WARNING_ACCESSIBLE_RED,
+    COLOR_BORDER, COLOR_ORANGE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED,
 };
 use ratatui::{
     Frame,
@@ -11,7 +11,7 @@ use ratatui::{
     style::Stylize,
     symbols::merge::MergeStrategy,
     text::Line,
-    widgets::{Block, Paragraph},
+    widgets::{Block, BorderType, Paragraph},
 };
 
 // ****************************************************************************
@@ -25,6 +25,7 @@ impl ContentPanelState {
         let content_block = if self.selected {
             Block::bordered()
                 .merge_borders(MergeStrategy::Fuzzy)
+                .border_type(BorderType::Double)
                 .fg(COLOR_SUCCESS)
                 .title("Content")
         } else {
@@ -38,8 +39,8 @@ impl ContentPanelState {
             MainMenu::Settings => {
                 vec![
                     Line::from(""),
-                    Line::from("Managing settings has not been implemented yet").fg(COLOR_WARNING),
-                    Line::from("Press Enter to select a menu item").fg(COLOR_WARNING),
+                    Line::from("Managing settings has not been implemented yet").fg(COLOR_ORANGE),
+                    Line::from("Press Enter to select a menu item").fg(COLOR_ORANGE),
                 ]
             }
             MainMenu::Help => {
