@@ -1,7 +1,6 @@
 use crate::state_handler::{
     main_page::{MainPanel, menu::MainMenu},
-    setup_page::{BIP32Choice, ChoicePanel},
-    state::ActivePage,
+    setup_sequence::{BIP32PhraseAskChoice, StartAskPanel},
 };
 
 pub enum Action {
@@ -14,10 +13,10 @@ pub enum Action {
 
     // SETUP Pages
     /// Active Panel switched to
-    SetupChoicePanelSwitch(ChoicePanel),
+    SetupStartAskPanelSwitch(StartAskPanel),
 
     /// What starting path did the user select for setup?
-    SetupChoiceSelectedPath(ActivePage),
+    SetupStartAskSelectedPath(StartAskPanel),
 
-    SetupBIP32PhraseOptionSwitch(BIP32Choice),
+    SetupBIP32PhraseAskChoiceSwitch(BIP32PhraseAskChoice),
 }

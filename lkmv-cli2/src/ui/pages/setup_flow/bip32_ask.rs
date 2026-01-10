@@ -1,15 +1,4 @@
-use crate::{
-    state_handler::{
-        actions::Action,
-        setup_page::{BIP32Choice, SetupPages},
-        state::{ActivePage, State},
-    },
-    ui::{
-        component::{Component, ComponentRender},
-        pages::setup::render_setup_header,
-    },
-};
-use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
+use crossterm::event::{KeyCode, KeyEvent};
 use lkmv::colors::{COLOR_BORDER, COLOR_ORANGE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
 use ratatui::{
     Frame,
@@ -23,84 +12,41 @@ use ratatui::{
 };
 use tokio::sync::mpsc::UnboundedSender;
 
-pub struct Props {
-    active_page: ActivePage,
-    active_choice: BIP32Choice,
-}
+use crate::{
+    state_handler::{
+        actions::Action,
+        setup_sequence::{BIP32PhraseAskChoice, SetupState},
+    },
+    ui::{component::SetupFlowRender, pages::setup_flow::render_setup_header},
+};
 
-impl From<&State> for Props {
-    fn from(state: &State) -> Self {
-        Props {
-            active_page: state.active_page,
-            active_choice: if let SetupPages::KeyRecovery(choice) = &state.setup_page.active_page {
-                choice.active_choice.clone()
-            } else {
-                BIP32Choice::default()
-            },
-        }
-    }
-}
-
-/// SetupBIP32InitializePage handles the UI and the state for how the BIP32 phrase is created
-pub struct SetupBIP32InitializePage {
-    /// Action sender
-    pub action_tx: UnboundedSender<Action>,
-    /// State Mapped SetupPage Props
-    pub props: Props,
-}
-
-impl Component for SetupBIP32InitializePage {
-    fn handle_key_event(&mut self, key: KeyEvent) {
-        if key.kind != KeyEventKind::Press {
-            return;
-        }
+impl SetupFlowRender for BIP32PhraseAskChoice {
+    fn handle_key_event(
+        &self,
+        _state: &SetupState,
+        action_tx: &mut UnboundedSender<Action>,
+        key: KeyEvent,
+    ) {
         match key.code {
             KeyCode::F(10) => {
-                let _ = self.action_tx.send(Action::Exit);
+                let _ = action_tx.send(Action::Exit);
             }
             KeyCode::Tab | KeyCode::Up | KeyCode::Down => {
                 // Switch active panel
-                let _ = self.action_tx.send(Action::SetupBIP32PhraseOptionSwitch(
-                    self.props.active_choice.switch(),
-                ));
+                let _ = action_tx.send(Action::SetupBIP32PhraseAskChoiceSwitch(self.switch()));
+            }
+            KeyCode::Enter => {
+                //let _ = action_tx.send(Action::SetupB(*self));
             }
             _ => {}
         }
     }
 
-    fn new(state: &State, action_tx: UnboundedSender<Action>) -> Self
-    where
-        Self: Sized,
-    {
-        SetupBIP32InitializePage {
-            action_tx: action_tx.clone(),
-            // set the props
-            props: Props::from(state),
-        }
-        .move_with_state(state)
-    }
-
-    fn move_with_state(self, state: &State) -> Self
-    where
-        Self: Sized,
-    {
-        SetupBIP32InitializePage {
-            props: Props::from(state),
-            // propagate the update to the child components
-            ..self
-        }
-    }
-}
-
-// ****************************************************************************
-// Primary Render function for this page
-// ****************************************************************************
-impl ComponentRender<()> for SetupBIP32InitializePage {
-    fn render(&self, frame: &mut Frame, _props: ()) {
+    fn render(&self, state: &SetupState, frame: &mut Frame) {
         let [top, middle, bottom] =
             Layout::vertical([Length(3), Min(0), Length(3)]).areas(frame.area());
 
-        render_setup_header(frame, top, self.props.active_page);
+        render_setup_header(frame, top, state);
 
         let block = Block::bordered()
             .fg(COLOR_BORDER)
@@ -121,7 +67,7 @@ impl ComponentRender<()> for SetupBIP32InitializePage {
         ];
 
         // Render the active chocie
-        if let BIP32Choice::Create = self.props.active_choice {
+        if let BIP32PhraseAskChoice::Create = self {
             lines.push(Line::styled(
                 "[✓] Generate a new 24-word recovery phrase (recommended)",
                 Style::new().fg(COLOR_SUCCESS).bold(),

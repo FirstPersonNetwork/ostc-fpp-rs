@@ -1,7 +1,4 @@
-use std::{
-    io::{self, Stdout},
-    time::Duration,
-};
+use std::io::{self, Stdout};
 
 use crate::{
     Interrupted,
@@ -62,6 +59,13 @@ impl UiManager {
         };
 
         let result: anyhow::Result<Interrupted> = loop {
+            if let Err(err) = terminal
+                .draw(|frame| app_router.render(frame, ()))
+                .context("could not render to the terminal")
+            {
+                break Err(err);
+            }
+
             tokio::select! {
                 // Tick to terminate the select every N milliseconds
                 //_ = ticker.tick() => (),
@@ -82,13 +86,6 @@ impl UiManager {
                     break Ok(interrupted);
                 }
             }
-
-            if let Err(err) = terminal
-                .draw(|frame| app_router.render(frame, ()))
-                .context("could not render to the terminal")
-            {
-                break Err(err);
-            }
         };
 
         restore_terminal(&mut terminal)?;
@@ -104,7 +101,10 @@ fn setup_terminal() -> anyhow::Result<Terminal<CrosstermBackend<Stdout>>> {
 
     execute!(stdout, EnterAlternateScreen, DisableMouseCapture)?;
 
-    Ok(Terminal::new(CrosstermBackend::new(stdout))?)
+    let mut terminal = Terminal::new(CrosstermBackend::new(stdout))?;
+    terminal.clear()?;
+
+    Ok(terminal)
 }
 
 fn restore_terminal(terminal: &mut Terminal<CrosstermBackend<Stdout>>) -> anyhow::Result<()> {

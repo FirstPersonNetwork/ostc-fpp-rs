@@ -1,15 +1,4 @@
-use crate::{
-    state_handler::{
-        actions::Action,
-        setup_page::{ChoicePanel, ChoiceState, SetupPages},
-        state::{ActivePage, State},
-    },
-    ui::{
-        component::{Component, ComponentRender},
-        pages::setup::render_setup_header,
-    },
-};
-use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
+use crossterm::event::{KeyCode, KeyEvent};
 use lkmv::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
 use ratatui::{
     Frame,
@@ -25,112 +14,49 @@ use ratatui::{
 };
 use tokio::sync::mpsc::UnboundedSender;
 
-pub struct Props {
-    active_page: ActivePage,
-    choice_state: SetupPages,
-}
+use crate::{
+    state_handler::{
+        actions::Action,
+        setup_sequence::{SetupState, StartAskPanel},
+    },
+    ui::{component::SetupFlowRender, pages::setup_flow::render_setup_header},
+};
 
-impl From<&State> for Props {
-    fn from(state: &State) -> Self {
-        Props {
-            active_page: state.active_page,
-            choice_state: state.setup_page.active_page.clone(),
-        }
-    }
-}
-
-/// SetupChoicePage handles the UI and the state for the initial setup interface
-pub struct SetupChoicePage {
-    /// Action sender
-    pub action_tx: UnboundedSender<Action>,
-    /// State Mapped SetupPage Props
-    pub props: Props,
-}
-
-impl Component for SetupChoicePage {
-    fn handle_key_event(&mut self, key: KeyEvent) {
-        if key.kind != KeyEventKind::Press {
-            return;
-        }
+impl SetupFlowRender for StartAskPanel {
+    fn handle_key_event(
+        &self,
+        _state: &SetupState,
+        action_tx: &mut UnboundedSender<Action>,
+        key: KeyEvent,
+    ) {
         match key.code {
             KeyCode::F(10) => {
-                let _ = self.action_tx.send(Action::Exit);
+                let _ = action_tx.send(Action::Exit);
             }
             KeyCode::Tab | KeyCode::Left | KeyCode::Right => {
                 // Switch active panel
-                if let SetupPages::Choice(choice_state) = &self.props.choice_state {
-                    let _ = self.action_tx.send(Action::SetupChoicePanelSwitch(
-                        choice_state.active_panel.switch(),
-                    ));
-                }
+                let _ = action_tx.send(Action::SetupStartAskPanelSwitch(self.switch()));
             }
             KeyCode::Enter => {
-                if let SetupPages::Choice(choice_state) = &self.props.choice_state {
-                    match choice_state.active_panel {
-                        ChoicePanel::Left => {
-                            let _ = self.action_tx.send(Action::SetupChoiceSelectedPath(
-                                ActivePage::SetupBIP32KeyInitialization,
-                            ));
-                        }
-                        ChoicePanel::Right => {
-                            let _ = self.action_tx.send(Action::SetupChoiceSelectedPath(
-                                ActivePage::SetupImportBackup,
-                            ));
-                        }
-                    }
-                }
+                let _ = action_tx.send(Action::SetupStartAskSelectedPath(*self));
             }
             _ => {}
         }
     }
 
-    fn new(state: &State, action_tx: UnboundedSender<Action>) -> Self
-    where
-        Self: Sized,
-    {
-        SetupChoicePage {
-            action_tx: action_tx.clone(),
-            // set the props
-            props: Props::from(state),
-        }
-        .move_with_state(state)
-    }
-
-    fn move_with_state(self, state: &State) -> Self
-    where
-        Self: Sized,
-    {
-        SetupChoicePage {
-            props: Props::from(state),
-            // propagate the update to the child components
-            ..self
-        }
-    }
-}
-
-// ****************************************************************************
-// Primary Render function for this page
-// ****************************************************************************
-impl ComponentRender<()> for SetupChoicePage {
-    fn render(&self, frame: &mut Frame, _props: ()) {
-        let state = if let SetupPages::Choice(state) = &self.props.choice_state {
-            state
-        } else {
-            &ChoiceState::default()
-        };
-
+    fn render(&self, state: &SetupState, frame: &mut Frame) {
         let [top, middle, bottom] =
             Layout::vertical([Length(3), Min(0), Length(3)]).areas(frame.area());
 
-        render_setup_header(frame, top, self.props.active_page);
+        render_setup_header(frame, top, state);
 
         // Render the middle selection boxes
         let middle = Layout::horizontal([Percentage(50), Percentage(50)]).split(middle);
         let middle_left = middle[0].inner(Margin::new(2, 0));
         let middle_right = middle[1].inner(Margin::new(2, 0));
 
-        render_left_panel(frame, middle_left, state);
-        render_right_panel(frame, middle_right, state);
+        render_left_panel(frame, middle_left, self);
+        render_right_panel(frame, middle_right, self);
 
         let bottom_line = Line::from(vec![
             Span::styled("[TAB]", Style::new().fg(COLOR_BORDER).bold()),
@@ -151,8 +77,8 @@ impl ComponentRender<()> for SetupChoicePage {
 // ****************************************************************************
 // Render Left Panel (Setup new profile)
 // ****************************************************************************
-fn render_left_panel(frame: &mut Frame, rect: Rect, state: &ChoiceState) {
-    let block = if let ChoicePanel::Left = state.active_panel {
+fn render_left_panel(frame: &mut Frame, rect: Rect, state: &StartAskPanel) {
+    let block = if let StartAskPanel::Create = state {
         Block::bordered()
             .merge_borders(MergeStrategy::Fuzzy)
             .border_type(BorderType::Double)
@@ -186,7 +112,7 @@ fn render_left_panel(frame: &mut Frame, rect: Rect, state: &ChoiceState) {
         Line::styled("• Verify setup", Style::new().fg(COLOR_TEXT_DEFAULT)),
     ];
 
-    if let ChoicePanel::Left = state.active_panel {
+    if let StartAskPanel::Create = state {
         lines.push(Line::default());
         lines.push(Line::styled(
             "▶ Selected",
@@ -205,8 +131,8 @@ fn render_left_panel(frame: &mut Frame, rect: Rect, state: &ChoiceState) {
 // ****************************************************************************
 // Render Right Panel (Recovery from backup)
 // ****************************************************************************
-fn render_right_panel(frame: &mut Frame, rect: Rect, state: &ChoiceState) {
-    let block = if let ChoicePanel::Right = state.active_panel {
+fn render_right_panel(frame: &mut Frame, rect: Rect, state: &StartAskPanel) {
+    let block = if let StartAskPanel::Import = state {
         Block::bordered()
             .merge_borders(MergeStrategy::Fuzzy)
             .border_type(BorderType::Double)
@@ -236,7 +162,7 @@ fn render_right_panel(frame: &mut Frame, rect: Rect, state: &ChoiceState) {
         Line::styled("• Verification", Style::new().fg(COLOR_TEXT_DEFAULT)),
     ];
 
-    if let ChoicePanel::Right = state.active_panel {
+    if let StartAskPanel::Import = state {
         lines.push(Line::default());
         lines.push(Line::styled(
             "▶ Selected",

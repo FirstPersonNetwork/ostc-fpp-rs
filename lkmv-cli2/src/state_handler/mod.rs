@@ -1,6 +1,11 @@
 use crate::{
     Interrupted, Terminator,
-    state_handler::{actions::Action, main_page::MainPanel, setup_page::SetupPages, state::State},
+    state_handler::{
+        actions::Action,
+        main_page::MainPanel,
+        setup_sequence::{BIP32PhraseAskChoice, SetupPage, StartAskPanel},
+        state::State,
+    },
 };
 use anyhow::Result;
 use lkmv::config::{Config, public_config::PublicConfig};
@@ -12,7 +17,7 @@ use tracing::error;
 
 pub mod actions;
 pub mod main_page;
-pub mod setup_page;
+pub mod setup_sequence;
 pub mod state;
 
 pub struct StateHandler {
@@ -45,7 +50,7 @@ impl StateHandler {
             Ok(pc) => pc,
             Err(lkmv::errors::LKMVError::ConfigNotFound(_, _)) => {
                 // Configuration not found, start in setup mode
-                state.active_page = state::ActivePage::SetupChoice;
+                state.active_page = state::ActivePage::Setup;
                 PublicConfig::default()
             }
             Err(e) => {
@@ -84,20 +89,19 @@ impl StateHandler {
                             }
                         }
                     },
-                    Action::SetupChoicePanelSwitch(choice_panel) => {
-                        if let SetupPages::Choice(choice_state) = &mut state.setup_page.active_page {
-                            choice_state.active_panel = choice_panel;
-                        }
+                    Action::SetupStartAskPanelSwitch(choice_panel) => {
+                            state.setup.start_ask = choice_panel;
                     }
-                    Action::SetupChoiceSelectedPath(active_page) => {
+                    Action::SetupStartAskSelectedPath(choice) => {
                         // User has chosen their setup starting path
-                        state.active_page = active_page;
-                    }
-                    Action::SetupBIP32PhraseOptionSwitch(bip32_choice) => {
-                        if let SetupPages::KeyRecovery(key_recovery_state) = &mut state.setup_page.active_page {
-                            // User is selecteding whether to create or import their BIP32 phrase
-                            key_recovery_state.active_choice = bip32_choice;
+                        match choice {
+                            StartAskPanel::Create => state.setup.active_page = SetupPage::BIP32PhraseAsk,
+                            StartAskPanel::Import => state.setup.active_page = SetupPage::ConfigImport,
                         }
+                    }
+                    Action::SetupBIP32PhraseAskChoiceSwitch(choice) => {
+                            // User is selecteding whether to create or import their BIP32 phrase
+                        state.setup.bip32_phrase_ask = choice;
                     }
                 },
                 // Catch and handle interrupt signal to gracefully shutdown
