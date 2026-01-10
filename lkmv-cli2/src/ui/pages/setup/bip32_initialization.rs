@@ -1,7 +1,7 @@
 use crate::{
     state_handler::{
         actions::Action,
-        setup_page::{ChoicePanel, ChoiceState, SetupPages},
+        setup_page::{BIP32Choice, SetupPages},
         state::{ActivePage, State},
     },
     ui::{
@@ -10,29 +10,33 @@ use crate::{
     },
 };
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
-use lkmv::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED};
+use lkmv::colors::{COLOR_BORDER, COLOR_ORANGE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
 use ratatui::{
     Frame,
     layout::{
-        Alignment,
-        Constraint::{Length, Min, Percentage},
-        Layout, Margin, Rect,
+        Constraint::{Length, Min},
+        Layout,
     },
     style::{Style, Stylize},
-    symbols::merge::MergeStrategy,
     text::{Line, Span},
-    widgets::{Block, BorderType, Padding, Paragraph},
+    widgets::{Block, Padding, Paragraph, Wrap},
 };
 use tokio::sync::mpsc::UnboundedSender;
 
 pub struct Props {
     active_page: ActivePage,
+    active_choice: BIP32Choice,
 }
 
 impl From<&State> for Props {
     fn from(state: &State) -> Self {
         Props {
             active_page: state.active_page,
+            active_choice: if let SetupPages::KeyRecovery(choice) = &state.setup_page.active_page {
+                choice.active_choice.clone()
+            } else {
+                BIP32Choice::default()
+            },
         }
     }
 }
@@ -53,6 +57,12 @@ impl Component for SetupBIP32InitializePage {
         match key.code {
             KeyCode::F(10) => {
                 let _ = self.action_tx.send(Action::Exit);
+            }
+            KeyCode::Tab | KeyCode::Up | KeyCode::Down => {
+                // Switch active panel
+                let _ = self.action_tx.send(Action::SetupBIP32PhraseOptionSwitch(
+                    self.props.active_choice.switch(),
+                ));
             }
             _ => {}
         }
@@ -92,16 +102,53 @@ impl ComponentRender<()> for SetupBIP32InitializePage {
 
         render_setup_header(frame, top, self.props.active_page);
 
-        frame.render_widget(
-            Paragraph::new(Line::styled(
-                "NOT IMPLEMENTED YET",
-                Style::new().fg(COLOR_WARNING_ACCESSIBLE_RED).bold(),
-            ))
-            .block(
-                Block::bordered()
-                    .fg(COLOR_WARNING_ACCESSIBLE_RED)
-                    .padding(Padding::proportional(1)),
+        let block = Block::bordered()
+            .fg(COLOR_BORDER)
+            .padding(Padding::proportional(1))
+            .title(" Step 1/4: BIP32 Seed Phrase ");
+
+        let mut lines = vec![
+            Line::styled(
+                "LKMV derives individual keys from a common BIP32 seed phrase. This allows for a secure and private deterministic generation of key material from a single seed, rather than having to back up and restore seed material for every key.",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
             ),
+            Line::default(),
+            Line::styled(
+                "Choose how to setup your BIP32 recovery phrase",
+                Style::new().fg(COLOR_BORDER).bold(),
+            ),
+            Line::default(),
+        ];
+
+        // Render the active chocie
+        if let BIP32Choice::Create = self.props.active_choice {
+            lines.push(Line::styled(
+                "[✓] Generate a new 24-word recovery phrase (recommended)",
+                Style::new().fg(COLOR_SUCCESS).bold(),
+            ));
+            lines.push(Line::styled(
+                "[ ] Import an existing recovery phrase",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ));
+        } else {
+            lines.push(Line::styled(
+                "[ ] Generate a new 24-word recovery phrase (recommended)",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ));
+            lines.push(Line::styled(
+                "[✓] Import an existing recovery phrase",
+                Style::new().fg(COLOR_SUCCESS).bold(),
+            ));
+        }
+
+        lines.push(Line::default());
+        lines.push(Line::from(vec![
+            Span::styled("[TAB] to select", Style::new().fg(COLOR_ORANGE)),
+            Span::styled("  |  [ENTER] to confirm", Style::new().fg(COLOR_BORDER)),
+        ]));
+
+        frame.render_widget(
+            Paragraph::new(lines).block(block).wrap(Wrap { trim: true }),
             middle,
         );
 
@@ -115,108 +162,4 @@ impl ComponentRender<()> for SetupBIP32InitializePage {
             bottom,
         );
     }
-}
-
-// ****************************************************************************
-// Render Left Panel (Setup new profile)
-// ****************************************************************************
-fn render_left_panel(frame: &mut Frame, rect: Rect, state: &ChoiceState) {
-    let block = if let ChoicePanel::Left = state.active_panel {
-        Block::bordered()
-            .merge_borders(MergeStrategy::Fuzzy)
-            .border_type(BorderType::Double)
-            .fg(COLOR_SUCCESS)
-            .padding(Padding::proportional(1))
-            .title(" Setup new profile ")
-    } else {
-        Block::bordered()
-            .merge_borders(MergeStrategy::Fuzzy)
-            .fg(COLOR_BORDER)
-            .padding(Padding::proportional(1))
-            .title(" Setup new profile ")
-    };
-
-    let mut lines = vec![
-        Line::styled(
-            "Create and configure a brand new profile from scratch.",
-            Style::new().fg(COLOR_TEXT_DEFAULT),
-        ),
-        Line::default(),
-        Line::styled("You will:", Style::new().fg(COLOR_TEXT_DEFAULT)),
-        Line::styled(
-            "• Set up key management",
-            Style::new().fg(COLOR_TEXT_DEFAULT),
-        ),
-        Line::styled("• Choose mediator", Style::new().fg(COLOR_TEXT_DEFAULT)),
-        Line::styled(
-            "• Create your Decentralized Identifier (DID)",
-            Style::new().fg(COLOR_TEXT_DEFAULT),
-        ),
-        Line::styled("• Verify setup", Style::new().fg(COLOR_TEXT_DEFAULT)),
-    ];
-
-    if let ChoicePanel::Left = state.active_panel {
-        lines.push(Line::default());
-        lines.push(Line::styled(
-            "▶ Selected",
-            Style::new().fg(COLOR_SUCCESS).bold(),
-        ));
-    }
-
-    frame.render_widget(
-        Paragraph::new(lines)
-            .alignment(Alignment::Left)
-            .block(block),
-        rect,
-    );
-}
-
-// ****************************************************************************
-// Render Right Panel (Recovery from backup)
-// ****************************************************************************
-fn render_right_panel(frame: &mut Frame, rect: Rect, state: &ChoiceState) {
-    let block = if let ChoicePanel::Right = state.active_panel {
-        Block::bordered()
-            .merge_borders(MergeStrategy::Fuzzy)
-            .border_type(BorderType::Double)
-            .fg(COLOR_SUCCESS)
-            .padding(Padding::proportional(1))
-            .title(" Recovery from backup ")
-    } else {
-        Block::bordered()
-            .merge_borders(MergeStrategy::Fuzzy)
-            .fg(COLOR_BORDER)
-            .padding(Padding::proportional(1))
-            .title(" Recovery from backup ")
-    };
-
-    let mut lines = vec![
-        Line::styled(
-            "Restore from an existing .lkmv backup file.",
-            Style::new().fg(COLOR_TEXT_DEFAULT),
-        ),
-        Line::default(),
-        Line::styled("Requires:", Style::new().fg(COLOR_TEXT_DEFAULT)),
-        Line::styled("• Path to .lkmv file", Style::new().fg(COLOR_TEXT_DEFAULT)),
-        Line::styled(
-            "• Unlock code (if set)",
-            Style::new().fg(COLOR_TEXT_DEFAULT),
-        ),
-        Line::styled("• Verification", Style::new().fg(COLOR_TEXT_DEFAULT)),
-    ];
-
-    if let ChoicePanel::Right = state.active_panel {
-        lines.push(Line::default());
-        lines.push(Line::styled(
-            "▶ Selected",
-            Style::new().fg(COLOR_SUCCESS).bold(),
-        ));
-    }
-
-    frame.render_widget(
-        Paragraph::new(lines)
-            .alignment(Alignment::Left)
-            .block(block),
-        rect,
-    );
 }

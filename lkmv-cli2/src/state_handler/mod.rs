@@ -93,6 +93,12 @@ impl StateHandler {
                         // User has chosen their setup starting path
                         state.active_page = active_page;
                     }
+                    Action::SetupBIP32PhraseOptionSwitch(bip32_choice) => {
+                        if let SetupPages::KeyRecovery(key_recovery_state) = &mut state.setup_page.active_page {
+                            // User is selecteding whether to create or import their BIP32 phrase
+                            key_recovery_state.active_choice = bip32_choice;
+                        }
+                    }
                 },
                 // Catch and handle interrupt signal to gracefully shutdown
                 Ok(interrupted) = interrupt_rx.recv() => {
