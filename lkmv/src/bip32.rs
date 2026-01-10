@@ -6,6 +6,7 @@ use crate::{KeyPurpose, errors::LKMVError};
 use affinidi_tdk::secrets_resolver::{
     crypto::ed25519::ed25519_private_to_x25519_private_key, secrets::Secret,
 };
+use bip39::Mnemonic;
 use ed25519_dalek_bip32::{DerivationPath, ExtendedSigningKey};
 
 /// Returns a BIP32 Master Key
@@ -56,5 +57,43 @@ impl Bip32Extension for ExtendedSigningKey {
         };
 
         Ok(secret)
+    }
+}
+
+// ****************************************************************************
+// Tests
+// ****************************************************************************
+
+#[cfg(test)]
+mod tests {
+    use bip39::Mnemonic;
+
+    const ENTROPY_BYTES: [u8; 32] = [
+        7, 26, 142, 230, 65, 85, 188, 182, 29, 129, 52, 229, 217, 159, 243, 182, 73, 89, 196, 246,
+        58, 28, 100, 144, 187, 21, 157, 39, 4, 188, 154, 180,
+    ];
+
+    const MNEMONIC_WORDS: [&str; 24] = [
+        "alpha", "stamp", "ridge", "live", "forward", "force", "invite", "charge", "total",
+        "smooth", "woman", "hold", "night", "tiny", "suggest", "drum", "goose", "magic", "shell",
+        "demise", "icon", "furnace", "hello", "manual",
+    ];
+
+    #[test]
+    fn test_generate_mnemonic() {
+        let mnemonic =
+            Mnemonic::from_entropy(&ENTROPY_BYTES).expect("Couldn't create mnemonic from entropy");
+
+        for (index, word) in mnemonic.words().enumerate() {
+            assert_eq!(MNEMONIC_WORDS[index], word);
+        }
+    }
+
+    #[test]
+    fn test_recover_mnemonic() {
+        let words = MNEMONIC_WORDS.join(" ");
+        let mnemonic = Mnemonic::parse_normalized(&words).unwrap();
+
+        assert_eq!(mnemonic.to_entropy(), ENTROPY_BYTES);
     }
 }

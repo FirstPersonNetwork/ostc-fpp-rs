@@ -14,9 +14,12 @@ pub enum Action {
     // SETUP Pages
     /// Active Panel switched to
     SetupStartAskPanelSwitch(StartAskPanel),
-
     /// What starting path did the user select for setup?
     SetupStartAskSelectedPath(StartAskPanel),
 
     SetupBIP32PhraseAskChoiceSwitch(BIP32PhraseAskChoice),
+    SetupBIP32PhraseAskChoiceSelected(BIP32PhraseAskChoice),
+
+    SetupBIP32PhraseShowCopyToClipboard,
+    SetupBIP32PhraseShowNext,
 }

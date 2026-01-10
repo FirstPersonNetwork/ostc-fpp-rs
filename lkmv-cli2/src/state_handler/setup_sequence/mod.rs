@@ -2,13 +2,20 @@
 // Setup Sequence Pages
 // ****************************************************************************
 
-use crate::{state_handler::actions::Action, ui::component::SetupFlowRender};
+use crate::{
+    state_handler::{actions::Action, setup_sequence::bip32::BIP32_39},
+    ui::component::SetupFlowRender,
+};
+use bip39::Mnemonic;
 use crossterm::event::KeyEvent;
 use ratatui::Frame;
+use secrecy::SecretString;
 use tokio::sync::mpsc::UnboundedSender;
 
+pub mod bip32;
+
 /// Setup flow has many pages, they are listed here
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub enum SetupPage {
     #[default]
     StartAsk,
@@ -39,6 +46,9 @@ impl SetupFlowRender for SetupPage {
             SetupPage::BIP32PhraseAsk => state
                 .bip32_phrase_ask
                 .handle_key_event(state, action_tx, key),
+            SetupPage::BIP32PhraseShow => state
+                .bip32_phrase_show
+                .handle_key_event(state, action_tx, key),
             _ => {}
         }
     }
@@ -48,6 +58,7 @@ impl SetupFlowRender for SetupPage {
             SetupPage::StartAsk => state.start_ask.render(state, frame),
             SetupPage::ConfigImport => state.config_import.render(state, frame),
             SetupPage::BIP32PhraseAsk => state.bip32_phrase_ask.render(state, frame),
+            SetupPage::BIP32PhraseShow => state.bip32_phrase_show.render(state, frame),
             _ => {}
         }
     }
@@ -56,25 +67,23 @@ impl SetupFlowRender for SetupPage {
 // ****************************************************************************
 // State Management for the Setup Sequence
 //
-// There are two setup-state related structs:
-// 1. SetupState - Contains state required by the UX
-// 2. SetupBackendState - Contains additional sensitive state information only needed by the
-//    backend
 // All setup state is kept in a single struct
 // ****************************************************************************
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct SetupState {
     pub active_page: SetupPage,
+
     pub start_ask: StartAskPanel,
-    pub bip32_phrase_ask: BIP32PhraseAskChoice,
     pub config_import: ConfigImport,
+    pub bip32_phrase_ask: BIP32PhraseAskChoice,
+    pub bip32_phrase_show: BIP32PhraseShow,
 }
 
 // ****************************************************************************
 // StartAsk
 // ****************************************************************************
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default)]
 pub enum StartAskPanel {
     #[default]
     Create,
@@ -93,13 +102,13 @@ impl StartAskPanel {
 // ****************************************************************************
 // Config Import
 // ****************************************************************************
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct ConfigImport {}
 
 // ****************************************************************************
 // BIP32PhraseAsk
 // ****************************************************************************
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Copy, Clone, Debug, Default)]
 pub enum BIP32PhraseAskChoice {
     #[default]
     Create,
@@ -113,4 +122,14 @@ impl BIP32PhraseAskChoice {
             BIP32PhraseAskChoice::Import => BIP32PhraseAskChoice::Create,
         }
     }
+}
+
+// ****************************************************************************
+// BIP32PhraseShow
+// ****************************************************************************
+
+#[derive(Clone, Debug, Default)]
+pub struct BIP32PhraseShow {
+    pub bip39_menemonic: BIP32_39,
+    pub clipboard_copied: bool,
 }

@@ -3,7 +3,7 @@ use crate::{
     state_handler::{
         actions::Action,
         main_page::MainPanel,
-        setup_sequence::{BIP32PhraseAskChoice, SetupPage, StartAskPanel},
+        setup_sequence::{BIP32PhraseAskChoice, SetupPage, StartAskPanel, bip32::BIP32_39},
         state::State,
     },
 };
@@ -100,8 +100,30 @@ impl StateHandler {
                         }
                     }
                     Action::SetupBIP32PhraseAskChoiceSwitch(choice) => {
-                            // User is selecteding whether to create or import their BIP32 phrase
+                            // User is selecting whether to create or import their BIP32 phrase
                         state.setup.bip32_phrase_ask = choice;
+                    }
+                    Action::SetupBIP32PhraseAskChoiceSelected(choice) => {
+                        // User has chosen whether to create or import their BIP32 phrase
+                        match choice {
+                            BIP32PhraseAskChoice::Create => {
+                                state.setup.active_page = SetupPage::BIP32PhraseShow;
+
+                                // Create the new BIP32 seed and BIP39 phrase
+                                state.setup.bip32_phrase_show.bip39_menemonic = BIP32_39::default();
+
+
+                            },
+                            BIP32PhraseAskChoice::Import => state.setup.active_page = SetupPage::BIP32PhraseImport,
+                        }
+                    }
+                    Action::SetupBIP32PhraseShowCopyToClipboard => {
+                        // Signal that the phrase has been copied to the clipboard
+                        state.setup.bip32_phrase_show.clipboard_copied = true;
+                    }
+                    Action::SetupBIP32PhraseShowNext => {
+                        // User has seen their BIP32 phrase, move to next setup step
+                        state.setup.active_page = SetupPage::DIDKeysAsk;
                     }
                 },
                 // Catch and handle interrupt signal to gracefully shutdown

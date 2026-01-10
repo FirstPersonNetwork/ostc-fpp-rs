@@ -20,6 +20,7 @@ use ratatui::{
 use tokio::sync::mpsc::UnboundedSender;
 
 pub mod bip32_ask;
+pub mod bip32_show;
 pub mod config_import;
 pub mod start_ask;
 
@@ -38,7 +39,9 @@ struct Props {
 
 impl From<&State> for Props {
     fn from(state: &State) -> Self {
-        Props { state: state.setup }
+        Props {
+            state: state.setup.clone(),
+        }
     }
 }
 
@@ -105,7 +108,7 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
         line1.push_span(Span::styled("✓ Choice", Style::new().fg(COLOR_SUCCESS)));
     }
 
-    if let SetupPage::BIP32PhraseAsk = state.active_page {
+    if let SetupPage::BIP32PhraseAsk | SetupPage::BIP32PhraseShow = state.active_page {
         step = 2;
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
         line1.push_span(Span::styled(

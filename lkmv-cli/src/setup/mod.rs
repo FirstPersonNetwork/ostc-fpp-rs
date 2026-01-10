@@ -6,9 +6,7 @@ use crate::setup::openpgp_card::setup_hardware_token;
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_PURPLE, LF_ORG_DID, LF_PUBLIC_MEDIATOR_DID,
     setup::{
-        bip32_bip39::{
-            Bip32Extension, generate_bip39_mnemonic, get_bip32_root, mnemonic_from_recovery_phrase,
-        },
+        bip32_bip39::{generate_bip39_mnemonic, mnemonic_from_recovery_phrase},
         did::did_setup,
         pgp_export::ask_export_persona_did_keys,
         pgp_import::{PGPKeys, terminal_input_pgp_key},
@@ -23,6 +21,7 @@ use console::{Term, style};
 use dialoguer::{Confirm, Input, theme::ColorfulTheme};
 use lkmv::{
     KeyPurpose,
+    bip32::{Bip32Extension, get_bip32_root},
     config::{
         Config, ConfigProtectionType, KeyInfo, KeyTypes, PersonaDID, PersonaDIDKeys,
         protected_config::ProtectedConfig,

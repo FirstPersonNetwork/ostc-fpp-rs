@@ -1,5 +1,8 @@
+use cli_clipboard::set_contents;
 use crossterm::event::{KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_ORANGE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
+use lkmv::colors::{
+    COLOR_BORDER, COLOR_ORANGE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED,
+};
 use ratatui::{
     Frame,
     layout::{
@@ -10,17 +13,18 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Padding, Paragraph, Wrap},
 };
+use secrecy::ExposeSecret;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     state_handler::{
         actions::Action,
-        setup_sequence::{BIP32PhraseAskChoice, SetupState},
+        setup_sequence::{BIP32PhraseAskChoice, BIP32PhraseShow, SetupState},
     },
     ui::{component::SetupFlowRender, pages::setup_flow::render_setup_header},
 };
 
-impl SetupFlowRender for BIP32PhraseAskChoice {
+impl SetupFlowRender for BIP32PhraseShow {
     fn handle_key_event(
         &self,
         _state: &SetupState,
@@ -31,12 +35,13 @@ impl SetupFlowRender for BIP32PhraseAskChoice {
             KeyCode::F(10) => {
                 let _ = action_tx.send(Action::Exit);
             }
-            KeyCode::Tab | KeyCode::Up | KeyCode::Down => {
-                // Switch active panel
-                let _ = action_tx.send(Action::SetupBIP32PhraseAskChoiceSwitch(self.switch()));
+            KeyCode::Char('c') | KeyCode::Char('C') => {
+                if set_contents(self.bip39_menemonic.get_mnemonic_string()).is_ok() {
+                    let _ = action_tx.send(Action::SetupBIP32PhraseShowCopyToClipboard);
+                }
             }
             KeyCode::Enter => {
-                let _ = action_tx.send(Action::SetupBIP32PhraseAskChoiceSelected(*self));
+                //let _ = action_tx.send(Action::SetupB(*self));
             }
             _ => {}
         }
@@ -51,48 +56,41 @@ impl SetupFlowRender for BIP32PhraseAskChoice {
         let block = Block::bordered()
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Step 1/4: BIP32 Seed Phrase ");
+            .title(" Step 2/4: Save your recovery phrase ");
 
         let mut lines = vec![
             Line::styled(
-                "LKMV derives individual keys from a common BIP32 seed phrase. This allows for a secure and private deterministic generation of key material from a single seed, rather than having to back up and restore seed material for every key.",
+                "Your BIP39 Recovery phrase (mnemonic of 24 words) below can be used to recover and regenerate your BIP32 based identity and security keys within LKMV.",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ),
             Line::default(),
             Line::styled(
-                "Choose how to setup your BIP32 recovery phrase",
-                Style::new().fg(COLOR_BORDER).bold(),
+                "You must protect this seed phrase",
+                Style::new().fg(COLOR_WARNING_ACCESSIBLE_RED).bold(),
+            ),
+            Line::styled(
+                "Store it in a safe and secure location",
+                Style::new().fg(COLOR_WARNING_ACCESSIBLE_RED).bold(),
             ),
             Line::default(),
+            Line::styled(
+                self.bip39_menemonic.get_mnemonic_string(),
+                Style::new().fg(COLOR_SUCCESS),
+            ),
         ];
-
-        // Render the active chocie
-        if let BIP32PhraseAskChoice::Create = self {
+        if self.clipboard_copied {
             lines.push(Line::styled(
-                "[✓] Generate a new 24-word recovery phrase (recommended)",
-                Style::new().fg(COLOR_SUCCESS).bold(),
-            ));
-            lines.push(Line::styled(
-                "[ ] Import an existing recovery phrase",
-                Style::new().fg(COLOR_TEXT_DEFAULT),
-            ));
-        } else {
-            lines.push(Line::styled(
-                "[ ] Generate a new 24-word recovery phrase (recommended)",
-                Style::new().fg(COLOR_TEXT_DEFAULT),
-            ));
-            lines.push(Line::styled(
-                "[✓] Import an existing recovery phrase",
-                Style::new().fg(COLOR_SUCCESS).bold(),
+                "Phrase copied to the clipboard!",
+                Style::new().fg(COLOR_ORANGE).bold().slow_blink(),
             ));
         }
 
         lines.push(Line::default());
         lines.push(Line::from(vec![
-            Span::styled("[TAB]", Style::new().fg(COLOR_ORANGE).bold()),
-            Span::styled(" to select  |  ", Style::new().fg(COLOR_ORANGE)),
+            Span::styled("[C]", Style::new().fg(COLOR_ORANGE).bold()),
+            Span::styled(" Copy to clipboard  |  ", Style::new().fg(COLOR_ORANGE)),
             Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
-            Span::styled(" to confirm", Style::new().fg(COLOR_BORDER)),
+            Span::styled(" to continue", Style::new().fg(COLOR_BORDER)),
         ]));
 
         frame.render_widget(
