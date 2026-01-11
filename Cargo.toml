@@ -64,6 +64,7 @@ tokio = "1.49"
 tokio-stream = "0.1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tui-input = "0.15"
 url = "2.5"
 uuid = { version = "1.19", features = ["v4", "fast-rng"] }
 x25519-dalek = { version = "2.0", features = ["static_secrets"] }

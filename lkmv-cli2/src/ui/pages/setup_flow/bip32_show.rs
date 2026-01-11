@@ -13,13 +13,12 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Padding, Paragraph, Wrap},
 };
-use secrecy::ExposeSecret;
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     state_handler::{
         actions::Action,
-        setup_sequence::{BIP32PhraseAskChoice, BIP32PhraseShow, SetupState},
+        setup_sequence::{BIP32PhraseShow, SetupState},
     },
     ui::{component::SetupFlowRender, pages::setup_flow::render_setup_header},
 };
@@ -41,7 +40,7 @@ impl SetupFlowRender for BIP32PhraseShow {
                 }
             }
             KeyCode::Enter => {
-                //let _ = action_tx.send(Action::SetupB(*self));
+                let _ = action_tx.send(Action::SetupBIP32PhraseShowNext);
             }
             _ => {}
         }
@@ -78,20 +77,20 @@ impl SetupFlowRender for BIP32PhraseShow {
                 Style::new().fg(COLOR_SUCCESS),
             ),
         ];
+
+        lines.push(Line::default());
+        lines.push(Line::from(vec![
+            Span::styled("[C]", Style::new().fg(COLOR_BORDER).bold()),
+            Span::styled(" Copy to clipboard  |  ", Style::new().fg(COLOR_BORDER)),
+            Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
+            Span::styled(" to continue", Style::new().fg(COLOR_BORDER)),
+        ]));
         if self.clipboard_copied {
             lines.push(Line::styled(
                 "Phrase copied to the clipboard!",
                 Style::new().fg(COLOR_ORANGE).bold().slow_blink(),
             ));
         }
-
-        lines.push(Line::default());
-        lines.push(Line::from(vec![
-            Span::styled("[C]", Style::new().fg(COLOR_ORANGE).bold()),
-            Span::styled(" Copy to clipboard  |  ", Style::new().fg(COLOR_ORANGE)),
-            Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
-            Span::styled(" to continue", Style::new().fg(COLOR_BORDER)),
-        ]));
 
         frame.render_widget(
             Paragraph::new(lines).block(block).wrap(Wrap { trim: true }),

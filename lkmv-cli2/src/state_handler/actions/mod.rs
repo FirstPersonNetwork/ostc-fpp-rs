@@ -1,3 +1,5 @@
+use crossterm::event::Event;
+
 use crate::state_handler::{
     main_page::{MainPanel, menu::MainMenu},
     setup_sequence::{BIP32PhraseAskChoice, StartAskPanel},
@@ -22,4 +24,7 @@ pub enum Action {
 
     SetupBIP32PhraseShowCopyToClipboard,
     SetupBIP32PhraseShowNext,
+    SetupBIP32PhraseImportKey(Event),
+    SetupBIP32PhraseImportClear,
+    SetupBIP32PhraseImportSubmit,
 }

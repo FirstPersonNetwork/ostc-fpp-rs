@@ -1,3 +1,4 @@
+use anyhow::{Context, Result};
 use bip39::Mnemonic;
 use rand::RngCore;
 use zeroize::Zeroize;
@@ -32,5 +33,13 @@ impl BIP32_39 {
     /// Returns a string representing the mnemonic words representing the BIP32 seed
     pub fn get_mnemonic_string(&self) -> String {
         self.mnemonic.words().collect::<Vec<&str>>().join(" ")
+    }
+
+    /// Creates a BIP32/39 seed from a recovery phrase
+    pub fn from_mnemonic(mnemonic: &str) -> Result<Self> {
+        Ok(BIP32_39 {
+            mnemonic: Mnemonic::parse_normalized(mnemonic)
+                .context("Couldn't derive BIP39 mnemonic from words")?,
+        })
     }
 }

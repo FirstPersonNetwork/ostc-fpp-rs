@@ -6,11 +6,10 @@ use crate::{
     state_handler::{actions::Action, setup_sequence::bip32::BIP32_39},
     ui::component::SetupFlowRender,
 };
-use bip39::Mnemonic;
 use crossterm::event::KeyEvent;
 use ratatui::Frame;
-use secrecy::SecretString;
 use tokio::sync::mpsc::UnboundedSender;
+use tui_input::Input;
 
 pub mod bip32;
 
@@ -49,6 +48,9 @@ impl SetupFlowRender for SetupPage {
             SetupPage::BIP32PhraseShow => state
                 .bip32_phrase_show
                 .handle_key_event(state, action_tx, key),
+            SetupPage::BIP32PhraseImport => state
+                .bip32_phrase_import
+                .handle_key_event(state, action_tx, key),
             _ => {}
         }
     }
@@ -59,6 +61,7 @@ impl SetupFlowRender for SetupPage {
             SetupPage::ConfigImport => state.config_import.render(state, frame),
             SetupPage::BIP32PhraseAsk => state.bip32_phrase_ask.render(state, frame),
             SetupPage::BIP32PhraseShow => state.bip32_phrase_show.render(state, frame),
+            SetupPage::BIP32PhraseImport => state.bip32_phrase_import.render(state, frame),
             _ => {}
         }
     }
@@ -78,6 +81,7 @@ pub struct SetupState {
     pub config_import: ConfigImport,
     pub bip32_phrase_ask: BIP32PhraseAskChoice,
     pub bip32_phrase_show: BIP32PhraseShow,
+    pub bip32_phrase_import: BIP32PhraseImport,
 }
 
 // ****************************************************************************
@@ -132,4 +136,14 @@ impl BIP32PhraseAskChoice {
 pub struct BIP32PhraseShow {
     pub bip39_menemonic: BIP32_39,
     pub clipboard_copied: bool,
+}
+
+// ****************************************************************************
+// BIP32PhraseImport
+// ****************************************************************************
+
+#[derive(Clone, Debug, Default)]
+pub struct BIP32PhraseImport {
+    pub mnemonic: Input,
+    pub warning_msg: Option<String>,
 }

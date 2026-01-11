@@ -89,8 +89,8 @@ impl SetupFlowRender for BIP32PhraseAskChoice {
 
         lines.push(Line::default());
         lines.push(Line::from(vec![
-            Span::styled("[TAB]", Style::new().fg(COLOR_ORANGE).bold()),
-            Span::styled(" to select  |  ", Style::new().fg(COLOR_ORANGE)),
+            Span::styled("[TAB]", Style::new().fg(COLOR_BORDER).bold()),
+            Span::styled(" to select  |  ", Style::new().fg(COLOR_BORDER)),
             Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
             Span::styled(" to confirm", Style::new().fg(COLOR_BORDER)),
         ]));

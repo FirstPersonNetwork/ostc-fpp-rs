@@ -20,6 +20,7 @@ use ratatui::{
 use tokio::sync::mpsc::UnboundedSender;
 
 pub mod bip32_ask;
+pub mod bip32_import;
 pub mod bip32_show;
 pub mod config_import;
 pub mod start_ask;
@@ -74,10 +75,8 @@ impl Component for SetupFlow {
             return;
         }
 
-        self.props
-            .state
-            .active_page
-            .handle_key_event(&self.props.state, &mut self.action_tx, key);
+        let active_page = self.props.state.active_page.clone();
+        active_page.handle_key_event(&self.props.state, &mut self.action_tx, key)
     }
 }
 
@@ -89,7 +88,7 @@ impl ComponentRender<()> for SetupFlow {
         self.props
             .state
             .active_page
-            .render(&self.props.state, frame);
+            .render(&self.props.state, frame)
     }
 }
 
@@ -108,7 +107,9 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
         line1.push_span(Span::styled("✓ Choice", Style::new().fg(COLOR_SUCCESS)));
     }
 
-    if let SetupPage::BIP32PhraseAsk | SetupPage::BIP32PhraseShow = state.active_page {
+    if let SetupPage::BIP32PhraseAsk | SetupPage::BIP32PhraseShow | SetupPage::BIP32PhraseImport =
+        state.active_page
+    {
         step = 2;
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
         line1.push_span(Span::styled(

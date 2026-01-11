@@ -14,6 +14,7 @@ use tokio::sync::{
     mpsc::{self, UnboundedReceiver, UnboundedSender},
 };
 use tracing::error;
+use tui_input::backend::crossterm::EventHandler;
 
 pub mod actions;
 pub mod main_page;
@@ -124,6 +125,31 @@ impl StateHandler {
                     Action::SetupBIP32PhraseShowNext => {
                         // User has seen their BIP32 phrase, move to next setup step
                         state.setup.active_page = SetupPage::DIDKeysAsk;
+                    }
+                    Action::SetupBIP32PhraseImportKey(event) => {
+                        // Handle key events for importing BIP32 phrase
+                        state.setup.bip32_phrase_import.mnemonic.handle_event(&event);
+                    }
+                    Action::SetupBIP32PhraseImportClear => {
+                        // Clear the input field
+                        state.setup.bip32_phrase_import.mnemonic.reset();
+                    }
+                    Action::SetupBIP32PhraseImportSubmit => {
+                        // User has submitted their imported BIP32 phrase
+                        let input_phrase = state.setup.bip32_phrase_import.mnemonic.value();
+
+                        // Validate the entered mnemonic
+                        match BIP32_39::from_mnemonic(input_phrase) {
+                            Ok(bip32_39) => {
+                                state.setup.bip32_phrase_show.bip39_menemonic = bip32_39;
+                                // Proceed to the next setup step
+                                state.setup.active_page = SetupPage::DIDKeysAsk;
+                            },
+                            Err(e) => {
+                                // Invalid mnemonic entered
+                                state.setup.bip32_phrase_import.warning_msg = Some(e.to_string());
+                            }
+                        }
                     }
                 },
                 // Catch and handle interrupt signal to gracefully shutdown
