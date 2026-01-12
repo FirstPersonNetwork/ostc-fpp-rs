@@ -45,11 +45,11 @@ documentation for more details.
 
 The LKMV tool manages configuration data across three storage types:
 
-| Storage Type        | Content                                                                   | Storage Location                                           | Encryption                             |
-| ------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------- |
-| **PublicConfig**    | Metadata, DIDs, friendly names, logs, reference to encrypted private data | `~/.config/lkmv/config.json` (or `config-{profile}.json`) | Private field only                     |
-| **SecuredConfig**   | BIP32 seed, key derivation info, cryptographic materials                  | OS secure storage (keyring/keychain)                       | Based on protection mode               |
-| **ProtectedConfig** | Contacts, relationships, tasks, VRCs                                      | Encrypted inside `PublicConfig` `private` field            | Always encrypted with `m/1'/0'/0'` key |
+| Storage Type        | Content                                                                   | Storage Location                                               | Encryption                             |
+| ------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------- | -------------------------------------- |
+| **PublicConfig**    | Metadata, DIDs, friendly names, logs, reference to encrypted private data | `~/.config/lkmv/config.json` (or `config-{profile}.json`)     | Private field only                     |
+| **SecuredConfig**   | BIP32 seed, key derivation info, cryptographic materials                  | OS secure storage (keyring/keychain)                           | Based on protection mode               |
+| **ProtectedConfig** | Contacts, relationships, tasks, VRCs                                      | Encrypted inside `PublicConfig.private` field                  | Always encrypted with `m/1'/0'/0'` key |
 
 **Loading Configuration:**
 
@@ -122,7 +122,7 @@ For more information, see the
 ### 3. Protected Config (`ProtectedConfig`)
 
 The protected configuration contains private and personal
-information. The `ProtectedConfig` is always encrypted using a
+information stored inside the `PublicConfig.private` field. The `ProtectedConfig` is always encrypted using a
 cryptographic key derived from the `m/1'/0'/0'` derivation path.
 
 | Field            | Type             | Description                                     |
@@ -487,7 +487,7 @@ are retained up to the configured limit.
 | Field     | Type            | Description                                                                                 |
 | --------- | --------------- | ------------------------------------------------------------------------------------------- |
 | `created` | `DateTime<Utc>` | Timestamp when the log entry was created (e.g., 2026-01-12T05:45:19.989808Z).               |
-| `type_`   | `LogFamily`     | Type of log event (Config, Contact, Relationship, Task, Message, or Error).                |
+| `type_`   | `LogFamily`     | Type of log event (Config, Contact, Relationship, Task).                                    |
 | `message` | `String`        | Log message content.                                                                        |
 
 **Log Types (`LogFamily`):**
