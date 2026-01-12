@@ -45,11 +45,11 @@ documentation for more details.
 
 The LKMV tool manages configuration data across three storage types:
 
-| Storage Type        | Content                                                                                      | Storage Location                                            | Encryption                              |
-| ------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------------------------- | --------------------------------------- |
-| **PublicConfig**    | Metadata, DIDs, friendly names, logs, reference to encrypted private data                    | `~/.config/lkmv/config.json` (or `config-{profile}.json`)  | Private field only                      |
-| **SecuredConfig**   | BIP32 seed, key derivation info, cryptographic materials                                     | OS secure storage (keyring/keychain)                        | Based on protection mode                |
-| **ProtectedConfig** | Contacts, relationships, tasks, VRCs                                                         | Encrypted inside `PublicConfig` `private` field             | Always encrypted with `m/1'/0'/0'` key  |
+| Storage Type        | Content                                                                   | Storage Location                                           | Encryption                             |
+| ------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------- | -------------------------------------- |
+| **PublicConfig**    | Metadata, DIDs, friendly names, logs, reference to encrypted private data | `~/.config/lkmv/config.json` (or `config-{profile}.json`) | Private field only                     |
+| **SecuredConfig**   | BIP32 seed, key derivation info, cryptographic materials                  | OS secure storage (keyring/keychain)                       | Based on protection mode               |
+| **ProtectedConfig** | Contacts, relationships, tasks, VRCs                                      | Encrypted inside `PublicConfig` `private` field            | Always encrypted with `m/1'/0'/0'` key |
 
 **Loading Configuration:**
 
@@ -100,13 +100,13 @@ and key information.
 
 #### Key Info Configuration (`KeyInfoConfig`)
 
-| Field         | Type             | Description                                                                        |
-| ------------- | ---------------- | ---------------------------------------------------------------------------------- |
-| `path`        | `KeyPath`        | Derivation path information (BIP32 derivation path, e.g., "m/1'/0'/0'").         |
-| `create_time` | `DateTime<Utc>`  | When the key was created.                                                          |
-| `purpose`     | `KeyPurpose`     | Purpose of the key (PersonaSigning, PersonaAuthentication, or PersonaEncryption). |
+| Field         | Type                 | Description                                                                        |
+| ------------- | -------------------- | ---------------------------------------------------------------------------------- |
+| `path`        | `KeySourceMaterial`  | Derivation path information (BIP32 derivation path, e.g., "m/1'/0'/0'") or imported.           |
+| `create_time` | `DateTime<Utc>`      | When the key was created.                                                          |
+| `purpose`     | `KeyTypes`           | Purpose of the key (PersonaSigning, PersonaAuthentication, or PersonaEncryption).  |
 
-#### Key Purpose (`KeyPurpose`)
+#### Key Types (`KeyTypes`)
 
 | Purpose                  | Key Number | Derivation Path | Description                      |
 | ------------------------ | ---------- | --------------- | -------------------------------- |
@@ -125,13 +125,13 @@ The protected configuration contains private and personal
 information. The `ProtectedConfig` is always encrypted using a
 cryptographic key derived from the `m/1'/0'/0'` derivation path.
 
-| Field            | Type             | Description                        |
-| ---------------- | ---------------- | ---------------------------------- |
-| `contacts`       | `Contacts`       | Contact information and aliases.   |
-| `relationships`  | `Relationships`  | Relationship management data.      |
-| `tasks`          | `Tasks`          | Task management data.              |
-| `vrcs_issued`    | `Vrcs`           | Verifiable credentials issued.     |
-| `vrcs_received`  | `Vrcs`           | Verifiable credentials received.   |
+| Field            | Type             | Description                                     |
+| ---------------- | ---------------- | ----------------------------------------------- |
+| `contacts`       | `Contacts`       | Contact information and aliases.                |
+| `relationships`  | `Relationships`  | Relationship management data.                   |
+| `tasks`          | `Tasks`          | Task management data.                           |
+| `vrcs_issued`    | `Vrcs`           | Verifiable relationship credentials issued.     |
+| `vrcs_received`  | `Vrcs`           | Verifiable relationship credentials received.   |
 
 #### Protected Config Categories
 
@@ -178,7 +178,7 @@ Manages peer-to-peer relationships between personas.
 | Field            | Type                                    | Description                                                                                                                        |
 | ---------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `relationships`  | `HashMap<String, Mutex<Relationship>>`  | Map of remote DID to relationship.                                                                                                 |
-| `path_pointer`   | `usize`                                 | Tracks the next available BIP32 derivation index for relationship-specific keys. Increments with each new relationship to ensure unique key paths. |
+| `path_pointer`   | `u32`                                 | Tracks the next available BIP32 derivation index for relationship-specific keys. Increments with each new relationship to ensure unique key paths. |
 
 **Relationship Structure:**
 
@@ -193,13 +193,13 @@ Manages peer-to-peer relationships between personas.
 
 **Relationship States (`RelationshipState`):**
 
-| State              | Description                               |
-| ------------------ | ----------------------------------------- |
-| `RequestSent`      | We sent a relationship request.           |
-| `RequestReceived`  | We received a relationship request.       |
-| `RequestAccepted`  | Request was accepted by the recipient.    |
-| `Established`      | Relationship is fully established.        |
-| `Rejected`         | Request was rejected.                     |
+| State              | Description                                  |
+| ------------------ | -------------------------------------------- |
+| `RequestSent`      | Relationship request sent to the respondent. |
+| `RequestAccepted`  | Request was accepted by the recipient.       |
+| `Established`      | Relationship is fully established.           |
+| `RequestRejected`  | Request was rejected.                        |
+| `None`             | No established relationship.                 |
 
 Relationships track the full lifecycle from request to establishment.
 
@@ -487,10 +487,10 @@ are retained up to the configured limit.
 | Field     | Type             | Description                                                                                 |
 | --------- | ---------------- | ------------------------------------------------------------------------------------------- |
 | `created` | `DateTime<Utc>`  | Timestamp when the log entry was created (e.g., 2026-01-12T05:45:19.989808Z).               |
-| `type_`   | `LogType`        | Type of log event (Config, Contact, Relationship, Task, Message, or Error).                |
+| `type_`   | `LogFamily`        | Type of log event (Config, Contact, Relationship, Task, Message, or Error).                |
 | `message` | `String`         | Log message content.                                                                        |
 
-**Log Types (`LogType`):**
+**Log Types (`LogFamily`):**
 
 | Type           | Description                        |
 | -------------- | ---------------------------------- |
@@ -498,8 +498,6 @@ are retained up to the configured limit.
 | `Contact`      | Contact management events.         |
 | `Relationship` | Relationship lifecycle events.     |
 | `Task`         | Task creation and updates.         |
-| `Message`      | Messaging events.                  |
-| `Error`        | Error conditions.                  |
 
 **Log Examples:**
 
