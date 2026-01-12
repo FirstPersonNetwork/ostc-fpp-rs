@@ -77,15 +77,15 @@ for configuration file locations and environment variables.
 The public configuration contains metadata and publicly shareable
 information about the persona.
 
-| Field           | Type               | Description                                                                                                                 |
-| --------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| `protection`    | `ProtectionMode`   | Indicates the security method used (Encrypted, Plaintext, or Token with hardware ID).                                      |
-| `persona_did`   | `String`           | Decentralised identifier for the persona (using `did:webvh` method).                                                       |
-| `mediator_did`  | `String`           | DID of the mediator service used for message routing. See [Decentralised Communication](../README.md#decentralised-communication) for details. |
-| `friendly_name` | `String`           | User-friendly name for the profile (e.g., "Jane Doe").                                                                   |
-| `lk_did`        | `String`           | Linux Organisation DID representing the organizational identity within the LKMV ecosystem.                                 |
-| `logs`          | `Logs`             | Contains log messages with timestamps and types.                                                                           |
-| `private`       | `Option<String>`   | Encrypted string reference to the private configuration.                                                                   |
+| Field           | Type                    | Description                                                                                                                 |
+| --------------- | ----------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `protection`    | `ConfigProtectionType`  | Indicates the security method used (Encrypted, Plaintext, or Token with hardware ID).                                      |
+| `persona_did`   | `String`                | Decentralised identifier for the persona (using `did:webvh` method).                                                       |
+| `mediator_did`  | `String`                | DID of the mediator service used for message routing. See [Decentralised Communication](../README.md#decentralised-communication) for details. |
+| `friendly_name` | `String`                | User-friendly name for the profile (e.g., "Jane Doe").                                                                   |
+| `lk_did`        | `String`                | Linux Organisation DID representing the organizational identity within the LKMV ecosystem.                                 |
+| `logs`          | `Logs`                  | Contains log messages with timestamps and types.                                                                           |
+| `private`       | `Option<String>`        | Encrypted string reference to the private configuration.                                                                   |
 
 ### 2. Secured Config (`SecuredConfig`)
 
@@ -140,10 +140,10 @@ cryptographic key derived from the `m/1'/0'/0'` derivation path.
 Manages contact information and aliases for known DIDs. Contacts
 are typically populated when establishing a relationship.
 
-| Field      | Type                        | Description                                                                                   |
-| ---------- | --------------------------- | --------------------------------------------------------------------------------------------- |
-| `contacts` | `HashMap<String, Contact>`  | Maps a DID string to the full Contact structure.                                              |
-| `aliases`  | `HashMap<String, Contact>`  | Maps a human-readable alias (e.g., "John Doe") to the same Contact structure for quick lookup. |
+| Field      | Type                               | Description                                                                                   |
+| ---------- | ---------------------------------- | --------------------------------------------------------------------------------------------- |
+| `contacts` | `HashMap<Rc<String>, Rc<Contact>>` | Maps a DID string to the full Contact structure.                                              |
+| `aliases`  | `HashMap<String, Rc<Contact>>`     | Maps a human-readable alias (e.g., "John Doe") to the same Contact structure for quick lookup. |
 
 Both maps reference the same Contact data, allowing lookups by DID or alias.
 
@@ -151,7 +151,7 @@ Both maps reference the same Contact data, allowing lookups by DID or alias.
 
 | Field   | Type              | Description                             |
 | ------- | ----------------- | --------------------------------------- |
-| `did`   | `String`          | The DID of the contact.                 |
+| `did`   | `Rc<String>`      | The DID of the contact.                 |
 | `alias` | `Option<String>`  | Optional friendly name for the contact. |
 
 **Example:**
@@ -175,19 +175,19 @@ aliases: {
 
 Manages peer-to-peer relationships between personas.
 
-| Field            | Type                                    | Description                                                                                                                        |
-| ---------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `relationships`  | `HashMap<String, Mutex<Relationship>>`  | Map of remote DID to relationship.                                                                                                 |
-| `path_pointer`   | `u32`                                 | Tracks the next available BIP32 derivation index for relationship-specific keys. Increments with each new relationship to ensure unique key paths. |
+| Field            | Type                                           | Description                                                                                                                        |
+| ---------------- | ---------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `relationships`  | `HashMap<Rc<String>, Rc<Mutex<Relationship>>>` | Map of remote DID to relationship.                                                                                                 |
+| `path_pointer`   | `u32`                                          | Tracks the next available BIP32 derivation index for relationship-specific keys. Increments with each new relationship to ensure unique key paths. |
 
 **Relationship Structure:**
 
 | Field           | Type                 | Description                                     |
 | --------------- | -------------------- | ----------------------------------------------- |
-| `task_id`       | `String`             | ID of the task that created this relationship.  |
-| `our_did`       | `String`             | Our DID used in this relationship.              |
-| `remote_did`    | `String`             | The remote party's DID.                         |
-| `remote_p_did`  | `String`             | The remote party's persona DID.                 |
+| `task_id`       | `Rc<String>`         | ID of the task that created this relationship.  |
+| `our_did`       | `Rc<String>`         | Our DID used in this relationship.              |
+| `remote_did`    | `Rc<String>`         | The remote party's DID.                         |
+| `remote_p_did`  | `Rc<String>`         | The remote party's persona DID.                 |
 | `created`       | `DateTime<Utc>`      | When the relationship was created.              |
 | `state`         | `RelationshipState`  | Current state of the relationship.              |
 
@@ -230,31 +230,31 @@ interaction.
 
 **Tasks Structure:**
 
-| Field    | Type                          | Description                        |
-| -------- | ----------------------------- | ---------------------------------- |
-| `tasks`  | `HashMap<String, Mutex<Task>>`| Map of task ID to task details.    |
+| Field    | Type                                   | Description                     |
+| -------- | -------------------------------------- | ------------------------------- |
+| `tasks`  | `HashMap<Rc<String>, Rc<Mutex<Task>>>` | Map of task ID to task details. |
 
 **Task Structure:**
 
 | Field      | Type             | Description                         |
 | ---------- | ---------------- | ----------------------------------- |
-| `id`       | `String`         | Unique task identifier (UUID).      |
+| `id`       | `Rc<String>`     | Unique task identifier (UUID).      |
 | `type_`    | `TaskType`       | Type and details of the task.       |
 | `created`  | `DateTime<Utc>`  | When the task was created.          |
 
 **Task Types (`TaskType`):**
 
-| Type                                        | Description                                                    |
-| ------------------------------------------- | -------------------------------------------------------------- |
-| `RelationshipRequestOutbound { to: String }`| Outgoing relationship request sent to remote party.            |
-| `RelationshipRequestInbound`                | Incoming relationship request received from remote party.      |
-| `RelationshipRequestAccepted`               | Relationship request was accepted by the recipient.            |
-| `RelationshipRequestRejected`               | Relationship request was rejected by the recipient.            |
-| `RelationshipRequestFinalized`              | Relationship fully established between both parties.           |
-| `VRCRequestOutbound { to: String }`         | Outgoing VRC request sent to credential issuer.                |
-| `VRCRequestInbound`                         | Incoming VRC request received from credential requester.       |
-| `VRCRequestRejected`                        | VRC request was rejected by the issuer.                        |
-| `VRCIssued`                                 | VRC was issued to requester.                                   |
+| Type                                                           | Description                                                    |
+| -------------------------------------------------------------- | -------------------------------------------------------------- |
+| `RelationshipRequestOutbound { to: Rc<String> }`               | Outgoing relationship request sent to remote party.            |
+| `RelationshipRequestInbound`                                   | Incoming relationship request received from remote party.      |
+| `RelationshipRequestAccepted`                                  | Relationship request was accepted by the recipient.            |
+| `RelationshipRequestRejected`                                  | Relationship request was rejected by the recipient.            |
+| `RelationshipRequestFinalized`                                 | Relationship fully established between both parties.           |
+| `VRCRequestOutbound { relationship: Rc<Mutex<Relationship>> }` | Outgoing VRC request sent to credential issuer.                |
+| `VRCRequestInbound`                                            | Incoming VRC request received from credential requester.       |
+| `VRCRequestRejected`                                           | VRC request was rejected by the issuer.                        |
+| `VRCIssued`                                                    | VRC was issued to requester.                                   |
 
 **Example:**
 
@@ -280,9 +280,9 @@ Stores issued and received verifiable credentials. VRCs are
 tracked in **vrcs_issued** (credentials you have issued to others)
 and **vrcs_received** (credentials you have received from others).
 
-| Field  | Type                     | Description                        |
-| ------ | ------------------------ | ---------------------------------- |
-| `vrcs` | `HashMap<String, Vrc>`   | Map of VRC ID to credential data.  |
+| Field  | Type                                                         | Description                                                          |
+| ------ | ------------------------------------------------------------ | -------------------------------------------------------------------- |
+| `vrcs` | `HashMap<Rc<String>, HashMap<Rc<String>, Rc<DTGCredential>>>` | Map of remote P-DID to VRC credentials (nested map by VRC ID).      |
 
 **VRC Structure:**
 
@@ -477,18 +477,18 @@ are retained up to the configured limit.
 
 **Logs Structure:**
 
-| Field      | Type              | Description                            |
-| ---------- | ----------------- | -------------------------------------- |
-| `messages` | `Vec<LogMessage>` | Vector of log messages.                |
-| `limit`    | `usize`           | Maximum number of log entries (e.g., 100). |
+| Field      | Type                   | Description                         |
+| ---------- | ---------------------- | ----------------------------------- |
+| `messages` | `VecDeque<LogMessage>` | Double-ended queue of log messages. |
+| `limit`    | `usize`                | Maximum number of log entries (e.g., 100). |
 
 **LogMessage Structure:**
 
-| Field     | Type             | Description                                                                                 |
-| --------- | ---------------- | ------------------------------------------------------------------------------------------- |
-| `created` | `DateTime<Utc>`  | Timestamp when the log entry was created (e.g., 2026-01-12T05:45:19.989808Z).               |
-| `type_`   | `LogFamily`        | Type of log event (Config, Contact, Relationship, Task, Message, or Error).                |
-| `message` | `String`         | Log message content.                                                                        |
+| Field     | Type            | Description                                                                                 |
+| --------- | --------------- | ------------------------------------------------------------------------------------------- |
+| `created` | `DateTime<Utc>` | Timestamp when the log entry was created (e.g., 2026-01-12T05:45:19.989808Z).               |
+| `type_`   | `LogFamily`     | Type of log event (Config, Contact, Relationship, Task, Message, or Error).                |
+| `message` | `String`        | Log message content.                                                                        |
 
 **Log Types (`LogFamily`):**
 
