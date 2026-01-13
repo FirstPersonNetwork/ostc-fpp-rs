@@ -12,39 +12,58 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, BorderType, Padding, Paragraph},
 };
-use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     state_handler::{
         actions::Action,
-        setup_sequence::{SetupState, StartAskPanel},
+        setup_sequence::{SetupPage, SetupState},
     },
-    ui::{component::SetupFlowRender, pages::setup_flow::render_setup_header},
+    ui::pages::setup_flow::{SetupFlow, render_setup_header},
 };
 
-impl SetupFlowRender for StartAskPanel {
-    fn handle_key_event(
-        &self,
-        _state: &SetupState,
-        action_tx: &mut UnboundedSender<Action>,
-        key: KeyEvent,
-    ) {
+// ****************************************************************************
+// StartAsk
+// ****************************************************************************
+#[derive(Copy, Clone, Debug, Default)]
+pub enum StartAskPanel {
+    #[default]
+    Create,
+    Import,
+}
+
+impl StartAskPanel {
+    /// Switches to the next panel when pressing <TAB>
+    pub fn switch(&self) -> Self {
+        match self {
+            StartAskPanel::Create => StartAskPanel::Import,
+            StartAskPanel::Import => StartAskPanel::Create,
+        }
+    }
+}
+
+impl StartAskPanel {
+    pub fn handle_key_event(state: &mut SetupFlow, key: KeyEvent) {
         match key.code {
             KeyCode::F(10) => {
-                let _ = action_tx.send(Action::Exit);
+                let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Tab | KeyCode::Left | KeyCode::Right => {
                 // Switch active panel
-                let _ = action_tx.send(Action::SetupStartAskPanelSwitch(self.switch()));
+                state.start_ask = state.start_ask.switch();
             }
-            KeyCode::Enter => {
-                let _ = action_tx.send(Action::SetupStartAskSelectedPath(*self));
-            }
+            KeyCode::Enter => match state.start_ask {
+                StartAskPanel::Create => {
+                    state.props.state.active_page = SetupPage::BIP32PhraseAsk;
+                }
+                StartAskPanel::Import => {
+                    state.props.state.active_page = SetupPage::ConfigImport;
+                }
+            },
             _ => {}
         }
     }
 
-    fn render(&self, state: &SetupState, frame: &mut Frame) {
+    pub fn render(&self, state: &SetupState, frame: &mut Frame) {
         let [top, middle, bottom] =
             Layout::vertical([Length(3), Min(0), Length(3)]).areas(frame.area());
 

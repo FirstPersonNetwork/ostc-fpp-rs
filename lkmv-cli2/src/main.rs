@@ -179,7 +179,9 @@ async fn main() -> anyhow::Result<()> {
         Ok(reason) => match reason {
             Interrupted::UserInt => println!("exited per user request"),
             Interrupted::OsSigInt => println!("exited because of an os sig int"),
-            Interrupted::SystemError => println!("exited because of a system error"),
+            Interrupted::SystemError(reason) => {
+                println!("exited because of a system error: {reason}")
+            }
         },
         _ => {
             println!("exited because of an unexpected error");
@@ -198,7 +200,7 @@ async fn main() -> anyhow::Result<()> {
 pub enum Interrupted {
     OsSigInt,
     UserInt,
-    SystemError,
+    SystemError(String),
 }
 
 #[derive(Debug, Clone)]

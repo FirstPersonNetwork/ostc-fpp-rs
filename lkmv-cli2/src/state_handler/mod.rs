@@ -1,11 +1,6 @@
 use crate::{
     Interrupted, Terminator,
-    state_handler::{
-        actions::Action,
-        main_page::MainPanel,
-        setup_sequence::{BIP32PhraseAskChoice, SetupPage, StartAskPanel, bip32::BIP32_39},
-        state::State,
-    },
+    state_handler::{actions::Action, main_page::MainPanel, state::State},
 };
 use anyhow::Result;
 use lkmv::config::{Config, public_config::PublicConfig};
@@ -14,7 +9,6 @@ use tokio::sync::{
     mpsc::{self, UnboundedReceiver, UnboundedSender},
 };
 use tracing::error;
-use tui_input::backend::crossterm::EventHandler;
 
 pub mod actions;
 pub mod main_page;
@@ -56,8 +50,9 @@ impl StateHandler {
             }
             Err(e) => {
                 error!("Couldn't load configuration step1: {e}");
-                let _ = terminator.terminate(Interrupted::SystemError);
-                return Ok(Interrupted::SystemError);
+                let err = Interrupted::SystemError(format!("Couldn't load configuration: {e}"));
+                let _ = terminator.terminate(err.clone());
+                return Ok(err);
             }
         };
 
@@ -71,6 +66,12 @@ impl StateHandler {
                         let _ = terminator.terminate(Interrupted::UserInt);
 
                         break Interrupted::UserInt;
+                    },
+                    Action::UXError(interrupted) => {
+                        // An error has occurred on the UX side
+                        let _ = terminator.terminate(interrupted.clone());
+
+                        break interrupted;
                     },
                     Action::MainMenuSelected(menu_item) => {
                         // User has changed main menu selection
@@ -90,67 +91,6 @@ impl StateHandler {
                             }
                         }
                     },
-                    Action::SetupStartAskPanelSwitch(choice_panel) => {
-                            state.setup.start_ask = choice_panel;
-                    }
-                    Action::SetupStartAskSelectedPath(choice) => {
-                        // User has chosen their setup starting path
-                        match choice {
-                            StartAskPanel::Create => state.setup.active_page = SetupPage::BIP32PhraseAsk,
-                            StartAskPanel::Import => state.setup.active_page = SetupPage::ConfigImport,
-                        }
-                    }
-                    Action::SetupBIP32PhraseAskChoiceSwitch(choice) => {
-                            // User is selecting whether to create or import their BIP32 phrase
-                        state.setup.bip32_phrase_ask = choice;
-                    }
-                    Action::SetupBIP32PhraseAskChoiceSelected(choice) => {
-                        // User has chosen whether to create or import their BIP32 phrase
-                        match choice {
-                            BIP32PhraseAskChoice::Create => {
-                                state.setup.active_page = SetupPage::BIP32PhraseShow;
-
-                                // Create the new BIP32 seed and BIP39 phrase
-                                state.setup.bip32_phrase_show.bip39_menemonic = BIP32_39::default();
-
-
-                            },
-                            BIP32PhraseAskChoice::Import => state.setup.active_page = SetupPage::BIP32PhraseImport,
-                        }
-                    }
-                    Action::SetupBIP32PhraseShowCopyToClipboard => {
-                        // Signal that the phrase has been copied to the clipboard
-                        state.setup.bip32_phrase_show.clipboard_copied = true;
-                    }
-                    Action::SetupBIP32PhraseShowNext => {
-                        // User has seen their BIP32 phrase, move to next setup step
-                        state.setup.active_page = SetupPage::DIDKeysAsk;
-                    }
-                    Action::SetupBIP32PhraseImportKey(event) => {
-                        // Handle key events for importing BIP32 phrase
-                        state.setup.bip32_phrase_import.mnemonic.handle_event(&event);
-                    }
-                    Action::SetupBIP32PhraseImportClear => {
-                        // Clear the input field
-                        state.setup.bip32_phrase_import.mnemonic.reset();
-                    }
-                    Action::SetupBIP32PhraseImportSubmit => {
-                        // User has submitted their imported BIP32 phrase
-                        let input_phrase = state.setup.bip32_phrase_import.mnemonic.value();
-
-                        // Validate the entered mnemonic
-                        match BIP32_39::from_mnemonic(input_phrase) {
-                            Ok(bip32_39) => {
-                                state.setup.bip32_phrase_show.bip39_menemonic = bip32_39;
-                                // Proceed to the next setup step
-                                state.setup.active_page = SetupPage::DIDKeysAsk;
-                            },
-                            Err(e) => {
-                                // Invalid mnemonic entered
-                                state.setup.bip32_phrase_import.warning_msg = Some(e.to_string());
-                            }
-                        }
-                    }
                 },
                 // Catch and handle interrupt signal to gracefully shutdown
                 Ok(interrupted) = interrupt_rx.recv() => {

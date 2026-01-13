@@ -1,3 +1,7 @@
+use crate::{
+    state_handler::{actions::Action, setup_sequence::SetupState},
+    ui::pages::setup_flow::{SetupFlow, render_setup_header},
+};
 use crossterm::event::{KeyCode, KeyEvent};
 use lkmv::colors::{COLOR_BORDER, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED};
 use ratatui::{
@@ -10,32 +14,24 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Padding, Paragraph},
 };
-use tokio::sync::mpsc::UnboundedSender;
 
-use crate::{
-    state_handler::{
-        actions::Action,
-        setup_sequence::{ConfigImport, SetupState},
-    },
-    ui::{component::SetupFlowRender, pages::setup_flow::render_setup_header},
-};
+// ****************************************************************************
+// Config Import
+// ****************************************************************************
+#[derive(Clone, Debug, Default)]
+pub struct ConfigImport {}
 
-impl SetupFlowRender for ConfigImport {
-    fn handle_key_event(
-        &self,
-        _state: &SetupState,
-        action_tx: &mut UnboundedSender<Action>,
-        key: KeyEvent,
-    ) {
+impl ConfigImport {
+    pub fn handle_key_event(state: &mut SetupFlow, key: KeyEvent) {
         match key.code {
             KeyCode::F(10) => {
-                let _ = action_tx.send(Action::Exit);
+                let _ = state.action_tx.send(Action::Exit);
             }
             _ => {}
         }
     }
 
-    fn render(&self, state: &SetupState, frame: &mut Frame) {
+    pub fn render(&self, state: &SetupState, frame: &mut Frame) {
         let [top, middle, bottom] =
             Layout::vertical([Length(3), Min(0), Length(3)]).areas(frame.area());
 

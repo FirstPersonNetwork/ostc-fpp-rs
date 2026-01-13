@@ -4,7 +4,14 @@ use crate::{
         setup_sequence::{SetupPage, SetupState},
         state::State,
     },
-    ui::component::{Component, ComponentRender, SetupFlowRender},
+    ui::{
+        component::{Component, ComponentRender},
+        pages::setup_flow::{
+            bip32_ask::BIP32PhraseAskChoice, bip32_import::BIP32PhraseImport,
+            bip32_show::BIP32PhraseShow, config_import::ConfigImport, did_keys_ask::DIDKeysAsk,
+            did_keys_show::DIDKeysShow, start_ask::StartAskPanel,
+        },
+    },
 };
 use crossterm::event::{KeyEvent, KeyEventKind};
 use lkmv::colors::{
@@ -23,6 +30,8 @@ pub mod bip32_ask;
 pub mod bip32_import;
 pub mod bip32_show;
 pub mod config_import;
+pub mod did_keys_ask;
+pub mod did_keys_show;
 pub mod start_ask;
 
 /// Handles the Setup Flow sequence
@@ -30,12 +39,23 @@ pub struct SetupFlow {
     /// Action sender
     pub action_tx: UnboundedSender<Action>,
 
+    // Local state
+    pub start_ask: StartAskPanel,
+    pub config_import: ConfigImport,
+
+    pub bip32_ask: BIP32PhraseAskChoice,
+    pub bip32_show: BIP32PhraseShow,
+    pub bip32_import: BIP32PhraseImport,
+
+    pub did_keys_ask: DIDKeysAsk,
+    pub did_keys_show: DIDKeysShow,
+
     /// State Mapped MainPage Props
-    props: Props,
+    pub props: Props,
 }
 
-struct Props {
-    state: SetupState,
+pub struct Props {
+    pub state: SetupState,
 }
 
 impl From<&State> for Props {
@@ -53,6 +73,15 @@ impl Component for SetupFlow {
     {
         SetupFlow {
             action_tx: action_tx.clone(),
+
+            start_ask: StartAskPanel::default(),
+            config_import: ConfigImport::default(),
+            bip32_ask: BIP32PhraseAskChoice::default(),
+            bip32_show: BIP32PhraseShow::default(),
+            bip32_import: BIP32PhraseImport::default(),
+            did_keys_ask: DIDKeysAsk::default(),
+            did_keys_show: DIDKeysShow::default(),
+
             // set the props
             props: Props::from(state),
         }
@@ -75,8 +104,16 @@ impl Component for SetupFlow {
             return;
         }
 
-        let active_page = self.props.state.active_page.clone();
-        active_page.handle_key_event(&self.props.state, &mut self.action_tx, key)
+        match self.props.state.active_page {
+            SetupPage::StartAsk => StartAskPanel::handle_key_event(self, key),
+            SetupPage::ConfigImport => ConfigImport::handle_key_event(self, key),
+            SetupPage::BIP32PhraseAsk => BIP32PhraseAskChoice::handle_key_event(self, key),
+            SetupPage::BIP32PhraseShow => BIP32PhraseShow::handle_key_event(self, key),
+            SetupPage::BIP32PhraseImport => BIP32PhraseImport::handle_key_event(self, key),
+            SetupPage::DIDKeysAsk => DIDKeysAsk::handle_key_event(self, key),
+            SetupPage::DIDKeysShow => DIDKeysShow::handle_key_event(self, key),
+            _ => {}
+        }
     }
 }
 
@@ -85,10 +122,16 @@ impl Component for SetupFlow {
 // ****************************************************************************
 impl ComponentRender<()> for SetupFlow {
     fn render(&self, frame: &mut Frame, _props: ()) {
-        self.props
-            .state
-            .active_page
-            .render(&self.props.state, frame)
+        match self.props.state.active_page {
+            SetupPage::StartAsk => self.start_ask.render(&self.props.state, frame),
+            SetupPage::ConfigImport => self.config_import.render(&self.props.state, frame),
+            SetupPage::BIP32PhraseAsk => self.bip32_ask.render(&self.props.state, frame),
+            SetupPage::BIP32PhraseShow => self.bip32_show.render(&self.props.state, frame),
+            SetupPage::BIP32PhraseImport => self.bip32_import.render(&self.props.state, frame),
+            SetupPage::DIDKeysAsk => self.did_keys_ask.render(&self.props.state, frame),
+            SetupPage::DIDKeysShow => self.did_keys_show.render(&self.props.state, frame),
+            _ => {}
+        }
     }
 }
 
@@ -107,8 +150,11 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
         line1.push_span(Span::styled("✓ Choice", Style::new().fg(COLOR_SUCCESS)));
     }
 
-    if let SetupPage::BIP32PhraseAsk | SetupPage::BIP32PhraseShow | SetupPage::BIP32PhraseImport =
-        state.active_page
+    if let SetupPage::BIP32PhraseAsk
+    | SetupPage::BIP32PhraseShow
+    | SetupPage::BIP32PhraseImport
+    | SetupPage::DIDKeysAsk
+    | SetupPage::DIDKeysShow = state.active_page
     {
         step = 2;
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
