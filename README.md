@@ -290,3 +290,4 @@ Additional resources to learn more about the Linux Kernel Maintainer Verificatio
 - [Secured Configuration Management](./docs/secured-configuration-management.md)
 - [Backup and Restore](./docs/backup-restore.md)
 - [Multiple Profiles Setup](./docs/multiple-didweb-same-domain.md)
+- [Config Data Structure](./docs/lkmv-config-data-structure.md)
