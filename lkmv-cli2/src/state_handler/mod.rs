@@ -50,8 +50,9 @@ impl StateHandler {
             }
             Err(e) => {
                 error!("Couldn't load configuration step1: {e}");
-                let _ = terminator.terminate(Interrupted::SystemError);
-                return Ok(Interrupted::SystemError);
+                let err = Interrupted::SystemError(format!("Couldn't load configuration: {e}"));
+                let _ = terminator.terminate(err.clone());
+                return Ok(err);
             }
         };
 
@@ -65,6 +66,12 @@ impl StateHandler {
                         let _ = terminator.terminate(Interrupted::UserInt);
 
                         break Interrupted::UserInt;
+                    },
+                    Action::UXError(interrupted) => {
+                        // An error has occurred on the UX side
+                        let _ = terminator.terminate(interrupted.clone());
+
+                        break interrupted;
                     },
                     Action::MainMenuSelected(menu_item) => {
                         // User has changed main menu selection

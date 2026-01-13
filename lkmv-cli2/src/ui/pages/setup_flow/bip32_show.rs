@@ -36,7 +36,7 @@ impl BIP32PhraseShow {
             }
             KeyCode::Char('c') | KeyCode::Char('C') => {
                 if set_contents(state.props.state.mnemonic.get_mnemonic_string()).is_ok() {
-                    state.props.bip32_show.cc_copy = true;
+                    state.bip32_show.cc_copy = true;
                 }
             }
             KeyCode::Enter => {
@@ -81,9 +81,12 @@ impl BIP32PhraseShow {
         lines.push(Line::default());
         lines.push(Line::from(vec![
             Span::styled("[C]", Style::new().fg(COLOR_BORDER).bold()),
-            Span::styled(" Copy to clipboard  |  ", Style::new().fg(COLOR_BORDER)),
+            Span::styled(
+                " Copy to clipboard  |  ",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ),
             Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
-            Span::styled(" to continue", Style::new().fg(COLOR_BORDER)),
+            Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
         ]));
         if self.cc_copy {
             lines.push(Line::styled(

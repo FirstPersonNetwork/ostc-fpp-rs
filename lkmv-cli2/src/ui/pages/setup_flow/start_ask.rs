@@ -49,9 +49,9 @@ impl StartAskPanel {
             }
             KeyCode::Tab | KeyCode::Left | KeyCode::Right => {
                 // Switch active panel
-                state.props.start_ask = state.props.start_ask.switch();
+                state.start_ask = state.start_ask.switch();
             }
-            KeyCode::Enter => match state.props.start_ask {
+            KeyCode::Enter => match state.start_ask {
                 StartAskPanel::Create => {
                     state.props.state.active_page = SetupPage::BIP32PhraseAsk;
                 }

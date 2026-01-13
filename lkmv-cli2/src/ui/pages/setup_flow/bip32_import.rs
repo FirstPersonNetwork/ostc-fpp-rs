@@ -38,7 +38,7 @@ impl BIP32PhraseImport {
             }
             KeyCode::Enter => {
                 // User has submitted their imported BIP32 phrase
-                let input_phrase = state.props.bip32_import.mnemonic.value();
+                let input_phrase = state.bip32_import.mnemonic.value();
 
                 // Validate the entered mnemonic
                 match BIP32_39::from_mnemonic(input_phrase) {
@@ -49,20 +49,16 @@ impl BIP32PhraseImport {
                     }
                     Err(e) => {
                         // Invalid mnemonic entered
-                        state.props.bip32_import.warning_msg = Some(e.to_string());
+                        state.bip32_import.warning_msg = Some(e.to_string());
                     }
                 }
             }
             KeyCode::Esc => {
-                state.props.bip32_import.mnemonic.reset();
+                state.bip32_import.mnemonic.reset();
             }
             _ => {
                 // Handle text input for mnemonic here
-                state
-                    .props
-                    .bip32_import
-                    .mnemonic
-                    .handle_event(&Event::Key(key));
+                state.bip32_import.mnemonic.handle_event(&Event::Key(key));
             }
         }
     }
@@ -106,9 +102,9 @@ impl BIP32PhraseImport {
         frame.render_widget(
             Paragraph::new(Line::from(vec![
                 Span::styled("[ESC]", Style::new().fg(COLOR_BORDER).bold()),
-                Span::styled(" to clear input  |  ", Style::new().fg(COLOR_BORDER)),
+                Span::styled(" to clear input  |  ", Style::new().fg(COLOR_TEXT_DEFAULT)),
                 Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
-                Span::styled(" to continue", Style::new().fg(COLOR_BORDER)),
+                Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
             ])),
             content[2],
         );

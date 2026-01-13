@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
+use lkmv::colors::{COLOR_BORDER, COLOR_ORANGE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
 use ratatui::{
     Frame,
     layout::{
@@ -12,6 +12,7 @@ use ratatui::{
 };
 
 use crate::{
+    Interrupted,
     state_handler::{
         actions::Action,
         setup_sequence::{SetupPage, SetupState},
@@ -20,38 +21,54 @@ use crate::{
 };
 
 // ****************************************************************************
-// BIP32PhraseAsk
+// DIDKeysAsk
 // ****************************************************************************
 #[derive(Copy, Clone, Debug, Default)]
-pub enum BIP32PhraseAskChoice {
+pub enum DIDKeysAsk {
     #[default]
     Create,
     Import,
 }
-impl BIP32PhraseAskChoice {
+impl DIDKeysAsk {
     /// Switches to the next panel when pressing <TAB>
     pub fn switch(&self) -> Self {
         match self {
-            BIP32PhraseAskChoice::Create => BIP32PhraseAskChoice::Import,
-            BIP32PhraseAskChoice::Import => BIP32PhraseAskChoice::Create,
+            DIDKeysAsk::Create => DIDKeysAsk::Import,
+            DIDKeysAsk::Import => DIDKeysAsk::Create,
         }
     }
 }
 
-impl BIP32PhraseAskChoice {
+impl DIDKeysAsk {
     pub fn handle_key_event(state: &mut SetupFlow, key: KeyEvent) {
         match key.code {
             KeyCode::F(10) => {
                 let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Tab | KeyCode::Up | KeyCode::Down => {
-                state.bip32_ask = state.bip32_ask.switch();
+                state.did_keys_ask = state.did_keys_ask.switch();
             }
             KeyCode::Enter => {
-                // User has chosen whether to create or import their BIP32 phrase
-                state.props.state.active_page = match state.bip32_ask {
-                    BIP32PhraseAskChoice::Create => SetupPage::BIP32PhraseShow,
-                    BIP32PhraseAskChoice::Import => SetupPage::BIP32PhraseImport,
+                state.props.state.active_page = match state.did_keys_ask {
+                    DIDKeysAsk::Create => {
+                        // Create the DID Keys
+                        state.props.state.did_keys =
+                            match DIDKeysAsk::create_keys(&state.props.state.mnemonic.mnemonic) {
+                                Ok(keys) => Some(keys),
+                                Err(e) => {
+                                    let _ = state.action_tx.send(Action::UXError(
+                                        Interrupted::SystemError(format!(
+                                            "Failed to derive DID Keys: {}",
+                                            e
+                                        )),
+                                    ));
+                                    return;
+                                }
+                            };
+
+                        SetupPage::DIDKeysShow
+                    }
+                    DIDKeysAsk::Import => SetupPage::DidKeysImport,
                 }
             }
             _ => {}
@@ -67,38 +84,50 @@ impl BIP32PhraseAskChoice {
         let block = Block::bordered()
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Step 1/4: BIP32 Seed Phrase ");
+            .title(" Step 3/4: DID Key Derivation ");
 
         let mut lines = vec![
             Line::styled(
-                "LKMV derives individual keys from a common BIP32 seed phrase. This allows for a secure and private deterministic generation of key material from a single seed, rather than having to back up and restore seed material for every key.",
+                "LKMV will create a Decentralized Identifier (DID) for you. This DID provides both a globally unique identifier as well as presenting your public-key infrastructure (PKI) to others for authorisation and encryption.",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ),
             Line::default(),
             Line::styled(
-                "Choose how to setup your BIP32 recovery phrase",
+                "Your DID will contain a number of keys that allow you to assert claims and authenticate as yourself with others. These keys can be automatically derived from your BIP32 phrase.",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ),
+            Line::from(vec![
+                Span::styled("ADVANCED:", Style::new().fg(COLOR_ORANGE).bold()),
+                Span::styled(
+                    " You can choose to import existing PGP keys (Must be Curve 25519 based) instead of deriving them from your BIP32 phrase.",
+                    Style::new().fg(COLOR_ORANGE),
+                ),
+            ]),
+            Line::default(),
+            Line::styled(
+                "How should LKMV create your keys?",
                 Style::new().fg(COLOR_BORDER).bold(),
             ),
             Line::default(),
         ];
 
         // Render the active chocie
-        if let BIP32PhraseAskChoice::Create = self {
+        if let DIDKeysAsk::Create = self {
             lines.push(Line::styled(
-                "[✓] Generate a new 24-word recovery phrase (recommended)",
+                "[✓] Derive new keys from recovery phrase (recommended)",
                 Style::new().fg(COLOR_SUCCESS).bold(),
             ));
             lines.push(Line::styled(
-                "[ ] Import an existing recovery phrase",
+                "[ ] Import existing PGP Keys",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ));
         } else {
             lines.push(Line::styled(
-                "[ ] Generate a new 24-word recovery phrase (recommended)",
+                "[ ] Derive new keys from recovery phrase (recommended)",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ));
             lines.push(Line::styled(
-                "[✓] Import an existing recovery phrase",
+                "[✓] Import existing PGP Keys",
                 Style::new().fg(COLOR_SUCCESS).bold(),
             ));
         }

@@ -581,7 +581,7 @@ impl Display for KeyTypes {
 }
 
 /// Secrets for the Persona DID
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct PersonaDIDKeys {
     pub signing: KeyInfo,
     pub authentication: KeyInfo,
