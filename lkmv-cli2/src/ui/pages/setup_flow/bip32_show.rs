@@ -13,40 +13,40 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Padding, Paragraph, Wrap},
 };
-use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     state_handler::{
         actions::Action,
-        setup_sequence::{BIP32PhraseShow, SetupState},
+        setup_sequence::{SetupPage, SetupState},
     },
-    ui::{component::SetupFlowRender, pages::setup_flow::render_setup_header},
+    ui::pages::setup_flow::{SetupFlow, render_setup_header},
 };
 
-impl SetupFlowRender for BIP32PhraseShow {
-    fn handle_key_event(
-        &self,
-        _state: &SetupState,
-        action_tx: &mut UnboundedSender<Action>,
-        key: KeyEvent,
-    ) {
+#[derive(Copy, Clone, Debug, Default)]
+pub struct BIP32PhraseShow {
+    /// Have we copied this to the clipboard?
+    cc_copy: bool,
+}
+
+impl BIP32PhraseShow {
+    pub fn handle_key_event(state: &mut SetupFlow, key: KeyEvent) {
         match key.code {
             KeyCode::F(10) => {
-                let _ = action_tx.send(Action::Exit);
+                let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Char('c') | KeyCode::Char('C') => {
-                if set_contents(self.bip39_menemonic.get_mnemonic_string()).is_ok() {
-                    let _ = action_tx.send(Action::SetupBIP32PhraseShowCopyToClipboard);
+                if set_contents(state.props.state.mnemonic.get_mnemonic_string()).is_ok() {
+                    state.props.bip32_show.cc_copy = true;
                 }
             }
             KeyCode::Enter => {
-                let _ = action_tx.send(Action::SetupBIP32PhraseShowNext);
+                state.props.state.active_page = SetupPage::DIDKeysAsk;
             }
             _ => {}
         }
     }
 
-    fn render(&self, state: &SetupState, frame: &mut Frame) {
+    pub fn render(&self, state: &SetupState, frame: &mut Frame) {
         let [top, middle, bottom] =
             Layout::vertical([Length(3), Min(0), Length(3)]).areas(frame.area());
 
@@ -73,7 +73,7 @@ impl SetupFlowRender for BIP32PhraseShow {
             ),
             Line::default(),
             Line::styled(
-                self.bip39_menemonic.get_mnemonic_string(),
+                state.mnemonic.get_mnemonic_string(),
                 Style::new().fg(COLOR_SUCCESS),
             ),
         ];
@@ -85,7 +85,7 @@ impl SetupFlowRender for BIP32PhraseShow {
             Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
             Span::styled(" to continue", Style::new().fg(COLOR_BORDER)),
         ]));
-        if self.clipboard_copied {
+        if self.cc_copy {
             lines.push(Line::styled(
                 "Phrase copied to the clipboard!",
                 Style::new().fg(COLOR_ORANGE).bold().slow_blink(),

@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_ORANGE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
+use lkmv::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
 use ratatui::{
     Frame,
     layout::{
@@ -10,39 +10,55 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Padding, Paragraph, Wrap},
 };
-use tokio::sync::mpsc::UnboundedSender;
 
 use crate::{
     state_handler::{
         actions::Action,
-        setup_sequence::{BIP32PhraseAskChoice, SetupState},
+        setup_sequence::{SetupPage, SetupState},
     },
-    ui::{component::SetupFlowRender, pages::setup_flow::render_setup_header},
+    ui::pages::setup_flow::{SetupFlow, render_setup_header},
 };
 
-impl SetupFlowRender for BIP32PhraseAskChoice {
-    fn handle_key_event(
-        &self,
-        _state: &SetupState,
-        action_tx: &mut UnboundedSender<Action>,
-        key: KeyEvent,
-    ) {
+// ****************************************************************************
+// BIP32PhraseAsk
+// ****************************************************************************
+#[derive(Copy, Clone, Debug, Default)]
+pub enum BIP32PhraseAskChoice {
+    #[default]
+    Create,
+    Import,
+}
+impl BIP32PhraseAskChoice {
+    /// Switches to the next panel when pressing <TAB>
+    pub fn switch(&self) -> Self {
+        match self {
+            BIP32PhraseAskChoice::Create => BIP32PhraseAskChoice::Import,
+            BIP32PhraseAskChoice::Import => BIP32PhraseAskChoice::Create,
+        }
+    }
+}
+
+impl BIP32PhraseAskChoice {
+    pub fn handle_key_event(state: &mut SetupFlow, key: KeyEvent) {
         match key.code {
             KeyCode::F(10) => {
-                let _ = action_tx.send(Action::Exit);
+                let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Tab | KeyCode::Up | KeyCode::Down => {
-                // Switch active panel
-                let _ = action_tx.send(Action::SetupBIP32PhraseAskChoiceSwitch(self.switch()));
+                state.props.bip32_ask = state.props.bip32_ask.switch();
             }
             KeyCode::Enter => {
-                let _ = action_tx.send(Action::SetupBIP32PhraseAskChoiceSelected(*self));
+                // User has chosen whether to create or import their BIP32 phrase
+                state.props.state.active_page = match state.props.bip32_ask {
+                    BIP32PhraseAskChoice::Create => SetupPage::BIP32PhraseShow,
+                    BIP32PhraseAskChoice::Import => SetupPage::BIP32PhraseImport,
+                }
             }
             _ => {}
         }
     }
 
-    fn render(&self, state: &SetupState, frame: &mut Frame) {
+    pub fn render(&self, state: &SetupState, frame: &mut Frame) {
         let [top, middle, bottom] =
             Layout::vertical([Length(3), Min(0), Length(3)]).areas(frame.area());
 

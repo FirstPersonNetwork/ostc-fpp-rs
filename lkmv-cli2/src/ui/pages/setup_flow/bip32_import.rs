@@ -10,42 +10,64 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Padding, Paragraph},
 };
-use tokio::sync::mpsc::UnboundedSender;
-use tui_input::Input;
+use tui_input::{Input, backend::crossterm::EventHandler};
 
 use crate::{
     state_handler::{
         actions::Action,
-        setup_sequence::{BIP32PhraseImport, SetupState},
+        setup_sequence::{SetupPage, SetupState, bip32::BIP32_39},
     },
-    ui::{component::SetupFlowRender, pages::setup_flow::render_setup_header},
+    ui::pages::setup_flow::{SetupFlow, render_setup_header},
 };
 
-impl SetupFlowRender for BIP32PhraseImport {
-    fn handle_key_event(
-        &self,
-        _state: &SetupState,
-        action_tx: &mut UnboundedSender<Action>,
-        key: KeyEvent,
-    ) {
+// ****************************************************************************
+// BIP32PhraseImport
+// ****************************************************************************
+
+#[derive(Clone, Debug, Default)]
+pub struct BIP32PhraseImport {
+    pub mnemonic: Input,
+    pub warning_msg: Option<String>,
+}
+
+impl BIP32PhraseImport {
+    pub fn handle_key_event(state: &mut SetupFlow, key: KeyEvent) {
         match key.code {
             KeyCode::F(10) => {
-                let _ = action_tx.send(Action::Exit);
+                let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Enter => {
-                let _ = action_tx.send(Action::SetupBIP32PhraseImportSubmit);
+                // User has submitted their imported BIP32 phrase
+                let input_phrase = state.props.bip32_import.mnemonic.value();
+
+                // Validate the entered mnemonic
+                match BIP32_39::from_mnemonic(input_phrase) {
+                    Ok(bip32_39) => {
+                        state.props.state.mnemonic = bip32_39;
+                        // Proceed to the next setup step
+                        state.props.state.active_page = SetupPage::DIDKeysAsk;
+                    }
+                    Err(e) => {
+                        // Invalid mnemonic entered
+                        state.props.bip32_import.warning_msg = Some(e.to_string());
+                    }
+                }
             }
             KeyCode::Esc => {
-                let _ = action_tx.send(Action::SetupBIP32PhraseImportClear);
+                state.props.bip32_import.mnemonic.reset();
             }
             _ => {
                 // Handle text input for mnemonic here
-                let _ = action_tx.send(Action::SetupBIP32PhraseImportKey(Event::Key(key)));
+                state
+                    .props
+                    .bip32_import
+                    .mnemonic
+                    .handle_event(&Event::Key(key));
             }
         }
     }
 
-    fn render(&self, state: &SetupState, frame: &mut Frame<'_>) {
+    pub fn render(&self, state: &SetupState, frame: &mut Frame<'_>) {
         let [top, middle, bottom] =
             Layout::vertical([Length(3), Min(0), Length(3)]).areas(frame.area());
 

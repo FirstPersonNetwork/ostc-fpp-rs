@@ -4,7 +4,13 @@ use crate::{
         setup_sequence::{SetupPage, SetupState},
         state::State,
     },
-    ui::component::{Component, ComponentRender, SetupFlowRender},
+    ui::{
+        component::{Component, ComponentRender},
+        pages::setup_flow::{
+            bip32_ask::BIP32PhraseAskChoice, bip32_import::BIP32PhraseImport,
+            bip32_show::BIP32PhraseShow, config_import::ConfigImport, start_ask::StartAskPanel,
+        },
+    },
 };
 use crossterm::event::{KeyEvent, KeyEventKind};
 use lkmv::colors::{
@@ -31,17 +37,29 @@ pub struct SetupFlow {
     pub action_tx: UnboundedSender<Action>,
 
     /// State Mapped MainPage Props
-    props: Props,
+    pub props: Props,
 }
 
-struct Props {
-    state: SetupState,
+pub struct Props {
+    pub state: SetupState,
+
+    // Local state
+    pub start_ask: StartAskPanel,
+    pub config_import: ConfigImport,
+    pub bip32_ask: BIP32PhraseAskChoice,
+    pub bip32_show: BIP32PhraseShow,
+    pub bip32_import: BIP32PhraseImport,
 }
 
 impl From<&State> for Props {
     fn from(state: &State) -> Self {
         Props {
             state: state.setup.clone(),
+            start_ask: StartAskPanel::default(),
+            config_import: ConfigImport::default(),
+            bip32_ask: BIP32PhraseAskChoice::default(),
+            bip32_show: BIP32PhraseShow::default(),
+            bip32_import: BIP32PhraseImport::default(),
         }
     }
 }
@@ -75,8 +93,14 @@ impl Component for SetupFlow {
             return;
         }
 
-        let active_page = self.props.state.active_page.clone();
-        active_page.handle_key_event(&self.props.state, &mut self.action_tx, key)
+        match self.props.state.active_page {
+            SetupPage::StartAsk => StartAskPanel::handle_key_event(self, key),
+            SetupPage::ConfigImport => ConfigImport::handle_key_event(self, key),
+            SetupPage::BIP32PhraseAsk => BIP32PhraseAskChoice::handle_key_event(self, key),
+            SetupPage::BIP32PhraseShow => BIP32PhraseShow::handle_key_event(self, key),
+            SetupPage::BIP32PhraseImport => BIP32PhraseImport::handle_key_event(self, key),
+            _ => {}
+        }
     }
 }
 
@@ -85,10 +109,16 @@ impl Component for SetupFlow {
 // ****************************************************************************
 impl ComponentRender<()> for SetupFlow {
     fn render(&self, frame: &mut Frame, _props: ()) {
-        self.props
-            .state
-            .active_page
-            .render(&self.props.state, frame)
+        match self.props.state.active_page {
+            SetupPage::StartAsk => self.props.start_ask.render(&self.props.state, frame),
+            SetupPage::ConfigImport => self.props.config_import.render(&self.props.state, frame),
+            SetupPage::BIP32PhraseAsk => self.props.bip32_ask.render(&self.props.state, frame),
+            SetupPage::BIP32PhraseShow => self.props.bip32_show.render(&self.props.state, frame),
+            SetupPage::BIP32PhraseImport => {
+                self.props.bip32_import.render(&self.props.state, frame)
+            }
+            _ => {}
+        }
     }
 }
 
