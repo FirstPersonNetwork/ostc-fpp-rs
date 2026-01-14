@@ -9,8 +9,8 @@ use crate::{
         pages::setup_flow::{
             bip32_ask::BIP32PhraseAskChoice, bip32_import::BIP32PhraseImport,
             bip32_show::BIP32PhraseShow, config_import::ConfigImport, did_keys_ask::DIDKeysAsk,
-            did_keys_export_ask::DIDKeysExportAsk, did_keys_show::DIDKeysShow,
-            start_ask::StartAskPanel,
+            did_keys_export_ask::DIDKeysExportAsk, did_keys_export_inputs::DIDKeysExportInputs,
+            did_keys_show::DIDKeysShow, start_ask::StartAskPanel,
         },
     },
 };
@@ -33,6 +33,7 @@ pub mod bip32_show;
 pub mod config_import;
 pub mod did_keys_ask;
 pub mod did_keys_export_ask;
+pub mod did_keys_export_inputs;
 pub mod did_keys_show;
 pub mod start_ask;
 
@@ -53,6 +54,7 @@ pub struct SetupFlow {
     pub did_keys_show: DIDKeysShow,
 
     pub did_keys_export_ask: DIDKeysExportAsk,
+    pub did_keys_export_inputs: DIDKeysExportInputs,
 
     /// State Mapped MainPage Props
     pub props: Props,
@@ -86,6 +88,7 @@ impl Component for SetupFlow {
             did_keys_ask: DIDKeysAsk::default(),
             did_keys_show: DIDKeysShow::default(),
             did_keys_export_ask: DIDKeysExportAsk::default(),
+            did_keys_export_inputs: DIDKeysExportInputs::default(),
 
             // set the props
             props: Props::from(state),
@@ -118,6 +121,7 @@ impl Component for SetupFlow {
             SetupPage::DIDKeysAsk => DIDKeysAsk::handle_key_event(self, key),
             SetupPage::DIDKeysShow => DIDKeysShow::handle_key_event(self, key),
             SetupPage::DidKeysExportAsk => DIDKeysExportAsk::handle_key_event(self, key),
+            SetupPage::DidKeysExportInputs => DIDKeysExportInputs::handle_key_event(self, key),
             _ => {}
         }
     }
@@ -138,6 +142,9 @@ impl ComponentRender<()> for SetupFlow {
             SetupPage::DIDKeysShow => self.did_keys_show.render(&self.props.state, frame),
             SetupPage::DidKeysExportAsk => {
                 self.did_keys_export_ask.render(&self.props.state, frame)
+            }
+            SetupPage::DidKeysExportInputs => {
+                self.did_keys_export_inputs.render(&self.props.state, frame)
             }
             _ => {}
         }
@@ -164,7 +171,8 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
     | SetupPage::BIP32PhraseImport
     | SetupPage::DIDKeysAsk
     | SetupPage::DIDKeysShow
-    | SetupPage::DidKeysExportAsk = state.active_page
+    | SetupPage::DidKeysExportAsk
+    | SetupPage::DidKeysExportInputs = state.active_page
     {
         step = 2;
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
