@@ -78,7 +78,7 @@ impl DIDKeysShow {
                 }
             }
             KeyCode::Enter => {
-                state.props.state.active_page = SetupPage::DidKeysExport;
+                state.props.state.active_page = SetupPage::DidKeysExportAsk;
             }
             _ => {}
         }
