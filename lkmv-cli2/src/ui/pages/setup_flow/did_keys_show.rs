@@ -1,4 +1,3 @@
-use copypasta::{ClipboardContext, ClipboardProvider};
 use crossterm::event::{KeyCode, KeyEvent};
 use lkmv::colors::{
     COLOR_BORDER, COLOR_DARK_PURPLE, COLOR_ORANGE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT,
@@ -14,6 +13,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Padding, Paragraph, Wrap},
 };
+use wl_clipboard_rs::copy::{MimeType, Options, Source};
 
 use crate::{
     state_handler::{
@@ -42,45 +42,69 @@ impl DIDKeysShow {
                 let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Char('1') => {
-                let mut ctx = ClipboardContext::new().unwrap();
-                if let Some(did_keys) = &state.props.state.did_keys
-                    && ctx
-                        .set_contents(did_keys.signing.secret.get_public_keymultibase().unwrap())
-                        .is_ok()
-                {
-                    state.did_keys_show.show_clipboard_copy = 1;
+                let opts = Options::new();
+                if let Some(did_keys) = &state.props.state.did_keys {
+                    match opts.copy(
+                        Source::Bytes(
+                            did_keys
+                                .signing
+                                .secret
+                                .get_public_keymultibase()
+                                .unwrap()
+                                .into_bytes()
+                                .into(),
+                        ),
+                        MimeType::Autodetect,
+                    ) {
+                        Ok(_) => state.did_keys_show.show_clipboard_copy = 1,
+                        Err(e) => {
+                            panic!("Copy to clipboard failed. Reason: {e}");
+                        }
+                    }
                 }
             }
             KeyCode::Char('2') => {
-                let mut ctx = ClipboardContext::new().unwrap();
-                if let Some(did_keys) = &state.props.state.did_keys
-                    && ctx
-                        .set_contents(
+                let opts = Options::new();
+                if let Some(did_keys) = &state.props.state.did_keys {
+                    match opts.copy(
+                        Source::Bytes(
                             did_keys
                                 .authentication
                                 .secret
                                 .get_public_keymultibase()
-                                .unwrap(),
-                        )
-                        .is_ok()
-                {
-                    state.did_keys_show.show_clipboard_copy = 2;
+                                .unwrap()
+                                .into_bytes()
+                                .into(),
+                        ),
+                        MimeType::Autodetect,
+                    ) {
+                        Ok(_) => state.did_keys_show.show_clipboard_copy = 2,
+                        Err(e) => {
+                            panic!("Copy to clipboard failed. Reason: {e}");
+                        }
+                    }
                 }
             }
             KeyCode::Char('3') => {
-                let mut ctx = ClipboardContext::new().unwrap();
-                if let Some(did_keys) = &state.props.state.did_keys
-                    && ctx
-                        .set_contents(
+                let opts = Options::new();
+                if let Some(did_keys) = &state.props.state.did_keys {
+                    match opts.copy(
+                        Source::Bytes(
                             did_keys
                                 .decryption
                                 .secret
                                 .get_public_keymultibase()
-                                .unwrap(),
-                        )
-                        .is_ok()
-                {
-                    state.did_keys_show.show_clipboard_copy = 3;
+                                .unwrap()
+                                .into_bytes()
+                                .into(),
+                        ),
+                        MimeType::Autodetect,
+                    ) {
+                        Ok(_) => state.did_keys_show.show_clipboard_copy = 3,
+                        Err(e) => {
+                            panic!("Copy to clipboard failed. Reason: {e}");
+                        }
+                    }
                 }
             }
             KeyCode::Enter => {

@@ -1,5 +1,3 @@
-use copypasta::ClipboardProvider;
-use copypasta::x11_clipboard::{Primary, X11ClipboardContext};
 use crossterm::event::{KeyCode, KeyEvent};
 use lkmv::colors::{
     COLOR_BORDER, COLOR_ORANGE, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED,
@@ -14,6 +12,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Padding, Paragraph, Wrap},
 };
+use wl_clipboard_rs::copy::{MimeType, Options, Source};
 
 use crate::{
     state_handler::{
@@ -36,16 +35,19 @@ impl BIP32PhraseShow {
                 let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Char('c') | KeyCode::Char('C') => {
-                let mut ctx = X11ClipboardContext::<Primary>::new().unwrap();
-                /*
-                                let mut ctx = match ClipboardContext::new() {
-                                    Ok(c) => c,
-                                    Err(e) => {
-                                        panic!("Couldn't instantiate clipboard service! Reason: {e}");
-                                    }
-                                };
-                */
-                match ctx.set_contents(state.props.state.mnemonic.get_mnemonic_string()) {
+                let opts = Options::new();
+                match opts.copy(
+                    Source::Bytes(
+                        state
+                            .props
+                            .state
+                            .mnemonic
+                            .get_mnemonic_string()
+                            .into_bytes()
+                            .into(),
+                    ),
+                    MimeType::Autodetect,
+                ) {
                     Ok(_) => state.bip32_show.cc_copy = true,
                     Err(e) => {
                         panic!("Copy to clipboard failed. Reason: {e}");
