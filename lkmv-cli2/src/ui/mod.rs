@@ -1,4 +1,7 @@
-use std::io::{self, Stdout};
+use std::{
+    io::{self, Stdout},
+    time::Duration,
+};
 
 use crate::{
     Interrupted,
@@ -68,7 +71,7 @@ impl UiManager {
 
             tokio::select! {
                 // Tick to terminate the select every N milliseconds
-                //_ = ticker.tick() => (),
+                // _ = ticker.tick() => (),
                 // Catch and handle crossterm events
                maybe_event = crossterm_events.next() => match maybe_event {
                     Some(Ok(Event::Key(key)))  => {

@@ -13,10 +13,7 @@ use ratatui::{
 use tui_input::{Input, backend::crossterm::EventHandler};
 
 use crate::{
-    state_handler::{
-        actions::Action,
-        setup_sequence::{SetupPage, SetupState},
-    },
+    state_handler::{actions::Action, setup_sequence::SetupState},
     ui::pages::setup_flow::{SetupFlow, render_setup_header},
 };
 
@@ -48,7 +45,14 @@ impl DIDKeysExportInputs {
                 }
             }
             KeyCode::Enter => {
-                state.props.state.active_page = SetupPage::DidKeysExportShow;
+                if let Some(persona_keys) = state.props.state.did_keys.as_ref() {
+                    let _ = state.action_tx.send(Action::ExportDIDKeys(
+                        Box::new(persona_keys.clone()),
+                        state.did_keys_export_inputs.clone(),
+                    ));
+                } else {
+                    // Should not happen, but just in case
+                }
             }
             KeyCode::Esc => {
                 if state.did_keys_export_inputs.active_input == 0 {

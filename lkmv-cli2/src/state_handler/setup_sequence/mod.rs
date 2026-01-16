@@ -45,4 +45,13 @@ pub struct SetupState {
 
     /// DID Keys
     pub did_keys: Option<PersonaDIDKeys>,
+
+    pub did_keys_export: DIDKeysExportState,
+}
+
+/// Update messages as the Key export works through
+#[derive(Clone, Debug, Default)]
+pub struct DIDKeysExportState {
+    pub messages: Vec<String>,
+    pub exported: Option<String>,
 }
