@@ -1,3 +1,4 @@
+use arboard::Clipboard;
 use crossterm::event::{KeyCode, KeyEvent};
 use lkmv::colors::{
     COLOR_BORDER, COLOR_ORANGE, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED,
@@ -12,7 +13,6 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Padding, Paragraph, Wrap},
 };
-use wl_clipboard_rs::copy::{MimeType, Options, Source};
 
 use crate::{
     state_handler::{
@@ -35,24 +35,11 @@ impl BIP32PhraseShow {
                 let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Char('c') | KeyCode::Char('C') => {
-                let opts = Options::new();
-                match opts.copy(
-                    Source::Bytes(
-                        state
-                            .props
-                            .state
-                            .mnemonic
-                            .get_mnemonic_string()
-                            .into_bytes()
-                            .into(),
-                    ),
-                    MimeType::Autodetect,
-                ) {
-                    Ok(_) => state.bip32_show.cc_copy = true,
-                    Err(e) => {
-                        panic!("Copy to clipboard failed. Reason: {e}");
-                    }
-                }
+                let mut clipboard = Clipboard::new().unwrap();
+                clipboard
+                    .set_text(state.props.state.mnemonic.get_mnemonic_string())
+                    .unwrap();
+                state.bip32_show.cc_copy = true;
             }
             KeyCode::Enter => {
                 state.props.state.active_page = SetupPage::DIDKeysAsk;

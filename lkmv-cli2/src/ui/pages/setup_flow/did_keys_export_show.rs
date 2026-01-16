@@ -1,3 +1,4 @@
+use arboard::Clipboard;
 use crossterm::event::{KeyCode, KeyEvent};
 use lkmv::colors::{
     COLOR_BORDER, COLOR_ORANGE, COLOR_SOFT_PURPLE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT,
@@ -12,7 +13,6 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Padding, Paragraph, Wrap},
 };
-use wl_clipboard_rs::copy::{MimeType, Options, Source};
 
 use crate::{
     state_handler::{
@@ -34,26 +34,12 @@ impl DIDKeysExportShow {
     pub fn handle_key_event(state: &mut SetupFlow, key: KeyEvent) {
         match key.code {
             KeyCode::Char('c') | KeyCode::Char('C') => {
-                let opts = Options::new();
-                match opts.copy(
-                    Source::Bytes(
-                        state
-                            .props
-                            .state
-                            .did_keys_export
-                            .exported
-                            .clone()
-                            .unwrap()
-                            .into_bytes()
-                            .into(),
-                    ),
-                    MimeType::Autodetect,
-                ) {
-                    Ok(_) => state.did_keys_export_show.clipboard_copy = true,
-                    Err(e) => {
-                        panic!("Copy to clipboard failed. Reason: {e}");
-                    }
-                }
+                let mut clipboard = Clipboard::new().unwrap();
+                clipboard
+                    .set_text(state.props.state.did_keys_export.exported.clone().unwrap())
+                    .unwrap();
+
+                state.did_keys_export_show.clipboard_copy = true;
             }
             KeyCode::F(10) => {
                 let _ = state.action_tx.send(Action::Exit);

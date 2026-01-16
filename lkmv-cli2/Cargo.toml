@@ -32,7 +32,7 @@ byteorder.workspace = true
 chrono.workspace = true
 clap.workspace = true
 # cli-clipboard.workspace = true
-wl-clipboard-rs = "0.9.3"
+arboard = { version = "3.6.1", features = ["wayland-data-control"] }
 console.workspace = true
 crossterm.workspace = true
 dirs.workspace = true
