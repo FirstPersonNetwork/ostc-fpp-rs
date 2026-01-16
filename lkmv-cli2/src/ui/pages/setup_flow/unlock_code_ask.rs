@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_ORANGE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
+use lkmv::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
 use ratatui::{
     Frame,
     layout::{
@@ -20,37 +20,38 @@ use crate::{
 };
 
 // ****************************************************************************
-// DIDKeysExportAsk
+// UnlockCodeAsk
 // ****************************************************************************
 #[derive(Copy, Clone, Debug, Default)]
-pub enum DIDKeysExportAsk {
+pub enum UnlockCodeAsk {
     #[default]
-    Skip,
-    Export,
+    UseCode,
+    NoCode,
 }
-impl DIDKeysExportAsk {
+impl UnlockCodeAsk {
     /// Switches to the next panel when pressing <TAB>
     pub fn switch(&self) -> Self {
         match self {
-            DIDKeysExportAsk::Skip => DIDKeysExportAsk::Export,
-            DIDKeysExportAsk::Export => DIDKeysExportAsk::Skip,
+            UnlockCodeAsk::UseCode => UnlockCodeAsk::NoCode,
+            UnlockCodeAsk::NoCode => UnlockCodeAsk::UseCode,
         }
     }
 }
 
-impl DIDKeysExportAsk {
+impl UnlockCodeAsk {
     pub fn handle_key_event(state: &mut SetupFlow, key: KeyEvent) {
         match key.code {
             KeyCode::F(10) => {
                 let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Tab | KeyCode::Up | KeyCode::Down => {
-                state.did_keys_export_ask = state.did_keys_export_ask.switch();
+                state.unlock_code_ask = state.unlock_code_ask.switch();
             }
             KeyCode::Enter => {
-                state.props.state.active_page = match state.did_keys_export_ask {
-                    DIDKeysExportAsk::Skip => SetupPage::UnlockCodeAsk,
-                    DIDKeysExportAsk::Export => SetupPage::DidKeysExportInputs,
+                // User has chosen whether to create or import their BIP32 phrase
+                state.props.state.active_page = match state.unlock_code_ask {
+                    UnlockCodeAsk::UseCode => SetupPage::UnlockCodeSet,
+                    UnlockCodeAsk::NoCode => SetupPage::UnlockCodeWarn,
                 }
             }
             _ => {}
@@ -66,52 +67,42 @@ impl DIDKeysExportAsk {
         let block = Block::bordered()
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Step 4/4: Export Private DID Keys ");
+            .title(" Unlock Code ");
 
         let mut lines = vec![
             Line::styled(
-                "You may want to export the secret key material that your DID keys are using so that you can use the same key values in other applications or other DID's.",
+                "As LKMV is a critical part of securing the overall Linux Community, this tool requires strong protection from unauthorized access.",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ),
-            Line::from(vec![
-                Span::styled("NOTE: ", Style::new().fg(COLOR_ORANGE).bold()),
-                Span::styled(
-                    "You can export your active DID keys from LKMV at any point in the future if you change your mind.",
-                    Style::new().fg(COLOR_ORANGE),
-                ),
-            ]),
-            Line::from(vec![
-                Span::styled("NOTE: ", Style::new().fg(COLOR_ORANGE).bold()),
-                Span::styled(
-                    "Keys will be exported in an armored PGP key export format.",
-                    Style::new().fg(COLOR_ORANGE),
-                ),
-            ]),
+            Line::styled(
+                "It is strongly recommended to set an unlock passphrase that will be used to further protect access to this tool",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ),
             Line::default(),
             Line::styled(
-                "Export private keys for use in other tools?",
+                "Use an unlock code to protect access to LKMV?",
                 Style::new().fg(COLOR_BORDER).bold(),
             ),
             Line::default(),
         ];
 
         // Render the active chocie
-        if let DIDKeysExportAsk::Skip = self {
+        if let UnlockCodeAsk::UseCode = self {
             lines.push(Line::styled(
-                "[✓] Skip for now (recommended)",
+                "[✓] Yes, require unlock code when starting LKMV (recommended)",
                 Style::new().fg(COLOR_SUCCESS).bold(),
             ));
             lines.push(Line::styled(
-                "[ ] Export private DID keys",
+                "[ ] No, keep unprotected",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ));
         } else {
             lines.push(Line::styled(
-                "[ ] Skip for now (recommended)",
+                "[ ] Yes, require unlock code when starting LKMV (recommended)",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ));
             lines.push(Line::styled(
-                "[✓] Export private DID keys",
+                "[✓] No, keep unprotected",
                 Style::new().fg(COLOR_SUCCESS).bold(),
             ));
         }

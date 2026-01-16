@@ -44,7 +44,7 @@ impl DIDKeysExportShow {
                 let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Enter => {
-                state.props.state.active_page = SetupPage::ProtectCodeAsk;
+                state.props.state.active_page = SetupPage::UnlockCodeAsk;
             }
             _ => {}
         }

@@ -11,7 +11,8 @@ use crate::{
             bip32_show::BIP32PhraseShow, config_import::ConfigImport, did_keys_ask::DIDKeysAsk,
             did_keys_export_ask::DIDKeysExportAsk, did_keys_export_inputs::DIDKeysExportInputs,
             did_keys_export_show::DIDKeysExportShow, did_keys_show::DIDKeysShow,
-            start_ask::StartAskPanel,
+            start_ask::StartAskPanel, unlock_code_ask::UnlockCodeAsk,
+            unlock_code_set::UnlockCodeSet, unlock_code_warn::UnlockCodeWarn,
         },
     },
 };
@@ -38,6 +39,9 @@ pub mod did_keys_export_inputs;
 pub mod did_keys_export_show;
 pub mod did_keys_show;
 pub mod start_ask;
+pub mod unlock_code_ask;
+pub mod unlock_code_set;
+pub mod unlock_code_warn;
 
 /// Handles the Setup Flow sequence
 pub struct SetupFlow {
@@ -58,6 +62,10 @@ pub struct SetupFlow {
     pub did_keys_export_ask: DIDKeysExportAsk,
     pub did_keys_export_inputs: DIDKeysExportInputs,
     pub did_keys_export_show: DIDKeysExportShow,
+
+    pub unlock_code_ask: UnlockCodeAsk,
+    pub unlock_code_warn: UnlockCodeWarn,
+    pub unlock_code_set: UnlockCodeSet,
 
     /// State Mapped MainPage Props
     pub props: Props,
@@ -93,6 +101,9 @@ impl Component for SetupFlow {
             did_keys_export_ask: DIDKeysExportAsk::default(),
             did_keys_export_inputs: DIDKeysExportInputs::default(),
             did_keys_export_show: DIDKeysExportShow::default(),
+            unlock_code_ask: UnlockCodeAsk::default(),
+            unlock_code_warn: UnlockCodeWarn::default(),
+            unlock_code_set: UnlockCodeSet::default(),
 
             // set the props
             props: Props::from(state),
@@ -127,6 +138,9 @@ impl Component for SetupFlow {
             SetupPage::DidKeysExportAsk => DIDKeysExportAsk::handle_key_event(self, key),
             SetupPage::DidKeysExportInputs => DIDKeysExportInputs::handle_key_event(self, key),
             SetupPage::DidKeysExportShow => DIDKeysExportShow::handle_key_event(self, key),
+            SetupPage::UnlockCodeAsk => UnlockCodeAsk::handle_key_event(self, key),
+            SetupPage::UnlockCodeWarn => UnlockCodeWarn::handle_key_event(self, key),
+            SetupPage::UnlockCodeSet => UnlockCodeSet::handle_key_event(self, key),
             _ => {}
         }
     }
@@ -154,6 +168,9 @@ impl ComponentRender<()> for SetupFlow {
             SetupPage::DidKeysExportShow => {
                 self.did_keys_export_show.render(&self.props.state, frame)
             }
+            SetupPage::UnlockCodeAsk => self.unlock_code_ask.render(&self.props.state, frame),
+            SetupPage::UnlockCodeWarn => self.unlock_code_warn.render(&self.props.state, frame),
+            SetupPage::UnlockCodeSet => self.unlock_code_set.render(&self.props.state, frame),
             _ => {}
         }
     }
@@ -189,12 +206,35 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
             "● Key Management",
             Style::new().fg(COLOR_ORANGE).bold(),
         ));
+        line1.push_span(Span::styled(
+            " → ○ Security",
+            Style::new().fg(COLOR_DARK_GRAY),
+        ));
     } else if let SetupPage::ConfigImport = state.active_page {
         step = 2;
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
         line1.push_span(Span::styled(
             "● Locate Backup",
             Style::new().fg(COLOR_ORANGE).bold(),
+        ));
+    } else if let SetupPage::UnlockCodeAsk | SetupPage::UnlockCodeSet | SetupPage::UnlockCodeWarn =
+        state.active_page
+    {
+        step = 3;
+        line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
+        line1.push_span(Span::styled(
+            "✓ Key Management",
+            Style::new().fg(COLOR_SUCCESS),
+        ));
+        line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
+        line1.push_span(Span::styled(
+            "● Security",
+            Style::new().fg(COLOR_ORANGE).bold(),
+        ));
+    } else {
+        line1.push_span(Span::styled(
+            " → ○ Key Management → ○ Security",
+            Style::new().fg(COLOR_DARK_GRAY),
         ));
     }
 
@@ -204,12 +244,12 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
     ));
 
     let line2 = Line::from(Span::styled(
-        format!("Section {}/5", step),
+        format!("Section {}/6", step),
         Style::new().fg(COLOR_BORDER),
     ));
 
     frame.render_widget(
-        Paragraph::new(vec![line1, line2])
+        Paragraph::new(vec![line2, line1])
             .alignment(Alignment::Left)
             .block(Block::new().padding(Padding::new(2, 0, 0, 0))),
         rect,
