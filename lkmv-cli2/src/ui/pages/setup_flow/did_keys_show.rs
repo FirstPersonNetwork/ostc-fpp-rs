@@ -1,4 +1,4 @@
-use cli_clipboard::set_contents;
+use copypasta::{ClipboardContext, ClipboardProvider};
 use crossterm::event::{KeyCode, KeyEvent};
 use lkmv::colors::{
     COLOR_BORDER, COLOR_DARK_PURPLE, COLOR_ORANGE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT,
@@ -42,37 +42,43 @@ impl DIDKeysShow {
                 let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Char('1') => {
+                let mut ctx = ClipboardContext::new().unwrap();
                 if let Some(did_keys) = &state.props.state.did_keys
-                    && set_contents(did_keys.signing.secret.get_public_keymultibase().unwrap())
+                    && ctx
+                        .set_contents(did_keys.signing.secret.get_public_keymultibase().unwrap())
                         .is_ok()
                 {
                     state.did_keys_show.show_clipboard_copy = 1;
                 }
             }
             KeyCode::Char('2') => {
+                let mut ctx = ClipboardContext::new().unwrap();
                 if let Some(did_keys) = &state.props.state.did_keys
-                    && set_contents(
-                        did_keys
-                            .authentication
-                            .secret
-                            .get_public_keymultibase()
-                            .unwrap(),
-                    )
-                    .is_ok()
+                    && ctx
+                        .set_contents(
+                            did_keys
+                                .authentication
+                                .secret
+                                .get_public_keymultibase()
+                                .unwrap(),
+                        )
+                        .is_ok()
                 {
                     state.did_keys_show.show_clipboard_copy = 2;
                 }
             }
             KeyCode::Char('3') => {
+                let mut ctx = ClipboardContext::new().unwrap();
                 if let Some(did_keys) = &state.props.state.did_keys
-                    && set_contents(
-                        did_keys
-                            .decryption
-                            .secret
-                            .get_public_keymultibase()
-                            .unwrap(),
-                    )
-                    .is_ok()
+                    && ctx
+                        .set_contents(
+                            did_keys
+                                .decryption
+                                .secret
+                                .get_public_keymultibase()
+                                .unwrap(),
+                        )
+                        .is_ok()
                 {
                     state.did_keys_show.show_clipboard_copy = 3;
                 }

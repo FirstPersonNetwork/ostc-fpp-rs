@@ -1,4 +1,4 @@
-use cli_clipboard::set_contents;
+use copypasta::{ClipboardContext, ClipboardProvider};
 use crossterm::event::{KeyCode, KeyEvent};
 use lkmv::colors::{
     COLOR_BORDER, COLOR_ORANGE, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED,
@@ -35,7 +35,11 @@ impl BIP32PhraseShow {
                 let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Char('c') | KeyCode::Char('C') => {
-                if set_contents(state.props.state.mnemonic.get_mnemonic_string()).is_ok() {
+                let mut ctx = ClipboardContext::new().unwrap();
+                if ctx
+                    .set_contents(state.props.state.mnemonic.get_mnemonic_string())
+                    .is_ok()
+                {
                     state.bip32_show.cc_copy = true;
                 }
             }

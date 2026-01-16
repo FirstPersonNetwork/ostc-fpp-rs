@@ -1,4 +1,4 @@
-use cli_clipboard::set_contents;
+use copypasta::{ClipboardContext, ClipboardProvider};
 use crossterm::event::{KeyCode, KeyEvent};
 use lkmv::colors::{
     COLOR_BORDER, COLOR_ORANGE, COLOR_SOFT_PURPLE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT,
@@ -34,8 +34,9 @@ impl DIDKeysExportShow {
     pub fn handle_key_event(state: &mut SetupFlow, key: KeyEvent) {
         match key.code {
             KeyCode::Char('c') | KeyCode::Char('C') => {
+                let mut ctx = ClipboardContext::new().unwrap();
                 if let Some(keys) = &state.props.state.did_keys_export.exported
-                    && set_contents(keys.to_string()).is_ok()
+                    && ctx.set_contents(keys.to_string()).is_ok()
                 {
                     state.did_keys_export_show.clipboard_copy = true;
                 }
