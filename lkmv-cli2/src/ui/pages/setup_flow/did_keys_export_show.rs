@@ -66,7 +66,13 @@ impl DIDKeysExportShow {
         let [left, right] = Layout::horizontal([Percentage(30), Percentage(70)])
             .areas(middle.inner(Margin::new(3, 2)));
 
-        let mut lines: Vec<Line> = Vec::new();
+        let mut lines: Vec<Line> = vec![
+            Line::styled(
+                "Export Status",
+                Style::new().fg(COLOR_BORDER).bold().underlined(),
+            ),
+            Line::default(),
+        ];
 
         for msg in &state.did_keys_export.messages {
             lines.push(Line::styled(msg, Style::new().fg(COLOR_SUCCESS)));
@@ -89,6 +95,7 @@ impl DIDKeysExportShow {
                         Style::new().fg(COLOR_BORDER),
                     ),
                 ]),
+                Line::default(),
             ];
 
             for line in exported.lines() {
