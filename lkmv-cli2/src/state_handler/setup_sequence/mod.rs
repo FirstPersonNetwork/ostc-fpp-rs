@@ -27,7 +27,7 @@ pub enum SetupPage {
     UnlockCodeSet,
     UnlockCodeWarn,
     MediatorAsk,
-    MediatorCustomDID,
+    MediatorCustom,
     DIDAddress,
     UserName,
     FinalPage,

@@ -51,7 +51,7 @@ impl MediatorAsk {
                 // User has chosen whether to create or import their BIP32 phrase
                 state.props.state.active_page = match state.mediator_ask {
                     MediatorAsk::Default => SetupPage::UserName,
-                    MediatorAsk::Custom => SetupPage::FinalPage,
+                    MediatorAsk::Custom => SetupPage::MediatorCustom,
                 }
             }
             _ => {}
