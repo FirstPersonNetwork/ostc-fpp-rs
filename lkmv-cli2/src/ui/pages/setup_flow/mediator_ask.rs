@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_ORANGE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
+use lkmv::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
 use ratatui::{
     Frame,
     layout::{
@@ -20,37 +20,38 @@ use crate::{
 };
 
 // ****************************************************************************
-// DIDKeysExportAsk
+// MediatorAsk
 // ****************************************************************************
 #[derive(Copy, Clone, Debug, Default)]
-pub enum DIDKeysExportAsk {
+pub enum MediatorAsk {
     #[default]
-    Skip,
-    Export,
+    Default,
+    Custom,
 }
-impl DIDKeysExportAsk {
+impl MediatorAsk {
     /// Switches to the next panel when pressing <TAB>
     pub fn switch(&self) -> Self {
         match self {
-            DIDKeysExportAsk::Skip => DIDKeysExportAsk::Export,
-            DIDKeysExportAsk::Export => DIDKeysExportAsk::Skip,
+            MediatorAsk::Default => MediatorAsk::Custom,
+            MediatorAsk::Custom => MediatorAsk::Default,
         }
     }
 }
 
-impl DIDKeysExportAsk {
+impl MediatorAsk {
     pub fn handle_key_event(state: &mut SetupFlow, key: KeyEvent) {
         match key.code {
             KeyCode::F(10) => {
                 let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Tab | KeyCode::Up | KeyCode::Down => {
-                state.did_keys_export_ask = state.did_keys_export_ask.switch();
+                state.mediator_ask = state.mediator_ask.switch();
             }
             KeyCode::Enter => {
-                state.props.state.active_page = match state.did_keys_export_ask {
-                    DIDKeysExportAsk::Skip => SetupPage::UnlockCodeAsk,
-                    DIDKeysExportAsk::Export => SetupPage::DidKeysExportInputs,
+                // User has chosen whether to create or import their BIP32 phrase
+                state.props.state.active_page = match state.mediator_ask {
+                    MediatorAsk::Default => SetupPage::UserName,
+                    MediatorAsk::Custom => SetupPage::FinalPage,
                 }
             }
             _ => {}
@@ -66,52 +67,42 @@ impl DIDKeysExportAsk {
         let block = Block::bordered()
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Step 4/4: Export Private DID Keys ");
+            .title(" Choose Messaging Mediator ");
 
         let mut lines = vec![
             Line::styled(
-                "Export private keys for use in other tools?",
+                "Choose the DIDComm Messaging mediator:",
                 Style::new().fg(COLOR_BORDER).bold(),
             ),
             Line::default(),
             Line::styled(
-                "You may want to export the secret key material that your DID keys are using so that you can use the same key values in other applications or other DID's.",
+                "All communication occurs using secure messaging based on the DIDComm protocol.",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ),
-            Line::from(vec![
-                Span::styled("NOTE: ", Style::new().fg(COLOR_ORANGE).bold()),
-                Span::styled(
-                    "You can export your active DID keys from LKMV at any point in the future if you change your mind.",
-                    Style::new().fg(COLOR_ORANGE),
-                ),
-            ]),
-            Line::from(vec![
-                Span::styled("NOTE: ", Style::new().fg(COLOR_ORANGE).bold()),
-                Span::styled(
-                    "Keys will be exported in an armored PGP key export format.",
-                    Style::new().fg(COLOR_ORANGE),
-                ),
-            ]),
+            Line::styled(
+                "The messaging service uses a mediator/relay, in some situations you may need to use a custom mediator DID.",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ),
             Line::default(),
         ];
 
         // Render the active chocie
-        if let DIDKeysExportAsk::Skip = self {
+        if let MediatorAsk::Default = self {
             lines.push(Line::styled(
-                "[✓] Skip for now (recommended)",
+                "[✓] Use Default LKMV Community Mediator (recommended)",
                 Style::new().fg(COLOR_SUCCESS).bold(),
             ));
             lines.push(Line::styled(
-                "[ ] Export private DID keys",
+                "[ ] Use Custom Mediator (requires a mediator DID)",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ));
         } else {
             lines.push(Line::styled(
-                "[ ] Skip for now (recommended)",
+                "[ ] Use Default LKMV Community Mediator (recommended)",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ));
             lines.push(Line::styled(
-                "[✓] Export private DID keys",
+                "[✓] Use Custom Mediator (requires a mediator DID)",
                 Style::new().fg(COLOR_SUCCESS).bold(),
             ));
         }

@@ -212,7 +212,11 @@ impl DIDKeysShow {
             ]));
         }
 
-        lines.push(Line::from(vec![Span::styled("NOTE: ", Style::new().fg(COLOR_ORANGE).bold()), Span::styled("You can export these keys for use in other applications from within LKMV at any point in the future.", Style::new().fg(COLOR_BORDER))]));
+        lines.push(Line::from(vec![
+            Span::styled("NOTE: ", Style::new().fg(COLOR_ORANGE).bold()),
+            Span::styled("You can export these keys for use in other applications from within LKMV at any point in the future.", Style::new().fg(COLOR_TEXT_DEFAULT))
+        ]));
+
         lines.push(Line::default());
         lines.push(Line::from(vec![
             Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),

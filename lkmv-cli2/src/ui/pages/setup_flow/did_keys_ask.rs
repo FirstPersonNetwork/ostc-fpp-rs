@@ -88,6 +88,11 @@ impl DIDKeysAsk {
 
         let mut lines = vec![
             Line::styled(
+                "How should LKMV create your keys?",
+                Style::new().fg(COLOR_BORDER).bold(),
+            ),
+            Line::default(),
+            Line::styled(
                 "LKMV will create a Decentralized Identifier (DID) for you. This DID provides both a globally unique identifier as well as presenting your public-key infrastructure (PKI) to others for authorisation and encryption.",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ),
@@ -95,18 +100,6 @@ impl DIDKeysAsk {
             Line::styled(
                 "Your DID will contain a number of keys that allow you to assert claims and authenticate as yourself with others. These keys can be automatically derived from your BIP32 phrase.",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
-            ),
-            Line::from(vec![
-                Span::styled("ADVANCED:", Style::new().fg(COLOR_ORANGE).bold()),
-                Span::styled(
-                    " You can choose to import existing PGP keys (Must be Curve 25519 based) instead of deriving them from your BIP32 phrase.",
-                    Style::new().fg(COLOR_ORANGE),
-                ),
-            ]),
-            Line::default(),
-            Line::styled(
-                "How should LKMV create your keys?",
-                Style::new().fg(COLOR_BORDER).bold(),
             ),
             Line::default(),
         ];
@@ -130,6 +123,13 @@ impl DIDKeysAsk {
                 "[✓] Import existing PGP Keys",
                 Style::new().fg(COLOR_SUCCESS).bold(),
             ));
+            lines.push(Line::from(vec![
+                Span::styled("ADVANCED:", Style::new().fg(COLOR_ORANGE).bold()),
+                Span::styled(
+                    " You can choose to import existing PGP keys (Must be Curve 25519 based) instead of deriving them from your BIP32 phrase.",
+                    Style::new().fg(COLOR_ORANGE),
+                ),
+            ]));
         }
 
         lines.push(Line::default());

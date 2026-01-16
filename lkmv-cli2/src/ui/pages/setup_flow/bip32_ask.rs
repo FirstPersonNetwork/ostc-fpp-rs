@@ -71,13 +71,13 @@ impl BIP32PhraseAskChoice {
 
         let mut lines = vec![
             Line::styled(
-                "LKMV derives individual keys from a common BIP32 seed phrase. This allows for a secure and private deterministic generation of key material from a single seed, rather than having to back up and restore seed material for every key.",
-                Style::new().fg(COLOR_TEXT_DEFAULT),
+                "Choose how to setup your BIP32 recovery phrase",
+                Style::new().fg(COLOR_BORDER).bold(),
             ),
             Line::default(),
             Line::styled(
-                "Choose how to setup your BIP32 recovery phrase",
-                Style::new().fg(COLOR_BORDER).bold(),
+                "LKMV derives individual keys from a common BIP32 seed phrase. This allows for a secure and private deterministic generation of key material from a single seed, rather than having to back up and restore seed material for every key.",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
             ),
             Line::default(),
         ];

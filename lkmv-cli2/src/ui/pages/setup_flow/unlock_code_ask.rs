@@ -71,17 +71,17 @@ impl UnlockCodeAsk {
 
         let mut lines = vec![
             Line::styled(
+                "Use an unlock code to protect access to LKMV?",
+                Style::new().fg(COLOR_BORDER).bold(),
+            ),
+            Line::default(),
+            Line::styled(
                 "As LKMV is a critical part of securing the overall Linux Community, this tool requires strong protection from unauthorized access.",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ),
             Line::styled(
                 "It is strongly recommended to set an unlock passphrase that will be used to further protect access to this tool",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
-            ),
-            Line::default(),
-            Line::styled(
-                "Use an unlock code to protect access to LKMV?",
-                Style::new().fg(COLOR_BORDER).bold(),
             ),
             Line::default(),
         ];

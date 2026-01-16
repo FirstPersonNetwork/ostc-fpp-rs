@@ -125,7 +125,7 @@ impl StateHandler {
 
                         }
                             state
-            }).await.unwrap();
+                        }).await.unwrap();
                         state = export;
                         if state.setup.did_keys_export.exported.is_some() {
                             state.setup.did_keys_export.messages.push("Key export completed".to_string());

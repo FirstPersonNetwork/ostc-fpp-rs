@@ -30,6 +30,7 @@ pub enum SetupPage {
     MediatorCustomDID,
     DIDAddress,
     UserName,
+    FinalPage,
 }
 
 // ****************************************************************************

@@ -11,7 +11,7 @@ use crate::{
             bip32_show::BIP32PhraseShow, config_import::ConfigImport, did_keys_ask::DIDKeysAsk,
             did_keys_export_ask::DIDKeysExportAsk, did_keys_export_inputs::DIDKeysExportInputs,
             did_keys_export_show::DIDKeysExportShow, did_keys_show::DIDKeysShow,
-            start_ask::StartAskPanel, unlock_code_ask::UnlockCodeAsk,
+            mediator_ask::MediatorAsk, start_ask::StartAskPanel, unlock_code_ask::UnlockCodeAsk,
             unlock_code_set::UnlockCodeSet, unlock_code_warn::UnlockCodeWarn,
         },
     },
@@ -38,6 +38,7 @@ pub mod did_keys_export_ask;
 pub mod did_keys_export_inputs;
 pub mod did_keys_export_show;
 pub mod did_keys_show;
+pub mod mediator_ask;
 pub mod start_ask;
 pub mod unlock_code_ask;
 pub mod unlock_code_set;
@@ -66,6 +67,8 @@ pub struct SetupFlow {
     pub unlock_code_ask: UnlockCodeAsk,
     pub unlock_code_warn: UnlockCodeWarn,
     pub unlock_code_set: UnlockCodeSet,
+
+    pub mediator_ask: MediatorAsk,
 
     /// State Mapped MainPage Props
     pub props: Props,
@@ -104,6 +107,7 @@ impl Component for SetupFlow {
             unlock_code_ask: UnlockCodeAsk::default(),
             unlock_code_warn: UnlockCodeWarn::default(),
             unlock_code_set: UnlockCodeSet::default(),
+            mediator_ask: MediatorAsk::default(),
 
             // set the props
             props: Props::from(state),
@@ -141,6 +145,7 @@ impl Component for SetupFlow {
             SetupPage::UnlockCodeAsk => UnlockCodeAsk::handle_key_event(self, key),
             SetupPage::UnlockCodeWarn => UnlockCodeWarn::handle_key_event(self, key),
             SetupPage::UnlockCodeSet => UnlockCodeSet::handle_key_event(self, key),
+            SetupPage::MediatorAsk => MediatorAsk::handle_key_event(self, key),
             _ => {}
         }
     }
@@ -171,6 +176,7 @@ impl ComponentRender<()> for SetupFlow {
             SetupPage::UnlockCodeAsk => self.unlock_code_ask.render(&self.props.state, frame),
             SetupPage::UnlockCodeWarn => self.unlock_code_warn.render(&self.props.state, frame),
             SetupPage::UnlockCodeSet => self.unlock_code_set.render(&self.props.state, frame),
+            SetupPage::MediatorAsk => self.mediator_ask.render(&self.props.state, frame),
             _ => {}
         }
     }
@@ -231,6 +237,20 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
             "● Security",
             Style::new().fg(COLOR_ORANGE).bold(),
         ));
+    } else if let SetupPage::MediatorAsk = state.active_page {
+        step = 4;
+        line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
+        line1.push_span(Span::styled(
+            "✓ Key Management",
+            Style::new().fg(COLOR_SUCCESS),
+        ));
+        line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
+        line1.push_span(Span::styled("✓ Security", Style::new().fg(COLOR_SUCCESS)));
+        line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
+        line1.push_span(Span::styled(
+            "● Messaging",
+            Style::new().fg(COLOR_ORANGE).bold(),
+        ));
     } else {
         line1.push_span(Span::styled(
             " → ○ Key Management → ○ Security",
@@ -239,7 +259,7 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
     }
 
     line1.push_span(Span::styled(
-        " → ○ Mediator → ○ DID → ○ Verify ",
+        " → ○ Messaging → ○ DID → ○ Verify ",
         Style::new().fg(COLOR_DARK_GRAY),
     ));
 

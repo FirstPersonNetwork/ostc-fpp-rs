@@ -1,7 +1,7 @@
 use cli_clipboard::set_contents;
 use crossterm::event::{KeyCode, KeyEvent};
 use lkmv::colors::{
-    COLOR_BORDER, COLOR_ORANGE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED,
+    COLOR_BORDER, COLOR_ORANGE, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED,
 };
 use ratatui::{
     Frame,
@@ -64,17 +64,13 @@ impl BIP32PhraseShow {
             ),
             Line::default(),
             Line::styled(
-                "You must protect this seed phrase",
-                Style::new().fg(COLOR_WARNING_ACCESSIBLE_RED).bold(),
-            ),
-            Line::styled(
-                "Store it in a safe and secure location",
+                "You must protect this seed phrase. Store it in a safe and secure location",
                 Style::new().fg(COLOR_WARNING_ACCESSIBLE_RED).bold(),
             ),
             Line::default(),
             Line::styled(
                 state.mnemonic.get_mnemonic_string(),
-                Style::new().fg(COLOR_SUCCESS),
+                Style::new().fg(COLOR_SOFT_PURPLE).bold(),
             ),
         ];
 
