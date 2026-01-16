@@ -35,12 +35,17 @@ impl BIP32PhraseShow {
                 let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Char('c') | KeyCode::Char('C') => {
-                let mut ctx = ClipboardContext::new().unwrap();
-                if ctx
-                    .set_contents(state.props.state.mnemonic.get_mnemonic_string())
-                    .is_ok()
-                {
-                    state.bip32_show.cc_copy = true;
+                let mut ctx = match ClipboardContext::new() {
+                    Ok(c) => c,
+                    Err(e) => {
+                        panic!("Couldn't instantiate clipboard service! Reason: {e}");
+                    }
+                };
+                match ctx.set_contents(state.props.state.mnemonic.get_mnemonic_string()) {
+                    Ok(_) => state.bip32_show.cc_copy = true,
+                    Err(e) => {
+                        panic!("Copy to clipboard failed. Reason: {e}");
+                    }
                 }
             }
             KeyCode::Enter => {
