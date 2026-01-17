@@ -28,8 +28,8 @@ pub enum SetupPage {
     UnlockCodeWarn,
     MediatorAsk,
     MediatorCustom,
-    DIDAddress,
     UserName,
+    WebVHAddress,
     FinalPage,
 }
 

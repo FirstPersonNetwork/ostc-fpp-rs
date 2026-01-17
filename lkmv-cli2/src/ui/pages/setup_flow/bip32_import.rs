@@ -1,5 +1,5 @@
 use crossterm::event::{Event, KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_TEXT_DEFAULT};
+use lkmv::colors::{COLOR_BORDER, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT};
 use ratatui::{
     Frame,
     layout::{
@@ -139,7 +139,7 @@ fn render_input(input: &Input, frame: &mut Frame, area: Rect) {
     let scroll = input.visual_scroll(width as usize);
     frame.render_widget(
         Paragraph::new(input.value())
-            .fg(COLOR_TEXT_DEFAULT)
+            .fg(COLOR_SOFT_PURPLE)
             .scroll((0, scroll as u16)),
         area,
     );

@@ -200,11 +200,11 @@ fn render_input(input: &Input, frame: &mut Frame, area: Rect, password: bool, ac
         for _ in 0..input.value().len() {
             s.push('*');
         }
-        Span::styled(s, Style::new().fg(COLOR_BORDER))
+        Span::styled(s, Style::new().fg(COLOR_SOFT_PURPLE))
     } else {
         Span::styled(
             input.value().to_string(),
-            Style::new().fg(COLOR_TEXT_DEFAULT),
+            Style::new().fg(COLOR_SOFT_PURPLE),
         )
     };
 

@@ -13,7 +13,7 @@ use crate::{
             did_keys_export_show::DIDKeysExportShow, did_keys_show::DIDKeysShow,
             mediator_ask::MediatorAsk, mediator_custom::MediatorCustom, start_ask::StartAskPanel,
             unlock_code_ask::UnlockCodeAsk, unlock_code_set::UnlockCodeSet,
-            unlock_code_warn::UnlockCodeWarn,
+            unlock_code_warn::UnlockCodeWarn, username::UserName,
         },
     },
 };
@@ -45,6 +45,7 @@ pub mod start_ask;
 pub mod unlock_code_ask;
 pub mod unlock_code_set;
 pub mod unlock_code_warn;
+pub mod username;
 
 /// Handles the Setup Flow sequence
 pub struct SetupFlow {
@@ -72,6 +73,8 @@ pub struct SetupFlow {
 
     pub mediator_ask: MediatorAsk,
     pub mediator_custom: MediatorCustom,
+
+    pub username: UserName,
 
     /// State Mapped MainPage Props
     pub props: Props,
@@ -112,6 +115,7 @@ impl Component for SetupFlow {
             unlock_code_set: UnlockCodeSet::default(),
             mediator_ask: MediatorAsk::default(),
             mediator_custom: MediatorCustom::default(),
+            username: UserName::default(),
 
             // set the props
             props: Props::from(state),
@@ -151,6 +155,7 @@ impl Component for SetupFlow {
             SetupPage::UnlockCodeSet => UnlockCodeSet::handle_key_event(self, key),
             SetupPage::MediatorAsk => MediatorAsk::handle_key_event(self, key),
             SetupPage::MediatorCustom => MediatorCustom::handle_key_event(self, key),
+            SetupPage::UserName => UserName::handle_key_event(self, key),
             _ => {}
         }
     }
@@ -183,6 +188,7 @@ impl ComponentRender<()> for SetupFlow {
             SetupPage::UnlockCodeSet => self.unlock_code_set.render(&self.props.state, frame),
             SetupPage::MediatorAsk => self.mediator_ask.render(&self.props.state, frame),
             SetupPage::MediatorCustom => self.mediator_custom.render(&self.props.state, frame),
+            SetupPage::UserName => self.username.render(&self.props.state, frame),
             _ => {}
         }
     }
@@ -257,15 +263,31 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
             "● Messaging",
             Style::new().fg(COLOR_ORANGE).bold(),
         ));
+    } else if let SetupPage::UserName = state.active_page {
+        step = 5;
+        line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
+        line1.push_span(Span::styled(
+            "✓ Key Management",
+            Style::new().fg(COLOR_SUCCESS),
+        ));
+        line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
+        line1.push_span(Span::styled("✓ Security", Style::new().fg(COLOR_SUCCESS)));
+        line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
+        line1.push_span(Span::styled("✓ Messaging", Style::new().fg(COLOR_SUCCESS)));
+        line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
+        line1.push_span(Span::styled(
+            "● Identity",
+            Style::new().fg(COLOR_ORANGE).bold(),
+        ));
     } else {
         line1.push_span(Span::styled(
-            " → ○ Key Management → ○ Security",
+            " → ○ Key Management → ○ Security → ○ Messaging",
             Style::new().fg(COLOR_DARK_GRAY),
         ));
     }
 
     line1.push_span(Span::styled(
-        " → ○ Messaging → ○ DID → ○ Verify ",
+        " → ○ Identity → ○ Verify ",
         Style::new().fg(COLOR_DARK_GRAY),
     ));
 

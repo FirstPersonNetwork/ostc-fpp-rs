@@ -1,5 +1,5 @@
 use crossterm::event::{Event, KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_ORANGE, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT};
+use lkmv::colors::{COLOR_BORDER, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT};
 use ratatui::{
     Frame,
     layout::{
@@ -21,32 +21,29 @@ use crate::{
 };
 
 // ****************************************************************************
-// MediatorCustom
+// UserName
 // ****************************************************************************
 
 #[derive(Clone, Debug, Default)]
-pub struct MediatorCustom {
-    pub mediator_did: Input,
+pub struct UserName {
+    pub username: Input,
 }
 
-impl MediatorCustom {
+impl UserName {
     pub fn handle_key_event(state: &mut SetupFlow, key: KeyEvent) {
         match key.code {
             KeyCode::F(10) => {
                 let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Enter => {
-                state.props.state.active_page = SetupPage::UserName;
+                state.props.state.active_page = SetupPage::WebVHAddress;
             }
             KeyCode::Esc => {
-                state.mediator_custom.mediator_did.reset();
+                state.username.username.reset();
             }
             _ => {
                 // Handle text input
-                state
-                    .mediator_custom
-                    .mediator_did
-                    .handle_event(&Event::Key(key));
+                state.username.username.handle_event(&Event::Key(key));
             }
         }
     }
@@ -57,11 +54,11 @@ impl MediatorCustom {
 
         render_setup_header(frame, top, state);
 
-        // 0: Input 0 Header (Passphrase)
-        // 1: INPUT <-- Passphrase
+        // 0: Input 0 Header
+        // 1: INPUT
         // 2: Key Bindings
         let content: [Rect; 3] =
-            Layout::vertical([Length(2), Length(2), Min(0)]).areas(middle.inner(Margin::new(3, 2)));
+            Layout::vertical([Length(3), Length(2), Min(0)]).areas(middle.inner(Margin::new(3, 2)));
 
         let [input0_prompt, input0_box] = Layout::horizontal([Length(2), Min(0)]).areas(content[1]);
 
@@ -69,15 +66,21 @@ impl MediatorCustom {
             Block::bordered()
                 .fg(COLOR_BORDER)
                 .padding(Padding::proportional(1))
-                .title(" Custom Mediator DID "),
+                .title(" Your Display Name "),
             middle,
         );
 
         frame.render_widget(
-            Paragraph::new(vec![Line::styled(
-                "Enter Custom Mediator DID",
-                Style::new().fg(COLOR_BORDER).bold(),
-            )]),
+            Paragraph::new(vec![
+                Line::styled(
+                    "Enter your display name:",
+                    Style::new().fg(COLOR_BORDER).bold(),
+                ),
+                Line::styled(
+                    "(how others will see your name)",
+                    Style::new().fg(COLOR_TEXT_DEFAULT),
+                ),
+            ]),
             content[0],
         );
 
@@ -89,25 +92,15 @@ impl MediatorCustom {
             input0_prompt,
         );
 
-        render_input(&self.mediator_did, frame, input0_box);
+        render_input(&self.username, frame, input0_box);
 
         frame.render_widget(
-            Paragraph::new(vec![
-                Line::from(vec![
-                    Span::styled("NOTE: ", Style::new().fg(COLOR_ORANGE).bold()),
-                    Span::styled(
-                        "The Custom Mediator DID must support DIDComm v2 protocol",
-                        Style::new().fg(COLOR_TEXT_DEFAULT),
-                    ),
-                ]),
-                Line::default(),
-                Line::from(vec![
-                    Span::styled("[ESC]", Style::new().fg(COLOR_BORDER).bold()),
-                    Span::styled(" to clear input  |  ", Style::new().fg(COLOR_TEXT_DEFAULT)),
-                    Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
-                    Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
-                ]),
-            ]),
+            Paragraph::new(vec![Line::from(vec![
+                Span::styled("[ESC]", Style::new().fg(COLOR_BORDER).bold()),
+                Span::styled(" to clear input  |  ", Style::new().fg(COLOR_TEXT_DEFAULT)),
+                Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
+                Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
+            ])]),
             content[2],
         );
 

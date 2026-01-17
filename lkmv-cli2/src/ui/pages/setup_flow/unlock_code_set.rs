@@ -121,7 +121,7 @@ fn render_input(input: &Input, frame: &mut Frame, area: Rect) {
     for _ in 0..input.value().len() {
         s.push('*');
     }
-    let text = Span::styled(s, Style::new().fg(COLOR_BORDER));
+    let text = Span::styled(s, Style::new().fg(COLOR_SOFT_PURPLE));
 
     frame.render_widget(Paragraph::new(text).scroll((0, scroll as u16)), area);
 
