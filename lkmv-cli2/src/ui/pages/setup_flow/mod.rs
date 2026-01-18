@@ -11,9 +11,10 @@ use crate::{
             bip32_show::BIP32PhraseShow, config_import::ConfigImport, did_keys_ask::DIDKeysAsk,
             did_keys_export_ask::DIDKeysExportAsk, did_keys_export_inputs::DIDKeysExportInputs,
             did_keys_export_show::DIDKeysExportShow, did_keys_show::DIDKeysShow,
-            mediator_ask::MediatorAsk, mediator_custom::MediatorCustom, start_ask::StartAskPanel,
-            unlock_code_ask::UnlockCodeAsk, unlock_code_set::UnlockCodeSet,
-            unlock_code_warn::UnlockCodeWarn, username::UserName,
+            final_page::FinalPage, mediator_ask::MediatorAsk, mediator_custom::MediatorCustom,
+            start_ask::StartAskPanel, unlock_code_ask::UnlockCodeAsk,
+            unlock_code_set::UnlockCodeSet, unlock_code_warn::UnlockCodeWarn, username::UserName,
+            webvh_address::WebvhAddress,
         },
     },
 };
@@ -39,6 +40,7 @@ pub mod did_keys_export_ask;
 pub mod did_keys_export_inputs;
 pub mod did_keys_export_show;
 pub mod did_keys_show;
+pub mod final_page;
 pub mod mediator_ask;
 pub mod mediator_custom;
 pub mod start_ask;
@@ -46,6 +48,7 @@ pub mod unlock_code_ask;
 pub mod unlock_code_set;
 pub mod unlock_code_warn;
 pub mod username;
+pub mod webvh_address;
 
 /// Handles the Setup Flow sequence
 pub struct SetupFlow {
@@ -75,6 +78,10 @@ pub struct SetupFlow {
     pub mediator_custom: MediatorCustom,
 
     pub username: UserName,
+
+    pub webvh_address: WebvhAddress,
+
+    pub final_page: FinalPage,
 
     /// State Mapped MainPage Props
     pub props: Props,
@@ -116,6 +123,8 @@ impl Component for SetupFlow {
             mediator_ask: MediatorAsk::default(),
             mediator_custom: MediatorCustom::default(),
             username: UserName::default(),
+            webvh_address: WebvhAddress::default(),
+            final_page: FinalPage::default(),
 
             // set the props
             props: Props::from(state),
@@ -156,6 +165,8 @@ impl Component for SetupFlow {
             SetupPage::MediatorAsk => MediatorAsk::handle_key_event(self, key),
             SetupPage::MediatorCustom => MediatorCustom::handle_key_event(self, key),
             SetupPage::UserName => UserName::handle_key_event(self, key),
+            SetupPage::WebVHAddress => WebvhAddress::handle_key_event(self, key),
+            SetupPage::FinalPage => FinalPage::handle_key_event(self, key),
             _ => {}
         }
     }
@@ -189,6 +200,8 @@ impl ComponentRender<()> for SetupFlow {
             SetupPage::MediatorAsk => self.mediator_ask.render(&self.props.state, frame),
             SetupPage::MediatorCustom => self.mediator_custom.render(&self.props.state, frame),
             SetupPage::UserName => self.username.render(&self.props.state, frame),
+            SetupPage::WebVHAddress => self.webvh_address.render(&self.props.state, frame),
+            SetupPage::FinalPage => self.final_page.render(&self.props.state, frame),
             _ => {}
         }
     }
@@ -225,7 +238,7 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
             Style::new().fg(COLOR_ORANGE).bold(),
         ));
         line1.push_span(Span::styled(
-            " → ○ Security",
+            " → ○ Security → ○ Messaging → ○ Identity → ○ Complete",
             Style::new().fg(COLOR_DARK_GRAY),
         ));
     } else if let SetupPage::ConfigImport = state.active_page {
@@ -249,6 +262,10 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
             "● Security",
             Style::new().fg(COLOR_ORANGE).bold(),
         ));
+        line1.push_span(Span::styled(
+            " → ○ Messaging → ○ Identity → ○ Complete",
+            Style::new().fg(COLOR_DARK_GRAY),
+        ));
     } else if let SetupPage::MediatorAsk | SetupPage::MediatorCustom = state.active_page {
         step = 4;
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
@@ -263,7 +280,11 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
             "● Messaging",
             Style::new().fg(COLOR_ORANGE).bold(),
         ));
-    } else if let SetupPage::UserName = state.active_page {
+        line1.push_span(Span::styled(
+            " → ○ Identity → ○ Complete",
+            Style::new().fg(COLOR_DARK_GRAY),
+        ));
+    } else if let SetupPage::UserName | SetupPage::WebVHAddress = state.active_page {
         step = 5;
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
         line1.push_span(Span::styled(
@@ -279,17 +300,34 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
             "● Identity",
             Style::new().fg(COLOR_ORANGE).bold(),
         ));
+        line1.push_span(Span::styled(
+            " → ○ Complete",
+            Style::new().fg(COLOR_DARK_GRAY),
+        ));
+    } else if let SetupPage::FinalPage = state.active_page {
+        step = 6;
+        line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
+        line1.push_span(Span::styled(
+            "✓ Key Management",
+            Style::new().fg(COLOR_SUCCESS),
+        ));
+        line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
+        line1.push_span(Span::styled("✓ Security", Style::new().fg(COLOR_SUCCESS)));
+        line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
+        line1.push_span(Span::styled("✓ Messaging", Style::new().fg(COLOR_SUCCESS)));
+        line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
+        line1.push_span(Span::styled("✓ Identity", Style::new().fg(COLOR_SUCCESS)));
+        line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
+        line1.push_span(Span::styled(
+            "● Complete",
+            Style::new().fg(COLOR_ORANGE).bold(),
+        ));
     } else {
         line1.push_span(Span::styled(
-            " → ○ Key Management → ○ Security → ○ Messaging",
+            " → ○ Key Management → ○ Security → ○ Messaging → ○ Identity → ○ Complete",
             Style::new().fg(COLOR_DARK_GRAY),
         ));
     }
-
-    line1.push_span(Span::styled(
-        " → ○ Identity → ○ Verify ",
-        Style::new().fg(COLOR_DARK_GRAY),
-    ));
 
     let line2 = Line::from(Span::styled(
         format!("Section {}/6", step),

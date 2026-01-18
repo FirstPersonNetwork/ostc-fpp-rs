@@ -131,6 +131,21 @@ impl StateHandler {
                             state.setup.did_keys_export.messages.push("Key export completed".to_string());
                         }
                     },
+                    Action::SetCustomMediator(mediator_did) => {
+                        // Set the Custom Mediator in setup state
+                        state.setup.custom_mediator = Some(mediator_did);
+                        state.setup.active_page = SetupPage::UserName;
+                    }
+                    Action::SetUsername(username) => {
+                        // Set the username in setup state
+                        state.setup.username = username;
+                        state.setup.active_page = SetupPage::WebVHAddress;
+                    },
+                    Action::SetupCompleted(webvh_address) => {
+                        // Final setup step completed
+                        state.setup.webvh_address = webvh_address;
+                        state.setup.active_page = SetupPage::FinalPage;
+                    },
                 },
                 // Catch and handle interrupt signal to gracefully shutdown
                 Ok(interrupted) = interrupt_rx.recv() => {

@@ -49,7 +49,17 @@ pub struct SetupState {
     /// DID Keys
     pub did_keys: Option<PersonaDIDKeys>,
 
+    /// Contains the PGP formatted export of DID keys if user selected to export
     pub did_keys_export: DIDKeysExportState,
+
+    /// Has the user selected to use a custom Mediator?
+    pub custom_mediator: Option<String>,
+
+    /// What username is the user using?
+    pub username: String,
+
+    /// What address to sue for WebVH?
+    pub webvh_address: String,
 }
 
 /// Update messages as the Key export works through

@@ -13,10 +13,7 @@ use ratatui::{
 use tui_input::{Input, backend::crossterm::EventHandler};
 
 use crate::{
-    state_handler::{
-        actions::Action,
-        setup_sequence::{SetupPage, SetupState},
-    },
+    state_handler::{actions::Action, setup_sequence::SetupState},
     ui::pages::setup_flow::{SetupFlow, render_setup_header},
 };
 
@@ -36,7 +33,9 @@ impl UserName {
                 let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Enter => {
-                state.props.state.active_page = SetupPage::WebVHAddress;
+                let _ = state.action_tx.send(Action::SetUsername(
+                    state.username.username.value().to_string(),
+                ));
             }
             KeyCode::Esc => {
                 state.username.username.reset();

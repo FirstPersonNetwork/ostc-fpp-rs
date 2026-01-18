@@ -1,5 +1,5 @@
 use crossterm::event::{Event, KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_ORANGE, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT};
+use lkmv::colors::{COLOR_BORDER, COLOR_DARK_GRAY, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT};
 use ratatui::{
     Frame,
     layout::{
@@ -18,34 +18,31 @@ use crate::{
 };
 
 // ****************************************************************************
-// MediatorCustom
+// WebvhAddress
 // ****************************************************************************
 
 #[derive(Clone, Debug, Default)]
-pub struct MediatorCustom {
-    pub mediator_did: Input,
+pub struct WebvhAddress {
+    pub address: Input,
 }
 
-impl MediatorCustom {
+impl WebvhAddress {
     pub fn handle_key_event(state: &mut SetupFlow, key: KeyEvent) {
         match key.code {
             KeyCode::F(10) => {
                 let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Enter => {
-                let _ = state.action_tx.send(Action::SetCustomMediator(
-                    state.mediator_custom.mediator_did.value().to_string(),
+                let _ = state.action_tx.send(Action::SetupCompleted(
+                    state.webvh_address.address.value().to_string(),
                 ));
             }
             KeyCode::Esc => {
-                state.mediator_custom.mediator_did.reset();
+                state.webvh_address.address.reset();
             }
             _ => {
                 // Handle text input
-                state
-                    .mediator_custom
-                    .mediator_did
-                    .handle_event(&Event::Key(key));
+                state.webvh_address.address.handle_event(&Event::Key(key));
             }
         }
     }
@@ -56,25 +53,25 @@ impl MediatorCustom {
 
         render_setup_header(frame, top, state);
 
-        // 0: Input 0 Header (Passphrase)
-        // 1: INPUT <-- Passphrase
+        // 0: Input 0 Header
+        // 1: INPUT
         // 2: Key Bindings
         let content: [Rect; 3] =
             Layout::vertical([Length(2), Length(2), Min(0)]).areas(middle.inner(Margin::new(3, 2)));
 
-        let [input0_prompt, input0_box] = Layout::horizontal([Length(2), Min(0)]).areas(content[1]);
+        let [input0_prompt, input0_box] = Layout::horizontal([Length(5), Min(0)]).areas(content[1]);
 
         frame.render_widget(
             Block::bordered()
                 .fg(COLOR_BORDER)
                 .padding(Padding::proportional(1))
-                .title(" Custom Mediator DID "),
+                .title(" Community DID Setup "),
             middle,
         );
 
         frame.render_widget(
             Paragraph::new(vec![Line::styled(
-                "Enter Custom Mediator DID",
+                "Enter the Web Address where your DID will be hosted:",
                 Style::new().fg(COLOR_BORDER).bold(),
             )]),
             content[0],
@@ -82,21 +79,21 @@ impl MediatorCustom {
 
         frame.render_widget(
             Paragraph::new(Span::styled(
-                "> ",
+                "URL: ",
                 Style::new().fg(COLOR_SOFT_PURPLE).bold(),
             )),
             input0_prompt,
         );
 
-        render_input(&self.mediator_did, frame, input0_box);
+        render_input(&self.address, frame, input0_box);
 
         frame.render_widget(
             Paragraph::new(vec![
                 Line::from(vec![
-                    Span::styled("NOTE: ", Style::new().fg(COLOR_ORANGE).bold()),
+                    Span::styled("Example: ", Style::new().fg(COLOR_BORDER).bold()),
                     Span::styled(
-                        "The Custom Mediator DID must support DIDComm v2 protocol",
-                        Style::new().fg(COLOR_TEXT_DEFAULT),
+                        "https::/<username>.github.io/",
+                        Style::new().fg(COLOR_DARK_GRAY),
                     ),
                 ]),
                 Line::default(),
@@ -106,6 +103,14 @@ impl MediatorCustom {
                     Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
                     Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
                 ]),
+                Line::default(),
+                Line::styled("Your identity within LKMV is represented using the Web Verifiable History (WebVH) DID Method.", Style::new().fg(COLOR_TEXT_DEFAULT)),
+                Line::default(),
+                Line::styled("What is WebVH DID?", Style::new().fg(COLOR_BORDER).bold()),
+                Line::styled("• Decentralized identifier accessible via HTTPS", Style::new().fg(COLOR_TEXT_DEFAULT)),
+                Line::styled("• Changes are tracked using Verifiable History Logs", Style::new().fg(COLOR_TEXT_DEFAULT)),
+                Line::styled("• No blockchain or external services required beyond simple web hosting", Style::new().fg(COLOR_TEXT_DEFAULT)),
+                Line::styled("• Full control and ownership oevr your DID and where you choose to host it", Style::new().fg(COLOR_TEXT_DEFAULT)),
             ]),
             content[2],
         );
