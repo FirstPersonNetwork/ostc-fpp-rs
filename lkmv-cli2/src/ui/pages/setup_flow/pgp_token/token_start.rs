@@ -17,15 +17,17 @@ use crate::{
 };
 
 #[derive(Copy, Clone, Debug, Default)]
-pub struct FinalPage {}
+pub struct TokenStart {}
 
-impl FinalPage {
+impl TokenStart {
     pub fn handle_key_event(state: &mut SetupFlow, key: KeyEvent) {
         match key.code {
             KeyCode::F(10) => {
                 let _ = state.action_tx.send(Action::Exit);
             }
-            KeyCode::Enter => {}
+            KeyCode::Enter => {
+                let _ = state.action_tx.send(Action::GetTokens);
+            }
             _ => {}
         }
     }
@@ -39,9 +41,18 @@ impl FinalPage {
         let block = Block::bordered()
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Setup Complete ");
+            .title(" Hardware Token Setup ");
 
         let lines = vec![
+            Line::styled(
+                "Best practice security is to use a hardware token to help secure LKMV.",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ),
+            Line::default(),
+            Line::styled(
+                "If you have a openpgp compatible hardware token (NitroKey, YubiKey, etc) - Please ensure it is plugged in now.",
+                Style::new().fg(COLOR_TEXT_DEFAULT).bold(),
+            ),
             Line::default(),
             Line::from(vec![
                 Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),

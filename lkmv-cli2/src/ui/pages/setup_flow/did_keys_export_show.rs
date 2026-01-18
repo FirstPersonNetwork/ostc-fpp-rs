@@ -45,7 +45,14 @@ impl DIDKeysExportShow {
                 let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Enter => {
-                state.props.state.active_page = SetupPage::UnlockCodeAsk;
+                #[cfg(feature = "openpgp-card")]
+                {
+                    state.props.state.active_page = SetupPage::TokenStart;
+                }
+                #[cfg(not(feature = "openpgp-card"))]
+                {
+                    state.props.state.active_page = SetupPage::UnlockCodeAsk;
+                }
             }
             _ => {}
         }

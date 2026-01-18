@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use crate::{
     Interrupted, Terminator,
     state_handler::{
@@ -9,8 +7,11 @@ use crate::{
 };
 use anyhow::Result;
 use lkmv::config::{Config, public_config::PublicConfig};
+#[cfg(feature = "openpgp-card")]
+use lkmv::openpgp_card::get_cards;
 use pgp::composed::ArmorOptions;
 use secrecy::SecretString;
+use std::{str::FromStr, sync::Arc};
 use tokio::sync::{
     broadcast,
     mpsc::{self, UnboundedReceiver, UnboundedSender},
@@ -68,90 +69,105 @@ impl StateHandler {
 
         let result = loop {
             tokio::select! {
-                Some(action) = action_rx.recv() => match action {
-                    Action::Exit => {
-                        let _ = terminator.terminate(Interrupted::UserInt);
+                    Some(action) = action_rx.recv() => match action {
+                        Action::Exit => {
+                            let _ = terminator.terminate(Interrupted::UserInt);
 
-                        break Interrupted::UserInt;
+                            break Interrupted::UserInt;
+                        },
+                        Action::UXError(interrupted) => {
+                            // An error has occurred on the UX side
+                            let _ = terminator.terminate(interrupted.clone());
+
+                            break interrupted;
+                        },
+                        Action::MainMenuSelected(menu_item) => {
+                            // User has changed main menu selection
+                            state.main_page.menu_panel.selected_menu = menu_item;
+                        },
+                        Action::MainPanelSwitch(panel) => {
+                            match panel {
+                                MainPanel::ContentPanel => {
+                                    // When switching to ContentPanel, reset any content-specific state if needed
+                                    state.main_page.menu_panel.selected = false;
+                                    state.main_page.content_panel.selected = true;
+                                },
+                                MainPanel::MainMenu => {
+                                    // When switching to MainMenu, reset any content-specific state if needed
+                                    state.main_page.menu_panel.selected = true;
+                                    state.main_page.content_panel.selected = false;
+                                }
+                            }
+                        },
+                        Action::ExportDIDKeys(persona_keys, export_inputs) => {
+                            // Handle exporting DID Keys
+                            state.setup.active_page = SetupPage::DidKeysExportShow;
+                            state.setup.did_keys = Some(*persona_keys);
+                            state.setup.did_keys_export.messages.push("Starting key export...".to_string());
+
+                            // Send the intial state so that the UX shows the key export page
+                            let _ = self.state_tx.send(state.clone());
+
+                            let state_tx_clone = self.state_tx.clone();
+                            let export = tokio::spawn(async move {
+                             match DIDKeysAsk::export_persona_did_keys(&mut state, &state_tx_clone, export_inputs.username.value(), SecretString::from_str(export_inputs.passphrase.value()).unwrap()) {
+                                Ok(export) => {
+                                    state.setup.did_keys_export.exported =  match export.to_armored_string(ArmorOptions::default()) {
+                                        Ok(armored) => Some(armored),
+                                        Err(e) => {
+                                                state.setup.did_keys_export.messages.push(format!("Error armoring exported keys: {}", e));
+                                                None
+                                        }
+                                    };
+                                }
+                                Err(e) => {
+                                        state.setup.did_keys_export.messages.push(format!("Error exporting DID keys: {}", e));
+                                }
+
+                            }
+                                state
+                            }).await.unwrap();
+                            state = export;
+                            if state.setup.did_keys_export.exported.is_some() {
+                                state.setup.did_keys_export.messages.push("Key export completed".to_string());
+                            }
+                        },
+
+            #[cfg(feature = "openpgp-card")]
+                        Action::GetTokens => {
+                            // Fetch connected PGP Hardware Tokens
+                            state.setup.active_page = SetupPage::TokenSelect;
+                            match get_cards() {
+                                Ok(cards) => {
+                                    state.setup.tokens.tokens = cards;
+                                }
+                                Err(e) => {
+                                    state.setup.tokens.messages = vec![format!("Error fetching tokens: {}", e)];
+                                state.setup.tokens.tokens = vec![];
+                                }
+                            }
+                        },
+                        Action::SetCustomMediator(mediator_did) => {
+                            // Set the Custom Mediator in setup state
+                            state.setup.custom_mediator = Some(mediator_did);
+                            state.setup.active_page = SetupPage::UserName;
+                        }
+                        Action::SetUsername(username) => {
+                            // Set the username in setup state
+                            state.setup.username = username;
+                            state.setup.active_page = SetupPage::WebVHAddress;
+                        },
+                        Action::SetupCompleted(webvh_address) => {
+                            // Final setup step completed
+                            state.setup.webvh_address = webvh_address;
+                            state.setup.active_page = SetupPage::FinalPage;
+                        },
                     },
-                    Action::UXError(interrupted) => {
-                        // An error has occurred on the UX side
-                        let _ = terminator.terminate(interrupted.clone());
-
+                    // Catch and handle interrupt signal to gracefully shutdown
+                    Ok(interrupted) = interrupt_rx.recv() => {
                         break interrupted;
-                    },
-                    Action::MainMenuSelected(menu_item) => {
-                        // User has changed main menu selection
-                        state.main_page.menu_panel.selected_menu = menu_item;
-                    },
-                    Action::MainPanelSwitch(panel) => {
-                        match panel {
-                            MainPanel::ContentPanel => {
-                                // When switching to ContentPanel, reset any content-specific state if needed
-                                state.main_page.menu_panel.selected = false;
-                                state.main_page.content_panel.selected = true;
-                            },
-                            MainPanel::MainMenu => {
-                                // When switching to MainMenu, reset any content-specific state if needed
-                                state.main_page.menu_panel.selected = true;
-                                state.main_page.content_panel.selected = false;
-                            }
-                        }
-                    },
-                    Action::ExportDIDKeys(persona_keys, export_inputs) => {
-                        // Handle exporting DID Keys
-                        state.setup.active_page = SetupPage::DidKeysExportShow;
-                        state.setup.did_keys = Some(*persona_keys);
-                        state.setup.did_keys_export.messages.push("Starting key export...".to_string());
-
-                        // Send the intial state so that the UX shows the key export page
-                        let _ = self.state_tx.send(state.clone());
-
-                        let state_tx_clone = self.state_tx.clone();
-                        let export = tokio::spawn(async move {
-                         match DIDKeysAsk::export_persona_did_keys(&mut state, &state_tx_clone, export_inputs.username.value(), SecretString::from_str(export_inputs.passphrase.value()).unwrap()) {
-                            Ok(export) => {
-                                state.setup.did_keys_export.exported =  match export.to_armored_string(ArmorOptions::default()) {
-                                    Ok(armored) => Some(armored),
-                                    Err(e) => {
-                                            state.setup.did_keys_export.messages.push(format!("Error armoring exported keys: {}", e));
-                                            None
-                                    }
-                                };
-                            }
-                            Err(e) => {
-                                    state.setup.did_keys_export.messages.push(format!("Error exporting DID keys: {}", e));
-                            }
-
-                        }
-                            state
-                        }).await.unwrap();
-                        state = export;
-                        if state.setup.did_keys_export.exported.is_some() {
-                            state.setup.did_keys_export.messages.push("Key export completed".to_string());
-                        }
-                    },
-                    Action::SetCustomMediator(mediator_did) => {
-                        // Set the Custom Mediator in setup state
-                        state.setup.custom_mediator = Some(mediator_did);
-                        state.setup.active_page = SetupPage::UserName;
                     }
-                    Action::SetUsername(username) => {
-                        // Set the username in setup state
-                        state.setup.username = username;
-                        state.setup.active_page = SetupPage::WebVHAddress;
-                    },
-                    Action::SetupCompleted(webvh_address) => {
-                        // Final setup step completed
-                        state.setup.webvh_address = webvh_address;
-                        state.setup.active_page = SetupPage::FinalPage;
-                    },
-                },
-                // Catch and handle interrupt signal to gracefully shutdown
-                Ok(interrupted) = interrupt_rx.recv() => {
-                    break interrupted;
                 }
-            }
             self.state_tx.send(state.clone())?;
         };
 

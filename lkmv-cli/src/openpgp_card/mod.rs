@@ -5,7 +5,6 @@
 use crate::{CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED};
 use affinidi_tdk::secrets_resolver::multicodec::{ED25519_PUB, MultiEncodedBuf, X25519_PUB};
 use anyhow::Result;
-use card_backend_pcsc::PcscBackend;
 use chrono::{DateTime, Utc};
 use console::{Term, style};
 use lkmv::KeyPurpose;
@@ -20,7 +19,8 @@ use openpgp_card::{
     state::{Open, Transaction},
 };
 use secrecy::SecretString;
-use std::fmt;
+use std::{fmt, sync::Arc};
+use tokio::sync::Mutex;
 
 pub mod write;
 
@@ -97,18 +97,6 @@ impl fmt::Debug for KeySlotInfo {
     }
 }
 
-/// Get a list of active cards on this system
-pub fn cards() -> Result<Vec<Card<Open>>> {
-    let mut cards = vec![];
-
-    for backend in PcscBackend::cards(None)? {
-        let card = Card::<Open>::new(backend?)?;
-        cards.push(card);
-    }
-
-    Ok(cards)
-}
-
 /// Formats the cardholder name
 /// Returns None if the name is empty
 pub fn format_cardholder_name(card_holder: &str) -> Option<String> {
@@ -140,7 +128,7 @@ pub fn format_cardholder_name(card_holder: &str) -> Option<String> {
     }
 }
 
-pub fn print_cards(cards: &mut [Card<Open>]) -> Result<()> {
+pub fn print_cards(cards: &mut [Arc<Mutex<Card<Open>>>]) -> Result<()> {
     print!("{}", style("Cards found:").color256(CLI_BLUE),);
     if cards.is_empty() {
         println!(" {}", style(cards.len()).color256(CLI_ORANGE));
@@ -149,7 +137,8 @@ pub fn print_cards(cards: &mut [Card<Open>]) -> Result<()> {
     }
 
     for card in cards.iter_mut() {
-        let mut open_card = card.transaction()?;
+        let mut card_lock = card.blocking_lock();
+        let mut open_card = card_lock.transaction()?;
         let app_identifier = open_card.application_identifier()?;
         print!(
             "{} {} {} {}",
@@ -422,11 +411,12 @@ pub fn print_key_info(ki: &KeySlotInfo) {
 }
 
 /// Performs a factory reset on the card, erasing all keys and data
-pub fn factory_reset(term: &Term, card: &mut Card<Open>) -> Result<()> {
+pub fn factory_reset(term: &Term, card: &mut Arc<Mutex<Card<Open>>>) -> Result<()> {
     print!("{}", style("Factory resetting card...").color256(CLI_BLUE));
     term.hide_cursor()?;
     term.flush()?;
-    let mut card = card.transaction()?;
+    let mut lock = card.blocking_lock();
+    let mut card = lock.transaction()?;
     card.factory_reset()?;
     term.show_cursor()?;
     println!(" {}", style("Success!").color256(CLI_GREEN));
@@ -435,10 +425,11 @@ pub fn factory_reset(term: &Term, card: &mut Card<Open>) -> Result<()> {
 }
 pub fn set_signing_touch_policy(
     term: &Term,
-    card: &mut Card<Open>,
+    card: &mut Arc<Mutex<Card<Open>>>,
     admin_pin: &SecretString,
 ) -> Result<()> {
-    let mut open_card = card.transaction()?;
+    let mut lock = card.blocking_lock();
+    let mut open_card = lock.transaction()?;
     open_card.verify_admin_pin(admin_pin.clone())?;
     let mut card = open_card.to_admin_card(None)?;
 
@@ -460,11 +451,12 @@ pub fn set_signing_touch_policy(
 /// name: Max length is 39 characters
 pub fn set_cardholder_name(
     term: &Term,
-    card: &mut Card<Open>,
+    card: &mut Arc<Mutex<Card<Open>>>,
     admin_pin: &SecretString,
     name: &str,
 ) -> Result<()> {
-    let mut open_card = card.transaction()?;
+    let mut lock = card.blocking_lock();
+    let mut open_card = lock.transaction()?;
     open_card.verify_admin_pin(admin_pin.clone())?;
     let mut card = open_card.to_admin_card(None)?;
 

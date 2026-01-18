@@ -16,6 +16,7 @@ openpgp-card = [
   "dep:openpgp-card",
   "dep:card-backend-pcsc",
   "dep:openpgp-card-rpgp",
+  "lkmv/openpgp-card",
 ]
 
 [dependencies]
@@ -31,6 +32,7 @@ bip39.workspace = true
 byteorder.workspace = true
 chrono.workspace = true
 clap.workspace = true
+# cli-clipboard.workspace = true
 arboard.workspace = true
 console.workspace = true
 crossterm.workspace = true

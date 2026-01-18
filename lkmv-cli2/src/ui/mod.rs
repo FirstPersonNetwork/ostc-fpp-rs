@@ -1,8 +1,3 @@
-use std::{
-    io::{self, Stdout},
-    time::Duration,
-};
-
 use crate::{
     Interrupted,
     state_handler::{actions::Action, state::State},
@@ -18,6 +13,7 @@ use crossterm::{
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{Terminal, prelude::CrosstermBackend};
+use std::io::{self, Stdout};
 use tokio::sync::{
     broadcast,
     mpsc::{self, UnboundedReceiver},

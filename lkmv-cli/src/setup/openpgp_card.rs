@@ -5,7 +5,7 @@
 use crate::{
     CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED,
     openpgp_card::{
-        cards, factory_reset, print_cards, set_cardholder_name, set_signing_touch_policy,
+        factory_reset, print_cards, set_cardholder_name, set_signing_touch_policy,
         write::write_keys_to_card,
     },
     setup::PersonaDIDKeys,
@@ -17,6 +17,7 @@ use crossterm::{
     terminal,
 };
 use dialoguer::{Confirm, Select, theme::ColorfulTheme};
+use lkmv::openpgp_card::get_cards;
 use secrecy::SecretString;
 
 /// Handles storing secrets on an OpenPGP compatible card
@@ -58,7 +59,7 @@ pub fn setup_hardware_token(
     );
 
     // Detect cards and show
-    let mut cards = cards()?;
+    let mut cards = get_cards()?;
     if cards.is_empty() {
         println!(
             "{}\n",
@@ -72,7 +73,8 @@ pub fn setup_hardware_token(
     let mut s_card: Vec<String> = cards
         .iter_mut()
         .map(|c| {
-            c.transaction()
+            let mut lock = c.blocking_lock();
+            lock.transaction()
                 .unwrap()
                 .application_identifier()
                 .unwrap()

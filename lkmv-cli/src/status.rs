@@ -309,11 +309,13 @@ fn openpgp_cards_status() -> Result<()> {
 
     #[cfg(feature = "openpgp-card")]
     {
-        use crate::openpgp_card::{cards, print_cards};
+        use lkmv::openpgp_card::get_cards;
+
+        use crate::openpgp_card::print_cards;
 
         println!("{} ", style("Enabled").color256(CLI_GREEN).bold());
 
-        let mut cards = cards()?;
+        let mut cards = get_cards()?;
         print_cards(&mut cards)?;
     }
 

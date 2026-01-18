@@ -1,3 +1,9 @@
+#[cfg(feature = "openpgp-card")]
+use crate::ui::pages::setup_flow::pgp_token::{
+    token_factory_reset::TokenFactoryReset, token_select::TokenSelect,
+    token_set_cardholder_name::TokenSetCardholderName, token_set_touch::TokenSetTouch,
+    token_start::TokenStart,
+};
 use crate::{
     state_handler::{
         actions::Action,
@@ -50,6 +56,9 @@ pub mod unlock_code_warn;
 pub mod username;
 pub mod webvh_address;
 
+#[cfg(feature = "openpgp-card")]
+pub mod pgp_token;
+
 /// Handles the Setup Flow sequence
 pub struct SetupFlow {
     /// Action sender
@@ -69,6 +78,17 @@ pub struct SetupFlow {
     pub did_keys_export_ask: DIDKeysExportAsk,
     pub did_keys_export_inputs: DIDKeysExportInputs,
     pub did_keys_export_show: DIDKeysExportShow,
+
+    #[cfg(feature = "openpgp-card")]
+    pub token_start: TokenStart,
+    #[cfg(feature = "openpgp-card")]
+    pub token_select: TokenSelect,
+    #[cfg(feature = "openpgp-card")]
+    pub token_factory_reset: TokenFactoryReset,
+    #[cfg(feature = "openpgp-card")]
+    pub token_set_touch: TokenSetTouch,
+    #[cfg(feature = "openpgp-card")]
+    pub token_set_cardholder_name: TokenSetCardholderName,
 
     pub unlock_code_ask: UnlockCodeAsk,
     pub unlock_code_warn: UnlockCodeWarn,
@@ -117,6 +137,18 @@ impl Component for SetupFlow {
             did_keys_export_ask: DIDKeysExportAsk::default(),
             did_keys_export_inputs: DIDKeysExportInputs::default(),
             did_keys_export_show: DIDKeysExportShow::default(),
+
+            #[cfg(feature = "openpgp-card")]
+            token_start: TokenStart::default(),
+            #[cfg(feature = "openpgp-card")]
+            token_select: TokenSelect::default(),
+            #[cfg(feature = "openpgp-card")]
+            token_factory_reset: TokenFactoryReset::default(),
+            #[cfg(feature = "openpgp-card")]
+            token_set_touch: TokenSetTouch::default(),
+            #[cfg(feature = "openpgp-card")]
+            token_set_cardholder_name: TokenSetCardholderName::default(),
+
             unlock_code_ask: UnlockCodeAsk::default(),
             unlock_code_warn: UnlockCodeWarn::default(),
             unlock_code_set: UnlockCodeSet::default(),
@@ -159,6 +191,20 @@ impl Component for SetupFlow {
             SetupPage::DidKeysExportAsk => DIDKeysExportAsk::handle_key_event(self, key),
             SetupPage::DidKeysExportInputs => DIDKeysExportInputs::handle_key_event(self, key),
             SetupPage::DidKeysExportShow => DIDKeysExportShow::handle_key_event(self, key),
+
+            #[cfg(feature = "openpgp-card")]
+            SetupPage::TokenStart => TokenStart::handle_key_event(self, key),
+            #[cfg(feature = "openpgp-card")]
+            SetupPage::TokenSelect => TokenSelect::handle_key_event(self, key),
+            #[cfg(feature = "openpgp-card")]
+            SetupPage::TokenFactoryReset => TokenFactoryReset::handle_key_event(self, key),
+            #[cfg(feature = "openpgp-card")]
+            SetupPage::TokenSetTouch => TokenSetTouch::handle_key_event(self, key),
+            #[cfg(feature = "openpgp-card")]
+            SetupPage::TokenSetCardholderName => {
+                TokenSetCardholderName::handle_key_event(self, key)
+            }
+
             SetupPage::UnlockCodeAsk => UnlockCodeAsk::handle_key_event(self, key),
             SetupPage::UnlockCodeWarn => UnlockCodeWarn::handle_key_event(self, key),
             SetupPage::UnlockCodeSet => UnlockCodeSet::handle_key_event(self, key),
@@ -194,6 +240,22 @@ impl ComponentRender<()> for SetupFlow {
             SetupPage::DidKeysExportShow => {
                 self.did_keys_export_show.render(&self.props.state, frame)
             }
+
+            #[cfg(feature = "openpgp-card")]
+            SetupPage::TokenStart => self.token_start.render(&self.props.state, frame),
+            #[cfg(feature = "openpgp-card")]
+            SetupPage::TokenSelect => self.token_select.render(&self.props.state, frame),
+            #[cfg(feature = "openpgp-card")]
+            SetupPage::TokenFactoryReset => {
+                self.token_factory_reset.render(&self.props.state, frame)
+            }
+            #[cfg(feature = "openpgp-card")]
+            SetupPage::TokenSetTouch => self.token_set_touch.render(&self.props.state, frame),
+            #[cfg(feature = "openpgp-card")]
+            SetupPage::TokenSetCardholderName => self
+                .token_set_cardholder_name
+                .render(&self.props.state, frame),
+
             SetupPage::UnlockCodeAsk => self.unlock_code_ask.render(&self.props.state, frame),
             SetupPage::UnlockCodeWarn => self.unlock_code_warn.render(&self.props.state, frame),
             SetupPage::UnlockCodeSet => self.unlock_code_set.render(&self.props.state, frame),
@@ -323,6 +385,36 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
             Style::new().fg(COLOR_ORANGE).bold(),
         ));
     } else {
+        #[cfg(feature = "openpgp-card")]
+        if let SetupPage::TokenStart
+        | SetupPage::TokenSelect
+        | SetupPage::TokenFactoryReset
+        | SetupPage::TokenSetTouch
+        | SetupPage::TokenSetCardholderName = state.active_page
+        {
+            step = 3;
+            line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
+            line1.push_span(Span::styled(
+                "✓ Key Management",
+                Style::new().fg(COLOR_SUCCESS),
+            ));
+            line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
+            line1.push_span(Span::styled(
+                "● Security",
+                Style::new().fg(COLOR_ORANGE).bold(),
+            ));
+            line1.push_span(Span::styled(
+                " → ○ Messaging → ○ Identity → ○ Complete",
+                Style::new().fg(COLOR_DARK_GRAY),
+            ));
+        } else {
+            line1.push_span(Span::styled(
+                " → ○ Key Management → ○ Security → ○ Messaging → ○ Identity → ○ Complete",
+                Style::new().fg(COLOR_DARK_GRAY),
+            ));
+        }
+
+        #[cfg(not(feature = "openpgp-card"))]
         line1.push_span(Span::styled(
             " → ○ Key Management → ○ Security → ○ Messaging → ○ Identity → ○ Complete",
             Style::new().fg(COLOR_DARK_GRAY),

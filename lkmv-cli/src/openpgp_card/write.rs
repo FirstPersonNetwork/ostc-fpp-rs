@@ -22,17 +22,20 @@ use pgp::{
     },
 };
 use secrecy::SecretString;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use x25519_dalek::{PublicKey as X25519PublicKey, StaticSecret};
 
 /// Writes keys to the card
 pub fn write_keys_to_card(
     term: &Term,
-    card: &mut Card<Open>,
+    card: &mut Arc<Mutex<Card<Open>>>,
     keys: &PersonaDIDKeys,
     admin_pin: &SecretString,
 ) -> Result<()> {
     // Try unlocking the card with the admin PIN
-    let mut open_card = card.transaction()?;
+    let mut lock = card.blocking_lock();
+    let mut open_card = lock.transaction()?;
     open_card.verify_admin_pin(admin_pin.clone())?;
     let mut card = open_card.to_admin_card(None)?;
 

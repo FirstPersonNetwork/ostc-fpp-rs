@@ -49,7 +49,16 @@ impl DIDKeysExportAsk {
             }
             KeyCode::Enter => {
                 state.props.state.active_page = match state.did_keys_export_ask {
-                    DIDKeysExportAsk::Skip => SetupPage::UnlockCodeAsk,
+                    DIDKeysExportAsk::Skip => {
+                        #[cfg(feature = "openpgp-card")]
+                        {
+                            SetupPage::TokenStart
+                        }
+                        #[cfg(not(feature = "openpgp-card"))]
+                        {
+                            SetupPage::UnlockCodeAsk
+                        }
+                    }
                     DIDKeysExportAsk::Export => SetupPage::DidKeysExportInputs,
                 }
             }
