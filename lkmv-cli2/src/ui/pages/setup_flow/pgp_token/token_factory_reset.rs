@@ -24,7 +24,15 @@ pub struct TokenFactoryReset {
     pub options: TokenFactoryResetOptions,
 
     /// Resetting and writing keys to the token
-    pub writing_mode: bool,
+    state: ResetState,
+}
+
+#[derive(Copy, Clone, Debug, Default)]
+enum ResetState {
+    #[default]
+    Choice,
+    Resetting,
+    Writing,
 }
 
 #[derive(Copy, Clone, Debug, Default)]
@@ -33,6 +41,7 @@ pub enum TokenFactoryResetOptions {
     Reset,
     NoReset,
 }
+
 impl TokenFactoryResetOptions {
     /// Switches to the next panel when pressing <TAB>
     pub fn switch(&self) -> Self {
@@ -53,24 +62,46 @@ impl TokenFactoryReset {
                 state.token_factory_reset.options = state.token_factory_reset.options.switch();
             }
             KeyCode::Enter => {
-                if state.token_factory_reset.writing_mode
-                    && state.props.state.token_reset.completed_writing
-                {
-                    // Writing completed. Move to the next page
-                    state.props.state.active_page = SetupPage::TokenSetTouch;
-                } else if let TokenFactoryResetOptions::Reset = state.token_factory_reset.options {
-                    if state.props.state.token_reset.completed_reset {
-                        let _ = state.action_tx.send(Action::TokenWriteKeys(
-                            state.token_select.selected_token.clone(),
-                        ));
-                    } else {
-                        state.token_factory_reset.writing_mode = true;
-                        let _ = state.action_tx.send(Action::FactoryReset(
-                            state.token_select.selected_token.clone(),
-                        ));
+                if let TokenFactoryResetOptions::Reset = state.token_factory_reset.options {
+                    match state.token_factory_reset.state {
+                        ResetState::Choice => {
+                            // Start factory reset
+                            state.token_factory_reset.state = ResetState::Resetting;
+                            let _ = state.action_tx.send(Action::FactoryReset(
+                                state.token_select.selected_token.clone(),
+                            ));
+                        }
+                        ResetState::Resetting => {
+                            if state.props.state.token_reset.completed_reset {
+                                // Start writing keys
+                                state.token_factory_reset.state = ResetState::Writing;
+                                let _ = state.action_tx.send(Action::TokenWriteKeys(
+                                    state.token_select.selected_token.clone(),
+                                ));
+                            }
+                        }
+                        ResetState::Writing => {
+                            if state.props.state.token_reset.completed_writing {
+                                state.props.state.active_page = SetupPage::TokenSetTouch;
+                            }
+                        }
                     }
                 } else {
-                    state.token_factory_reset.writing_mode = true;
+                    match state.token_factory_reset.state {
+                        ResetState::Choice => {
+                            // Start factory reset
+                            state.token_factory_reset.state = ResetState::Writing;
+                            let _ = state.action_tx.send(Action::TokenWriteKeys(
+                                state.token_select.selected_token.clone(),
+                            ));
+                        }
+                        ResetState::Resetting => {}
+                        ResetState::Writing => {
+                            if state.props.state.token_reset.completed_writing {
+                                state.props.state.active_page = SetupPage::TokenSetTouch;
+                            }
+                        }
+                    }
                 }
             }
             _ => {}
@@ -128,37 +159,67 @@ impl TokenFactoryReset {
 
         lines.push(Line::default());
 
-        if self.writing_mode {
-            for msg in state.token_reset.messages.iter() {
-                match msg {
-                    MessageType::Info(info) => {
-                        lines.push(Line::styled(
-                            format!("INFO: {}", info),
-                            Style::new().fg(COLOR_SUCCESS),
-                        ));
-                    }
-                    MessageType::Error(err) => {
-                        lines.push(Line::styled(
-                            format!("ERROR: {}", err),
-                            Style::new().fg(COLOR_WARNING_ACCESSIBLE_RED),
-                        ));
-                    }
-                }
-            }
-            if state.token_reset.completed_reset {
-                lines.push(Line::default());
+        match self.state {
+            ResetState::Choice => {
                 lines.push(Line::from(vec![
+                    Span::styled("[TAB]", Style::new().fg(COLOR_BORDER).bold()),
+                    Span::styled(" to select  |  ", Style::new().fg(COLOR_TEXT_DEFAULT)),
                     Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
                     Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
                 ]));
             }
-        } else {
-            lines.push(Line::from(vec![
-                Span::styled("[TAB]", Style::new().fg(COLOR_BORDER).bold()),
-                Span::styled(" to select  |  ", Style::new().fg(COLOR_TEXT_DEFAULT)),
-                Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
-                Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
-            ]));
+            ResetState::Resetting => {
+                for msg in state.token_reset.messages.iter() {
+                    match msg {
+                        MessageType::Info(info) => {
+                            lines.push(Line::styled(
+                                format!("INFO: {}", info),
+                                Style::new().fg(COLOR_SUCCESS),
+                            ));
+                        }
+                        MessageType::Error(err) => {
+                            lines.push(Line::styled(
+                                format!("ERROR: {}", err),
+                                Style::new().fg(COLOR_WARNING_ACCESSIBLE_RED),
+                            ));
+                        }
+                    }
+                }
+
+                if state.token_reset.completed_reset {
+                    lines.push(Line::default());
+                    lines.push(Line::from(vec![
+                        Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
+                        Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
+                    ]));
+                }
+            }
+            ResetState::Writing => {
+                for msg in state.token_reset.messages.iter() {
+                    match msg {
+                        MessageType::Info(info) => {
+                            lines.push(Line::styled(
+                                format!("INFO: {}", info),
+                                Style::new().fg(COLOR_SUCCESS),
+                            ));
+                        }
+                        MessageType::Error(err) => {
+                            lines.push(Line::styled(
+                                format!("ERROR: {}", err),
+                                Style::new().fg(COLOR_WARNING_ACCESSIBLE_RED),
+                            ));
+                        }
+                    }
+                }
+
+                if state.token_reset.completed_writing {
+                    lines.push(Line::default());
+                    lines.push(Line::from(vec![
+                        Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
+                        Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
+                    ]));
+                }
+            }
         }
 
         frame.render_widget(

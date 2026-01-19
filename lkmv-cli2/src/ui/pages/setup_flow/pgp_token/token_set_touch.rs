@@ -22,7 +22,21 @@ use crate::{
 };
 
 #[derive(Copy, Clone, Debug, Default)]
-pub struct TokenSetTouch {}
+pub enum TokenSetTouch {
+    #[default]
+    SetTouch,
+    NoTouch,
+}
+
+impl TokenSetTouch {
+    /// Switches to the next panel when pressing <TAB>
+    pub fn switch(&self) -> Self {
+        match self {
+            TokenSetTouch::SetTouch => TokenSetTouch::NoTouch,
+            TokenSetTouch::NoTouch => TokenSetTouch::SetTouch,
+        }
+    }
+}
 
 impl TokenSetTouch {
     pub fn handle_key_event(state: &mut SetupFlow, key: KeyEvent) {
