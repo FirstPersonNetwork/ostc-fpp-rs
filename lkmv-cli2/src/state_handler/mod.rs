@@ -1,5 +1,8 @@
 #[cfg(feature = "openpgp-card")]
-use crate::state_handler::setup_sequence::{MessageType, openpgp_card::write_keys_to_card};
+use crate::state_handler::setup_sequence::{
+    MessageType,
+    openpgp_card::{set_signing_touch_policy, write_keys_to_card},
+};
 use crate::{
     Interrupted, Terminator,
     state_handler::{
@@ -198,6 +201,22 @@ impl StateHandler {
                         } else {
                             state.setup.token_reset.messages.push(MessageType::Error("No token was specified.".to_string()));
                         }
+                    }
+                    #[cfg(feature = "openpgp-card")]
+                    Action::SetTouchPolicy(token) => {
+                        // Called if enabling touch policy
+                        state.setup.active_page = SetupPage::TokenSetTouch;
+                        if let Some(token) = token {
+                           match set_signing_touch_policy(&mut state, &self.state_tx, token).await {
+                                Ok(_) => state.setup.token_set_touch.completed = true,
+                                Err(e) => {
+                            state.setup.token_set_touch.messages.push(MessageType::Error(format!("An error occurred when setting touch policy: {e}")));
+                                }
+                            }
+                        } else {
+                            state.setup.token_set_touch.messages.push(MessageType::Error("No token was specified.".to_string()));
+                        }
+                            state.setup.token_set_touch.completed = true;
                     }
                     Action::SetCustomMediator(mediator_did) => {
                         // Set the Custom Mediator in setup state

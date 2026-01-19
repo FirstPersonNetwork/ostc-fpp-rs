@@ -38,9 +38,13 @@ pub enum Action {
     #[cfg(feature = "openpgp-card")]
     GetTokens,
 
-    ///
+    /// Set the Admin PIN Code for the Hardware Token
     #[cfg(feature = "openpgp-card")]
     SetAdminPin(SecretString),
+
+    /// Set the Touch Policy
+    #[cfg(feature = "openpgp-card")]
+    SetTouchPolicy(Option<Arc<Mutex<Card<Open>>>>),
 
     /// Factory Reset Hardware Token
     #[cfg(feature = "openpgp-card")]

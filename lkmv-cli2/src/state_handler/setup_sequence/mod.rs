@@ -83,6 +83,10 @@ pub struct SetupState {
     #[cfg(feature = "openpgp-card")]
     pub token_reset: FactoryResetToken,
 
+    /// Hardware Touch Policy
+    #[cfg(feature = "openpgp-card")]
+    pub token_set_touch: TokenSetTouchPolicy,
+
     /// Has the user selected to use a custom Mediator?
     pub custom_mediator: Option<String>,
 
@@ -133,5 +137,14 @@ impl fmt::Debug for DetectedTokens {
 pub struct FactoryResetToken {
     pub completed_reset: bool,
     pub completed_writing: bool,
+    pub messages: Vec<MessageType>,
+}
+
+/// State relating to token touch policy
+/// Also contains writing keys to the token
+#[cfg(feature = "openpgp-card")]
+#[derive(Clone, Default, Debug)]
+pub struct TokenSetTouchPolicy {
+    pub completed: bool,
     pub messages: Vec<MessageType>,
 }

@@ -6,7 +6,11 @@ use anyhow::{Result, bail};
 use chrono::Utc;
 use ed25519_dalek_bip32::VerifyingKey;
 use lkmv::{KeyPurpose, config::KeyInfo};
-use openpgp_card::{Card, ocard::KeyType, state::Open};
+use openpgp_card::{
+    Card,
+    ocard::{KeyType, data::TouchPolicy},
+    state::Open,
+};
 use openpgp_card_rpgp::UploadableKey;
 use pgp::{
     crypto::{self, ed25519::Mode, public_key::PublicKeyAlgorithm},
@@ -175,4 +179,27 @@ fn create_pgp_secret_packet(key: &KeyInfo, kp: KeyPurpose) -> Result<UploadableK
 
     // Convert to uploadable key
     Ok(SecretKey::new(pk, sp)?.into())
+}
+
+pub async fn set_signing_touch_policy(
+    state: &mut State,
+    action_tx: &UnboundedSender<State>,
+    card: Arc<Mutex<Card<Open>>>,
+) -> Result<()> {
+    let mut lock = card.try_lock().unwrap();
+    let mut open_card = lock.transaction()?;
+    open_card.verify_admin_pin(state.token_admin_pin.clone().unwrap())?;
+    let mut card = open_card.to_admin_card(None)?;
+
+    state.setup.token_set_touch.messages.push(MessageType::Info(
+        "Setting Touch Policy on Signing Key...".to_string(),
+    ));
+    let _ = action_tx.send(state.clone());
+
+    card.set_touch_policy(KeyType::Signing, TouchPolicy::On)?;
+    state.setup.token_set_touch.messages.push(MessageType::Info(
+        "✓ Successfully enabled touch policy!".to_string(),
+    ));
+
+    Ok(())
 }

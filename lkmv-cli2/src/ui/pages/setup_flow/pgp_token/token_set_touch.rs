@@ -1,7 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use lkmv::colors::{
-    COLOR_BORDER, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED,
-};
+use lkmv::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED};
 use ratatui::{
     Frame,
     layout::{
@@ -16,24 +14,30 @@ use ratatui::{
 use crate::{
     state_handler::{
         actions::Action,
-        setup_sequence::{SetupPage, SetupState},
+        setup_sequence::{MessageType, SetupPage, SetupState},
     },
     ui::pages::setup_flow::{SetupFlow, render_setup_header},
 };
 
 #[derive(Copy, Clone, Debug, Default)]
-pub enum TokenSetTouch {
+pub struct TokenSetTouch {
+    started: bool,
+    option: TokenSetTouchOptions,
+}
+
+#[derive(Copy, Clone, Debug, Default)]
+pub enum TokenSetTouchOptions {
     #[default]
     SetTouch,
     NoTouch,
 }
 
-impl TokenSetTouch {
+impl TokenSetTouchOptions {
     /// Switches to the next panel when pressing <TAB>
     pub fn switch(&self) -> Self {
         match self {
-            TokenSetTouch::SetTouch => TokenSetTouch::NoTouch,
-            TokenSetTouch::NoTouch => TokenSetTouch::SetTouch,
+            TokenSetTouchOptions::SetTouch => TokenSetTouchOptions::NoTouch,
+            TokenSetTouchOptions::NoTouch => TokenSetTouchOptions::SetTouch,
         }
     }
 }
@@ -44,8 +48,18 @@ impl TokenSetTouch {
             KeyCode::F(10) => {
                 let _ = state.action_tx.send(Action::Exit);
             }
+            KeyCode::Tab | KeyCode::Up | KeyCode::Down => {
+                state.token_set_touch.option = state.token_set_touch.option.switch();
+            }
             KeyCode::Enter => {
-                state.props.state.active_page = SetupPage::DIDKeysAsk;
+                if !state.token_set_touch.started {
+                    state.token_set_touch.started = true;
+                    let _ = state.action_tx.send(Action::SetTouchPolicy(
+                        state.token_select.selected_token.clone(),
+                    ));
+                } else if state.props.state.token_set_touch.completed {
+                    state.props.state.active_page = SetupPage::TokenSetCardholderName;
+                }
             }
             _ => {}
         }
@@ -60,35 +74,77 @@ impl TokenSetTouch {
         let block = Block::bordered()
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Step 2/4: Save your recovery phrase ");
+            .title(" Step 4/5: Set Token Touch Policy ");
 
         let mut lines = vec![
             Line::styled(
-                "Your BIP39 Recovery phrase (mnemonic of 24 words) below can be used to recover and regenerate your BIP32 based identity and security keys within LKMV.",
+                "Set Token Signing Touch Policy:",
+                Style::new().fg(COLOR_BORDER).bold(),
+            ),
+            Line::default(),
+            Line::styled(
+                "As an additional security precaution, you may want to enable touch on your token when the signing key is being used to sign/attest something.",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ),
             Line::default(),
-            Line::styled(
-                "You must protect this seed phrase. Store it in a safe and secure location",
-                Style::new().fg(COLOR_WARNING_ACCESSIBLE_RED).bold(),
-            ),
-            Line::default(),
-            Line::styled(
-                state.mnemonic.get_mnemonic_string(),
-                Style::new().fg(COLOR_SOFT_PURPLE).bold(),
-            ),
         ];
 
-        lines.push(Line::default());
-        lines.push(Line::from(vec![
-            Span::styled("[C]", Style::new().fg(COLOR_BORDER).bold()),
-            Span::styled(
-                " Copy to clipboard  |  ",
+        // Render the active chocie
+        if let TokenSetTouchOptions::SetTouch = self.option {
+            lines.push(Line::styled(
+                "[✓] Enable touch for Signing (recommended)",
+                Style::new().fg(COLOR_SUCCESS).bold(),
+            ));
+            lines.push(Line::styled(
+                "[ ] Do not enable touch for Signing",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
-            ),
-            Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
-            Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
-        ]));
+            ));
+        } else {
+            lines.push(Line::styled(
+                "[ ] Enable touch for Signing (recommended)",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ));
+            lines.push(Line::styled(
+                "[✓] Do not enable touch for Signing",
+                Style::new().fg(COLOR_SUCCESS).bold(),
+            ));
+        }
+
+        lines.push(Line::default());
+
+        for msg in state.token_set_touch.messages.iter() {
+            match msg {
+                MessageType::Info(info) => {
+                    lines.push(Line::styled(
+                        format!("INFO: {}", info),
+                        Style::new().fg(COLOR_SUCCESS),
+                    ));
+                }
+                MessageType::Error(err) => {
+                    lines.push(Line::styled(
+                        format!("ERROR: {}", err),
+                        Style::new().fg(COLOR_WARNING_ACCESSIBLE_RED),
+                    ));
+                }
+            }
+        }
+        if !state.token_set_touch.messages.is_empty() {
+            lines.push(Line::default());
+        }
+
+        if !self.started {
+            lines.push(Line::from(vec![
+                Span::styled("[TAB]", Style::new().fg(COLOR_BORDER).bold()),
+                Span::styled(" to select  |  ", Style::new().fg(COLOR_TEXT_DEFAULT)),
+                Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
+                Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
+            ]));
+        } else if state.token_set_touch.completed {
+            lines.push(Line::from(vec![
+                Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
+                Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
+            ]));
+        }
 
         frame.render_widget(
             Paragraph::new(lines).block(block).wrap(Wrap { trim: true }),
