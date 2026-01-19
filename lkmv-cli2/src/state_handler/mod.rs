@@ -1,7 +1,7 @@
 #[cfg(feature = "openpgp-card")]
 use crate::state_handler::setup_sequence::{
     MessageType,
-    openpgp_card::{set_signing_touch_policy, write_keys_to_card},
+    openpgp_card::{set_cardholder_name, set_signing_touch_policy, write_keys_to_card},
 };
 use crate::{
     Interrupted, Terminator,
@@ -204,7 +204,7 @@ impl StateHandler {
                         // Called if enabling touch policy
                         state.setup.active_page = SetupPage::TokenSetTouch;
                         if let Some(token) = token {
-                           match set_signing_touch_policy(&mut state, &self.state_tx, token).await {
+                           match set_signing_touch_policy(&mut state, &self.state_tx, token) {
                                 Ok(_) => state.setup.token_set_touch.completed = true,
                                 Err(e) => {
                             state.setup.token_set_touch.messages.push(MessageType::Error(format!("An error occurred when setting touch policy: {e}")));
@@ -214,6 +214,22 @@ impl StateHandler {
                             state.setup.token_set_touch.messages.push(MessageType::Error("No token was specified.".to_string()));
                         }
                             state.setup.token_set_touch.completed = true;
+                    }
+                    #[cfg(feature = "openpgp-card")]
+                    Action::SetTokenName(token, name) => {
+                        // Called if enabling touch policy
+                        state.setup.active_page = SetupPage::TokenSetCardholderName;
+                        if let Some(token) = token {
+                           match set_cardholder_name(&mut state, &self.state_tx, token, &name) {
+                                Ok(_) => state.setup.token_cardholder_name.completed = true,
+                                Err(e) => {
+                            state.setup.token_cardholder_name.messages.push(MessageType::Error(format!("An error occurred when setting cardholder name: {e}")));
+                                }
+                            }
+                        } else {
+                            state.setup.token_cardholder_name.messages.push(MessageType::Error("No token was specified.".to_string()));
+                        }
+                            state.setup.token_cardholder_name.completed = true;
                     }
                     Action::SetCustomMediator(mediator_did) => {
                         // Set the Custom Mediator in setup state

@@ -46,6 +46,10 @@ pub enum Action {
     #[cfg(feature = "openpgp-card")]
     SetTouchPolicy(Option<Arc<Mutex<Card<Open>>>>),
 
+    /// Set the Cardholdername
+    #[cfg(feature = "openpgp-card")]
+    SetTokenName(Option<Arc<Mutex<Card<Open>>>>, String),
+
     /// Factory Reset Hardware Token
     #[cfg(feature = "openpgp-card")]
     FactoryReset(Option<Arc<Mutex<Card<Open>>>>),

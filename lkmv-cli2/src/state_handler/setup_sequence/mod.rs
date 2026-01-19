@@ -86,6 +86,10 @@ pub struct SetupState {
     #[cfg(feature = "openpgp-card")]
     pub token_set_touch: TokenSetTouchPolicy,
 
+    /// Hardware Cardholder Name
+    #[cfg(feature = "openpgp-card")]
+    pub token_cardholder_name: TokenSetCardholderName,
+
     /// Has the user selected to use a custom Mediator?
     pub custom_mediator: Option<String>,
 
@@ -140,10 +144,17 @@ pub struct FactoryResetToken {
 }
 
 /// State relating to token touch policy
-/// Also contains writing keys to the token
 #[cfg(feature = "openpgp-card")]
 #[derive(Clone, Default, Debug)]
 pub struct TokenSetTouchPolicy {
+    pub completed: bool,
+    pub messages: Vec<MessageType>,
+}
+
+/// State relating to token cardholder name
+#[cfg(feature = "openpgp-card")]
+#[derive(Clone, Default, Debug)]
+pub struct TokenSetCardholderName {
     pub completed: bool,
     pub messages: Vec<MessageType>,
 }

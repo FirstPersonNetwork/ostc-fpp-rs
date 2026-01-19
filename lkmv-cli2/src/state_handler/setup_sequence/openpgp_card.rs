@@ -181,7 +181,7 @@ fn create_pgp_secret_packet(key: &KeyInfo, kp: KeyPurpose) -> Result<UploadableK
     Ok(SecretKey::new(pk, sp)?.into())
 }
 
-pub async fn set_signing_touch_policy(
+pub fn set_signing_touch_policy(
     state: &mut State,
     action_tx: &UnboundedSender<State>,
     card: Arc<Mutex<Card<Open>>>,
@@ -200,6 +200,39 @@ pub async fn set_signing_touch_policy(
     state.setup.token_set_touch.messages.push(MessageType::Info(
         "✓ Successfully enabled touch policy!".to_string(),
     ));
+
+    Ok(())
+}
+
+/// Sets the cardholder name
+/// name: Max length is 39 characters
+pub fn set_cardholder_name(
+    state: &mut State,
+    action_tx: &UnboundedSender<State>,
+    card: Arc<Mutex<Card<Open>>>,
+    name: &str,
+) -> Result<()> {
+    let mut lock = card.try_lock().unwrap();
+    let mut open_card = lock.transaction()?;
+    open_card.verify_admin_pin(state.token_admin_pin.clone().unwrap())?;
+    let mut card = open_card.to_admin_card(None)?;
+
+    state
+        .setup
+        .token_cardholder_name
+        .messages
+        .push(MessageType::Info(format!(
+            "Setting cardholder name to ({name})..."
+        )));
+    let _ = action_tx.send(state.clone());
+    card.set_cardholder_name(name)?;
+    state
+        .setup
+        .token_cardholder_name
+        .messages
+        .push(MessageType::Info(
+            "✓ Successfully set cardholder name!".to_string(),
+        ));
 
     Ok(())
 }

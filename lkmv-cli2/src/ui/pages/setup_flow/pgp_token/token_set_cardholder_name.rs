@@ -1,28 +1,33 @@
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{Event, KeyCode, KeyEvent};
 use lkmv::colors::{
-    COLOR_BORDER, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED,
+    COLOR_BORDER, COLOR_DARK_PURPLE, COLOR_SOFT_PURPLE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT,
+    COLOR_WARNING_ACCESSIBLE_RED,
 };
 use ratatui::{
     Frame,
     layout::{
         Constraint::{Length, Min},
-        Layout,
+        Layout, Margin, Rect,
     },
     style::{Style, Stylize},
     text::{Line, Span},
-    widgets::{Block, Padding, Paragraph, Wrap},
+    widgets::{Block, Padding, Paragraph},
 };
+use tui_input::{Input, backend::crossterm::EventHandler};
 
 use crate::{
     state_handler::{
         actions::Action,
-        setup_sequence::{SetupPage, SetupState},
+        setup_sequence::{MessageType, SetupPage, SetupState},
     },
     ui::pages::setup_flow::{SetupFlow, render_setup_header},
 };
 
-#[derive(Copy, Clone, Debug, Default)]
-pub struct TokenSetCardholderName {}
+#[derive(Clone, Debug, Default)]
+pub struct TokenSetCardholderName {
+    started: bool,
+    name: Input,
+}
 
 impl TokenSetCardholderName {
     pub fn handle_key_event(state: &mut SetupFlow, key: KeyEvent) {
@@ -31,9 +36,30 @@ impl TokenSetCardholderName {
                 let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Enter => {
-                state.props.state.active_page = SetupPage::DIDKeysAsk;
+                if !state.token_set_cardholder_name.started {
+                    if state.token_set_cardholder_name.name.value().is_empty() {
+                        state.props.state.active_page = SetupPage::UnlockCodeAsk;
+                    } else {
+                        state.token_set_cardholder_name.started = true;
+                        let _ = state.action_tx.send(Action::SetTokenName(
+                            state.token_select.selected_token.clone(),
+                            state.token_set_cardholder_name.name.value().to_string(),
+                        ));
+                    }
+                } else if state.props.state.token_cardholder_name.completed {
+                    state.props.state.active_page = SetupPage::UnlockCodeAsk;
+                }
             }
-            _ => {}
+            KeyCode::Esc => {
+                state.token_set_cardholder_name.name.reset();
+            }
+            _ => {
+                // Handle text input
+                state
+                    .token_set_cardholder_name
+                    .name
+                    .handle_event(&Event::Key(key));
+            }
         }
     }
 
@@ -43,43 +69,93 @@ impl TokenSetCardholderName {
 
         render_setup_header(frame, top, state);
 
-        let block = Block::bordered()
-            .fg(COLOR_BORDER)
-            .padding(Padding::proportional(1))
-            .title(" Step 2/4: Save your recovery phrase ");
-
-        let mut lines = vec![
-            Line::styled(
-                "Your BIP39 Recovery phrase (mnemonic of 24 words) below can be used to recover and regenerate your BIP32 based identity and security keys within LKMV.",
-                Style::new().fg(COLOR_TEXT_DEFAULT),
-            ),
-            Line::default(),
-            Line::styled(
-                "You must protect this seed phrase. Store it in a safe and secure location",
-                Style::new().fg(COLOR_WARNING_ACCESSIBLE_RED).bold(),
-            ),
-            Line::default(),
-            Line::styled(
-                state.mnemonic.get_mnemonic_string(),
-                Style::new().fg(COLOR_SOFT_PURPLE).bold(),
-            ),
-        ];
-
-        lines.push(Line::default());
-        lines.push(Line::from(vec![
-            Span::styled("[C]", Style::new().fg(COLOR_BORDER).bold()),
-            Span::styled(
-                " Copy to clipboard  |  ",
-                Style::new().fg(COLOR_TEXT_DEFAULT),
-            ),
-            Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
-            Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
-        ]));
-
         frame.render_widget(
-            Paragraph::new(lines).block(block).wrap(Wrap { trim: true }),
+            Block::bordered()
+                .fg(COLOR_BORDER)
+                .padding(Padding::proportional(1))
+                .title(" Step 5/5: Set Token Cardholder Name "),
             middle,
         );
+
+        // 0: Input 0 Header
+        // 1: INPUT
+        // 2: Key Bindings
+        let content: [Rect; 3] =
+            Layout::vertical([Length(6), Length(2), Min(0)]).areas(middle.inner(Margin::new(3, 2)));
+
+        let [input0_prompt, input0_box] = Layout::horizontal([Length(2), Min(0)]).areas(content[1]);
+
+        frame.render_widget(
+            Paragraph::new(vec![
+                Line::styled(
+                    "Give your token a cardholder name?",
+                    Style::new().fg(COLOR_BORDER).bold(),
+                ),
+                Line::default(),
+                Line::styled(
+                    "Leave blank if you do not want to set a name.",
+                    Style::new().fg(COLOR_TEXT_DEFAULT),
+                ),
+                Line::default(),
+                Line::from(vec![
+                    Span::styled("Recommended Format: ", Style::new().fg(COLOR_TEXT_DEFAULT)),
+                    Span::styled(
+                        "LAST_NAME<<FIRST_NAME<OTHER<OTHER",
+                        Style::new().fg(COLOR_DARK_PURPLE).bold(),
+                    ),
+                ]),
+                Line::default(),
+            ]),
+            content[0],
+        );
+
+        frame.render_widget(
+            Paragraph::new(Span::styled(
+                "> ",
+                Style::new().fg(COLOR_SOFT_PURPLE).bold(),
+            )),
+            input0_prompt,
+        );
+
+        render_input(&self.name, frame, input0_box);
+
+        let mut lines = Vec::new();
+
+        for msg in state.token_cardholder_name.messages.iter() {
+            match msg {
+                MessageType::Info(info) => {
+                    lines.push(Line::styled(
+                        format!("INFO: {}", info),
+                        Style::new().fg(COLOR_SUCCESS),
+                    ));
+                }
+                MessageType::Error(err) => {
+                    lines.push(Line::styled(
+                        format!("ERROR: {}", err),
+                        Style::new().fg(COLOR_WARNING_ACCESSIBLE_RED),
+                    ));
+                }
+            }
+        }
+        if !state.token_cardholder_name.messages.is_empty() {
+            lines.push(Line::default());
+        }
+
+        if !self.started {
+            lines.push(Line::from(vec![
+                Span::styled("[ESC]", Style::new().fg(COLOR_BORDER).bold()),
+                Span::styled(" to clear input  |  ", Style::new().fg(COLOR_TEXT_DEFAULT)),
+                Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
+                Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
+            ]));
+        } else if state.token_set_touch.completed {
+            lines.push(Line::from(vec![
+                Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
+                Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
+            ]));
+        }
+
+        frame.render_widget(Paragraph::new(lines), content[2]);
 
         let bottom_line = Line::from(vec![
             Span::styled("[F10]", Style::new().fg(COLOR_BORDER).bold()),
@@ -91,4 +167,22 @@ impl TokenSetCardholderName {
             bottom,
         );
     }
+}
+
+fn render_input(input: &Input, frame: &mut Frame, area: Rect) {
+    // keep 1 for borders and 1 for cursor
+    let width = area.width.max(3) - 3;
+    let scroll = input.visual_scroll(width as usize);
+
+    frame.render_widget(
+        Paragraph::new(Span::styled(
+            input.value(),
+            Style::new().fg(COLOR_SOFT_PURPLE),
+        ))
+        .scroll((0, scroll as u16)),
+        area,
+    );
+
+    let x = input.visual_cursor().max(scroll) - scroll;
+    frame.set_cursor_position((area.x + x as u16, area.y))
 }
