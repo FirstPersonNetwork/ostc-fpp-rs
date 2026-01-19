@@ -2,14 +2,13 @@
 // Setup Sequence Pages
 // ****************************************************************************
 
-use std::fmt;
-#[cfg(feature = "openpgp-card")]
-use std::sync::Arc;
-
 use crate::state_handler::setup_sequence::bip32::BIP32_39;
 #[cfg(feature = "openpgp-card")]
 use ::openpgp_card::{Card, state::Open};
 use lkmv::config::PersonaDIDKeys;
+use std::fmt;
+#[cfg(feature = "openpgp-card")]
+use std::sync::Arc;
 #[cfg(feature = "openpgp-card")]
 use tokio::sync::Mutex;
 

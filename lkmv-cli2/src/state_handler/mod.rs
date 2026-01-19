@@ -11,12 +11,9 @@ use crate::{
     ui::pages::setup_flow::did_keys_ask::DIDKeysAsk,
 };
 use anyhow::Result;
+use lkmv::config::{Config, public_config::PublicConfig};
 #[cfg(feature = "openpgp-card")]
-use lkmv::openpgp_card::get_cards;
-use lkmv::{
-    config::{Config, public_config::PublicConfig},
-    openpgp_card::factory_reset,
-};
+use lkmv::openpgp_card::{factory_reset, get_cards};
 use pgp::composed::ArmorOptions;
 use secrecy::SecretString;
 use std::str::FromStr;
