@@ -7,14 +7,16 @@ use std::fmt;
 use std::sync::Arc;
 
 use crate::state_handler::setup_sequence::bip32::BIP32_39;
-use lkmv::config::PersonaDIDKeys;
 #[cfg(feature = "openpgp-card")]
-use openpgp_card::{Card, state::Open};
+use ::openpgp_card::{Card, state::Open};
+use lkmv::config::PersonaDIDKeys;
 #[cfg(feature = "openpgp-card")]
 use tokio::sync::Mutex;
 
 pub mod bip32;
 pub mod did_keys;
+#[cfg(feature = "openpgp-card")]
+pub mod openpgp_card;
 
 /// Setup flow has many pages, they are listed here
 #[derive(Debug, Clone, Copy, Default)]
@@ -77,6 +79,10 @@ pub struct SetupState {
     #[cfg(feature = "openpgp-card")]
     pub tokens: DetectedTokens,
 
+    /// Hardware Token Reset State
+    #[cfg(feature = "openpgp-card")]
+    pub token_reset: FactoryResetToken,
+
     /// Has the user selected to use a custom Mediator?
     pub custom_mediator: Option<String>,
 
@@ -85,6 +91,12 @@ pub struct SetupState {
 
     /// What address to sue for WebVH?
     pub webvh_address: String,
+}
+
+#[derive(Clone, Debug)]
+pub enum MessageType {
+    Info(String),
+    Error(String),
 }
 
 /// Update messages as the Key export works through
@@ -112,4 +124,14 @@ impl fmt::Debug for DetectedTokens {
             self.messages
         )
     }
+}
+
+/// State relating to factory reset of hardware token
+/// Also contains writing keys to the token
+#[cfg(feature = "openpgp-card")]
+#[derive(Clone, Default, Debug)]
+pub struct FactoryResetToken {
+    pub completed_reset: bool,
+    pub completed_writing: bool,
+    pub messages: Vec<MessageType>,
 }

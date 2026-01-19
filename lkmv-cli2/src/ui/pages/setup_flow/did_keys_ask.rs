@@ -49,26 +49,24 @@ impl DIDKeysAsk {
                 state.did_keys_ask = state.did_keys_ask.switch();
             }
             KeyCode::Enter => {
-                state.props.state.active_page = match state.did_keys_ask {
+                match state.did_keys_ask {
                     DIDKeysAsk::Create => {
                         // Create the DID Keys
-                        state.props.state.did_keys =
-                            match DIDKeysAsk::create_keys(&state.props.state.mnemonic.mnemonic) {
-                                Ok(keys) => Some(keys),
-                                Err(e) => {
-                                    let _ = state.action_tx.send(Action::UXError(
-                                        Interrupted::SystemError(format!(
-                                            "Failed to derive DID Keys: {}",
-                                            e
-                                        )),
-                                    ));
-                                    return;
-                                }
-                            };
-
-                        SetupPage::DIDKeysShow
+                        match DIDKeysAsk::create_keys(&state.props.state.mnemonic.mnemonic) {
+                            Ok(keys) => {
+                                let _ = state.action_tx.send(Action::SetDIDKeys(Box::new(keys)));
+                            }
+                            Err(e) => {
+                                let _ = state.action_tx.send(Action::UXError(
+                                    Interrupted::SystemError(format!(
+                                        "Failed to derive DID Keys: {}",
+                                        e
+                                    )),
+                                ));
+                            }
+                        }
                     }
-                    DIDKeysAsk::Import => SetupPage::DidKeysImport,
+                    DIDKeysAsk::Import => state.props.state.active_page = SetupPage::DidKeysImport,
                 }
             }
             _ => {}

@@ -1,8 +1,11 @@
+use std::sync::Arc;
+
 use crossterm::event::{Event, KeyCode, KeyEvent};
 use lkmv::colors::{
     COLOR_BORDER, COLOR_DARK_GRAY, COLOR_ORANGE, COLOR_SOFT_PURPLE, COLOR_SUCCESS,
     COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED,
 };
+use openpgp_card::{Card, state::Open};
 use ratatui::{
     Frame,
     layout::{
@@ -13,6 +16,8 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Padding, Paragraph, Wrap},
 };
+use secrecy::SecretString;
+use tokio::sync::Mutex;
 use tui_input::{Input, backend::crossterm::EventHandler};
 
 use crate::{
@@ -23,10 +28,10 @@ use crate::{
     ui::pages::setup_flow::{SetupFlow, render_setup_header},
 };
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct TokenSelect {
     pub selected: usize,
-    pub selected_token: Option<String>,
+    pub selected_token: Option<Arc<Mutex<Card<Open>>>>,
     pub ask_admin_pin: bool,
     pub token_admin_pin: Input,
 }
@@ -58,7 +63,12 @@ impl TokenSelect {
             KeyCode::Enter => {
                 if state.token_select.ask_admin_pin {
                     // Get Admin PIN from input
-                    state.props.state.active_page = SetupPage::TokenFactoryReset;
+                    let admin_pin = if state.token_select.token_admin_pin.value().is_empty() {
+                        SecretString::new("12345678".to_string())
+                    } else {
+                        SecretString::new(state.token_select.token_admin_pin.value().to_string())
+                    };
+                    let _ = state.action_tx.send(Action::SetAdminPin(admin_pin));
                 } else {
                     // Selected Token - Now get Admin PIN
                     if state.token_select.selected == state.props.state.tokens.tokens.len() {
@@ -66,14 +76,9 @@ impl TokenSelect {
                         state.token_select.selected_token = None;
                         state.props.state.active_page = SetupPage::UnlockCodeAsk;
                     } else {
-                        let mut lock = state.props.state.tokens.tokens[state.token_select.selected]
-                            .try_lock()
-                            .unwrap();
-                        let open_card = lock.transaction().expect("Couldn't get card transaction");
-                        let app_identifier = open_card
-                            .application_identifier()
-                            .expect("Couldn't get card app_identifier");
-                        state.token_select.selected_token = Some(app_identifier.to_string());
+                        state.token_select.selected_token = Some(
+                            state.props.state.tokens.tokens[state.token_select.selected].clone(),
+                        );
                         state.token_select.ask_admin_pin = true;
                     }
                 }
@@ -93,11 +98,6 @@ impl TokenSelect {
             Layout::vertical([Length(3), Min(0), Length(3)]).areas(frame.area());
 
         render_setup_header(frame, top, state);
-
-        let block = Block::bordered()
-            .fg(COLOR_BORDER)
-            .padding(Padding::proportional(1))
-            .title(" Step 1/4: Select Hardware Token");
 
         if self.ask_admin_pin {
             // Need to get ADMIN Pin from the user
@@ -124,6 +124,10 @@ impl TokenSelect {
             let [input0_prompt, input0_box] =
                 Layout::horizontal([Length(11), Min(0)]).areas(content[2]);
 
+            let block = Block::bordered()
+                .fg(COLOR_BORDER)
+                .padding(Padding::proportional(1))
+                .title(" Step 2/5: Get Admin PIN ");
             frame.render_widget(block, middle);
 
             frame.render_widget(
@@ -182,6 +186,11 @@ impl TokenSelect {
                 content[3],
             );
         } else {
+            let block = Block::bordered()
+                .fg(COLOR_BORDER)
+                .padding(Padding::proportional(1))
+                .title(" Step 1/5: Select Hardware Token ");
+
             let mut lines = Vec::new();
             if !state.tokens.messages.is_empty() {
                 for msg in state.tokens.messages.iter() {

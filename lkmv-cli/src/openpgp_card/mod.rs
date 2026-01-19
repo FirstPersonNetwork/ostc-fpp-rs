@@ -423,6 +423,7 @@ pub fn factory_reset(term: &Term, card: &mut Arc<Mutex<Card<Open>>>) -> Result<(
 
     Ok(())
 }
+
 pub fn set_signing_touch_policy(
     term: &Term,
     card: &mut Arc<Mutex<Card<Open>>>,

@@ -1,4 +1,13 @@
+#[cfg(feature = "openpgp-card")]
+use std::sync::Arc;
+
 use lkmv::config::PersonaDIDKeys;
+#[cfg(feature = "openpgp-card")]
+use openpgp_card::{Card, state::Open};
+#[cfg(feature = "openpgp-card")]
+use secrecy::SecretString;
+#[cfg(feature = "openpgp-card")]
+use tokio::sync::Mutex;
 
 use crate::{
     Interrupted,
@@ -19,12 +28,27 @@ pub enum Action {
     MainPanelSwitch(MainPanel),
 
     // SETUP Pages
+    /// Sets the DID Persona Keys
+    SetDIDKeys(Box<PersonaDIDKeys>),
+
     /// Export DID Private keys as PGP Armored file
-    ExportDIDKeys(Box<PersonaDIDKeys>, DIDKeysExportInputs),
+    ExportDIDKeys(DIDKeysExportInputs),
 
     /// Fetches PGP Hardware Tokens that are connected
     #[cfg(feature = "openpgp-card")]
     GetTokens,
+
+    ///
+    #[cfg(feature = "openpgp-card")]
+    SetAdminPin(SecretString),
+
+    /// Factory Reset Hardware Token
+    #[cfg(feature = "openpgp-card")]
+    FactoryReset(Option<Arc<Mutex<Card<Open>>>>),
+
+    /// Write Keys
+    #[cfg(feature = "openpgp-card")]
+    TokenWriteKeys(Option<Arc<Mutex<Card<Open>>>>),
 
     /// Using a custom mediator DID
     SetCustomMediator(String),

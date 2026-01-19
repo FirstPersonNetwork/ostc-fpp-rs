@@ -38,3 +38,15 @@ pub fn open_card(token_id: &str) -> Result<Card<Open>, LKMVError> {
 
     Ok(card)
 }
+
+/// Performs a factory reset on the card, erasing all keys and data
+pub fn factory_reset(card: Arc<Mutex<Card<Open>>>) -> Result<(), LKMVError> {
+    let mut lock = card.try_lock().unwrap();
+    let mut card = lock.transaction().map_err(|e| {
+        LKMVError::Token(format!("Couldn't get transaction for factory reset: {e}"))
+    })?;
+    card.factory_reset()
+        .map_err(|e| LKMVError::Token(format!("Factory reset failed: {e}")))?;
+
+    Ok(())
+}

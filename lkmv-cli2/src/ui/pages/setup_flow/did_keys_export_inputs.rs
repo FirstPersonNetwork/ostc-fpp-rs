@@ -45,14 +45,9 @@ impl DIDKeysExportInputs {
                 }
             }
             KeyCode::Enter => {
-                if let Some(persona_keys) = state.props.state.did_keys.as_ref() {
-                    let _ = state.action_tx.send(Action::ExportDIDKeys(
-                        Box::new(persona_keys.clone()),
-                        state.did_keys_export_inputs.clone(),
-                    ));
-                } else {
-                    // Should not happen, but just in case
-                }
+                let _ = state
+                    .action_tx
+                    .send(Action::ExportDIDKeys(state.did_keys_export_inputs.clone()));
             }
             KeyCode::Esc => {
                 if state.did_keys_export_inputs.active_input == 0 {
