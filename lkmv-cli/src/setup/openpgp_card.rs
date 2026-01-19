@@ -73,7 +73,7 @@ pub fn setup_hardware_token(
     let mut s_card: Vec<String> = cards
         .iter_mut()
         .map(|c| {
-            let mut lock = c.blocking_lock();
+            let mut lock = c.try_lock().unwrap();
             lock.transaction()
                 .unwrap()
                 .application_identifier()

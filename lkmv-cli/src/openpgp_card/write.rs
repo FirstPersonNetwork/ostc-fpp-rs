@@ -34,7 +34,7 @@ pub fn write_keys_to_card(
     admin_pin: &SecretString,
 ) -> Result<()> {
     // Try unlocking the card with the admin PIN
-    let mut lock = card.blocking_lock();
+    let mut lock = card.try_lock().unwrap();
     let mut open_card = lock.transaction()?;
     open_card.verify_admin_pin(admin_pin.clone())?;
     let mut card = open_card.to_admin_card(None)?;

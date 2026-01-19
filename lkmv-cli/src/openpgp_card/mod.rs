@@ -137,7 +137,7 @@ pub fn print_cards(cards: &mut [Arc<Mutex<Card<Open>>>]) -> Result<()> {
     }
 
     for card in cards.iter_mut() {
-        let mut card_lock = card.blocking_lock();
+        let mut card_lock = card.try_lock().unwrap();
         let mut open_card = card_lock.transaction()?;
         let app_identifier = open_card.application_identifier()?;
         print!(
@@ -415,7 +415,7 @@ pub fn factory_reset(term: &Term, card: &mut Arc<Mutex<Card<Open>>>) -> Result<(
     print!("{}", style("Factory resetting card...").color256(CLI_BLUE));
     term.hide_cursor()?;
     term.flush()?;
-    let mut lock = card.blocking_lock();
+    let mut lock = card.try_lock().unwrap();
     let mut card = lock.transaction()?;
     card.factory_reset()?;
     term.show_cursor()?;
@@ -428,7 +428,7 @@ pub fn set_signing_touch_policy(
     card: &mut Arc<Mutex<Card<Open>>>,
     admin_pin: &SecretString,
 ) -> Result<()> {
-    let mut lock = card.blocking_lock();
+    let mut lock = card.try_lock().unwrap();
     let mut open_card = lock.transaction()?;
     open_card.verify_admin_pin(admin_pin.clone())?;
     let mut card = open_card.to_admin_card(None)?;
@@ -455,7 +455,7 @@ pub fn set_cardholder_name(
     admin_pin: &SecretString,
     name: &str,
 ) -> Result<()> {
-    let mut lock = card.blocking_lock();
+    let mut lock = card.try_lock().unwrap();
     let mut open_card = lock.transaction()?;
     open_card.verify_admin_pin(admin_pin.clone())?;
     let mut card = open_card.to_admin_card(None)?;
