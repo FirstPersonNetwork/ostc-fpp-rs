@@ -6,9 +6,11 @@ use crate::state_handler::setup_sequence::{
 use crate::{
     Interrupted, Terminator,
     state_handler::{
-        actions::Action, main_page::MainPanel, setup_sequence::SetupPage, state::State,
+        actions::Action,
+        main_page::MainPanel,
+        setup_sequence::{SetupPage, did_keys::export_persona_did_keys},
+        state::State,
     },
-    ui::pages::setup_flow::did_keys_ask::DIDKeysAsk,
 };
 use anyhow::Result;
 use lkmv::config::{Config, public_config::PublicConfig};
@@ -119,7 +121,7 @@ impl StateHandler {
 
                         let state_tx_clone = self.state_tx.clone();
                         let export = tokio::spawn(async move {
-                         match DIDKeysAsk::export_persona_did_keys(&mut state, &state_tx_clone, export_inputs.username.value(), SecretString::from_str(export_inputs.passphrase.value()).unwrap()) {
+                         match export_persona_did_keys(&mut state, &state_tx_clone, export_inputs.username.value(), SecretString::from_str(export_inputs.passphrase.value()).unwrap()) {
                             Ok(export) => {
                                 state.setup.did_keys_export.exported =  match export.to_armored_string(ArmorOptions::default()) {
                                     Ok(armored) => Some(armored),

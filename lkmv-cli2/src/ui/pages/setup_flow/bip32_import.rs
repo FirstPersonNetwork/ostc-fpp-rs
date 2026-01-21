@@ -13,9 +13,10 @@ use ratatui::{
 use tui_input::{Input, backend::crossterm::EventHandler};
 
 use crate::{
+    Interrupted,
     state_handler::{
         actions::Action,
-        setup_sequence::{SetupPage, SetupState, bip32::BIP32_39},
+        setup_sequence::{SetupState, bip32::BIP32_39, did_keys::create_keys},
     },
     ui::pages::setup_flow::{SetupFlow, render_setup_header},
 };
@@ -44,8 +45,21 @@ impl BIP32PhraseImport {
                 match BIP32_39::from_mnemonic(input_phrase) {
                     Ok(bip32_39) => {
                         state.props.state.mnemonic = bip32_39;
-                        // Proceed to the next setup step
-                        state.props.state.active_page = SetupPage::DIDKeysAsk;
+
+                        // Create the DID Keys
+                        match create_keys(&state.props.state.mnemonic.mnemonic) {
+                            Ok(keys) => {
+                                let _ = state.action_tx.send(Action::SetDIDKeys(Box::new(keys)));
+                            }
+                            Err(e) => {
+                                let _ = state.action_tx.send(Action::UXError(
+                                    Interrupted::SystemError(format!(
+                                        "Failed to derive DID Keys: {}",
+                                        e
+                                    )),
+                                ));
+                            }
+                        }
                     }
                     Err(e) => {
                         // Invalid mnemonic entered

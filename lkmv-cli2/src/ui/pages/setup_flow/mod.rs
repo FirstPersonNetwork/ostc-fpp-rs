@@ -14,7 +14,7 @@ use crate::{
         component::{Component, ComponentRender},
         pages::setup_flow::{
             bip32_ask::BIP32PhraseAskChoice, bip32_import::BIP32PhraseImport,
-            bip32_show::BIP32PhraseShow, config_import::ConfigImport, did_keys_ask::DIDKeysAsk,
+            bip32_show::BIP32PhraseShow, config_import::ConfigImport,
             did_keys_export_ask::DIDKeysExportAsk, did_keys_export_inputs::DIDKeysExportInputs,
             did_keys_export_show::DIDKeysExportShow, did_keys_show::DIDKeysShow,
             final_page::FinalPage, mediator_ask::MediatorAsk, mediator_custom::MediatorCustom,
@@ -41,7 +41,6 @@ pub mod bip32_ask;
 pub mod bip32_import;
 pub mod bip32_show;
 pub mod config_import;
-pub mod did_keys_ask;
 pub mod did_keys_export_ask;
 pub mod did_keys_export_inputs;
 pub mod did_keys_export_show;
@@ -72,7 +71,6 @@ pub struct SetupFlow {
     pub bip32_show: BIP32PhraseShow,
     pub bip32_import: BIP32PhraseImport,
 
-    pub did_keys_ask: DIDKeysAsk,
     pub did_keys_show: DIDKeysShow,
 
     pub did_keys_export_ask: DIDKeysExportAsk,
@@ -132,7 +130,6 @@ impl Component for SetupFlow {
             bip32_ask: BIP32PhraseAskChoice::default(),
             bip32_show: BIP32PhraseShow::default(),
             bip32_import: BIP32PhraseImport::default(),
-            did_keys_ask: DIDKeysAsk::default(),
             did_keys_show: DIDKeysShow::default(),
             did_keys_export_ask: DIDKeysExportAsk::default(),
             did_keys_export_inputs: DIDKeysExportInputs::default(),
@@ -186,7 +183,6 @@ impl Component for SetupFlow {
             SetupPage::BIP32PhraseAsk => BIP32PhraseAskChoice::handle_key_event(self, key),
             SetupPage::BIP32PhraseShow => BIP32PhraseShow::handle_key_event(self, key),
             SetupPage::BIP32PhraseImport => BIP32PhraseImport::handle_key_event(self, key),
-            SetupPage::DIDKeysAsk => DIDKeysAsk::handle_key_event(self, key),
             SetupPage::DIDKeysShow => DIDKeysShow::handle_key_event(self, key),
             SetupPage::DidKeysExportAsk => DIDKeysExportAsk::handle_key_event(self, key),
             SetupPage::DidKeysExportInputs => DIDKeysExportInputs::handle_key_event(self, key),
@@ -213,7 +209,6 @@ impl Component for SetupFlow {
             SetupPage::UserName => UserName::handle_key_event(self, key),
             SetupPage::WebVHAddress => WebvhAddress::handle_key_event(self, key),
             SetupPage::FinalPage => FinalPage::handle_key_event(self, key),
-            _ => {}
         }
     }
 }
@@ -229,7 +224,6 @@ impl ComponentRender<()> for SetupFlow {
             SetupPage::BIP32PhraseAsk => self.bip32_ask.render(&self.props.state, frame),
             SetupPage::BIP32PhraseShow => self.bip32_show.render(&self.props.state, frame),
             SetupPage::BIP32PhraseImport => self.bip32_import.render(&self.props.state, frame),
-            SetupPage::DIDKeysAsk => self.did_keys_ask.render(&self.props.state, frame),
             SetupPage::DIDKeysShow => self.did_keys_show.render(&self.props.state, frame),
             SetupPage::DidKeysExportAsk => {
                 self.did_keys_export_ask.render(&self.props.state, frame)
@@ -264,7 +258,6 @@ impl ComponentRender<()> for SetupFlow {
             SetupPage::UserName => self.username.render(&self.props.state, frame),
             SetupPage::WebVHAddress => self.webvh_address.render(&self.props.state, frame),
             SetupPage::FinalPage => self.final_page.render(&self.props.state, frame),
-            _ => {}
         }
     }
 }
@@ -287,7 +280,6 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
     if let SetupPage::BIP32PhraseAsk
     | SetupPage::BIP32PhraseShow
     | SetupPage::BIP32PhraseImport
-    | SetupPage::DIDKeysAsk
     | SetupPage::DIDKeysShow
     | SetupPage::DidKeysExportAsk
     | SetupPage::DidKeysExportInputs

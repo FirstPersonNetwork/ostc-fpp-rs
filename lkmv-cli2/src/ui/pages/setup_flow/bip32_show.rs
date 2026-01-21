@@ -15,9 +15,10 @@ use ratatui::{
 };
 
 use crate::{
+    Interrupted,
     state_handler::{
         actions::Action,
-        setup_sequence::{SetupPage, SetupState},
+        setup_sequence::{SetupState, did_keys::create_keys},
     },
     ui::pages::setup_flow::{SetupFlow, render_setup_header},
 };
@@ -42,7 +43,20 @@ impl BIP32PhraseShow {
                 state.bip32_show.cc_copy = true;
             }
             KeyCode::Enter => {
-                state.props.state.active_page = SetupPage::DIDKeysAsk;
+                // Create the DID Keys
+                match create_keys(&state.props.state.mnemonic.mnemonic) {
+                    Ok(keys) => {
+                        let _ = state.action_tx.send(Action::SetDIDKeys(Box::new(keys)));
+                    }
+                    Err(e) => {
+                        let _ = state
+                            .action_tx
+                            .send(Action::UXError(Interrupted::SystemError(format!(
+                                "Failed to derive DID Keys: {}",
+                                e
+                            ))));
+                    }
+                }
             }
             _ => {}
         }
