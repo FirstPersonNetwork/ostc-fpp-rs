@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED};
+use lkmv::colors::{COLOR_BORDER, COLOR_DARK_GRAY, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED};
 use ratatui::{
     Frame,
     layout::{
@@ -74,43 +74,59 @@ impl TokenSetTouch {
         let block = Block::bordered()
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Step 4/5: Set Token Touch Policy ");
+            .title(" Step 5/6: Set token touch policy ");
 
         let mut lines = vec![
             Line::styled(
-                "Set Token Signing Touch Policy:",
-                Style::new().fg(COLOR_BORDER).bold(),
+                "With touch enabled, signing requires a physical tap on your hardware token, preventing use without your knowledge.",
+                Style::new().fg(COLOR_DARK_GRAY),
             ),
             Line::default(),
             Line::styled(
-                "As an additional security precaution, you may want to enable touch on your token when the signing key is being used to sign/attest something.",
-                Style::new().fg(COLOR_TEXT_DEFAULT),
+                "Would you like to require a physical touch for signing?",
+                Style::new().fg(COLOR_BORDER).bold(),
             ),
             Line::default(),
         ];
 
-        // Render the active chocie
+        // Render the active choice
         if let TokenSetTouchOptions::SetTouch = self.option {
             lines.push(Line::styled(
-                "[✓] Enable touch for Signing (recommended)",
+                "[✓] Enable touch for signing (recommended)",
                 Style::new().fg(COLOR_SUCCESS).bold(),
             ));
             lines.push(Line::styled(
-                "[ ] Do not enable touch for Signing",
+                "    Require physical confirmation on the token for each signing operation.",
+                Style::new().fg(COLOR_DARK_GRAY),
+            ));
+            lines.push(Line::styled(
+                "[ ] Do not enable touch for signing",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ));
         } else {
             lines.push(Line::styled(
-                "[ ] Enable touch for Signing (recommended)",
+                "[ ] Enable touch for signing (recommended)",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ));
             lines.push(Line::styled(
-                "[✓] Do not enable touch for Signing",
+                "[✓] Do not enable touch for signing",
                 Style::new().fg(COLOR_SUCCESS).bold(),
+            ));
+            lines.push(Line::styled(
+                "    Signing operations can proceed without physical confirmation on the token.",
+                Style::new().fg(COLOR_DARK_GRAY),
             ));
         }
 
         lines.push(Line::default());
+
+        if !state.token_set_touch.messages.is_empty() {
+            lines.push(Line::styled(
+                "----- Progress logs -----", 
+                Style::new().fg(COLOR_BORDER).bold()
+            ));
+            lines.push(Line::default());
+        }
 
         for msg in state.token_set_touch.messages.iter() {
             match msg {
@@ -128,9 +144,6 @@ impl TokenSetTouch {
                 }
             }
         }
-        if !state.token_set_touch.messages.is_empty() {
-            lines.push(Line::default());
-        }
 
         if !self.started {
             lines.push(Line::from(vec![
@@ -140,6 +153,7 @@ impl TokenSetTouch {
                 Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
             ]));
         } else if state.token_set_touch.completed {
+            lines.push(Line::default());
             lines.push(Line::from(vec![
                 Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
                 Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
@@ -147,7 +161,7 @@ impl TokenSetTouch {
         }
 
         frame.render_widget(
-            Paragraph::new(lines).block(block).wrap(Wrap { trim: true }),
+            Paragraph::new(lines).block(block).wrap(Wrap { trim: false }),
             middle,
         );
 

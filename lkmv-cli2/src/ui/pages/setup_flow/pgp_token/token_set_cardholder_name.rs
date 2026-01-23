@@ -1,7 +1,6 @@
 use crossterm::event::{Event, KeyCode, KeyEvent};
 use lkmv::colors::{
-    COLOR_BORDER, COLOR_DARK_PURPLE, COLOR_SOFT_PURPLE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT,
-    COLOR_WARNING_ACCESSIBLE_RED,
+    COLOR_BORDER, COLOR_ORANGE, COLOR_SOFT_PURPLE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED
 };
 use ratatui::{
     Frame,
@@ -73,7 +72,7 @@ impl TokenSetCardholderName {
             Block::bordered()
                 .fg(COLOR_BORDER)
                 .padding(Padding::proportional(1))
-                .title(" Step 5/5: Set Token Cardholder Name "),
+                .title(" Step 6/6: Set token cardholder name "),
             middle,
         );
 
@@ -81,30 +80,24 @@ impl TokenSetCardholderName {
         // 1: INPUT
         // 2: Key Bindings
         let content: [Rect; 3] =
-            Layout::vertical([Length(6), Length(2), Min(0)]).areas(middle.inner(Margin::new(3, 2)));
+            Layout::vertical([Length(4), Length(2), Min(0)]).areas(middle.inner(Margin::new(2, 2)));
 
         let [input0_prompt, input0_box] = Layout::horizontal([Length(2), Min(0)]).areas(content[1]);
 
         frame.render_widget(
             Paragraph::new(vec![
                 Line::styled(
-                    "Give your token a cardholder name?",
+                    "Enter your token cardholder name using the format below or leave blank to skip setting:",
                     Style::new().fg(COLOR_BORDER).bold(),
                 ),
                 Line::default(),
-                Line::styled(
-                    "Leave blank if you do not want to set a name.",
-                    Style::new().fg(COLOR_TEXT_DEFAULT),
-                ),
-                Line::default(),
                 Line::from(vec![
-                    Span::styled("Recommended Format: ", Style::new().fg(COLOR_TEXT_DEFAULT)),
+                    Span::styled("ℹ️ Note: Use the recommended format ", Style::new().fg(COLOR_ORANGE)),
                     Span::styled(
                         "LAST_NAME<<FIRST_NAME<OTHER<OTHER",
-                        Style::new().fg(COLOR_DARK_PURPLE).bold(),
+                        Style::new().fg(COLOR_ORANGE).bold(),
                     ),
                 ]),
-                Line::default(),
             ]),
             content[0],
         );
@@ -120,6 +113,14 @@ impl TokenSetCardholderName {
         render_input(&self.name, frame, input0_box);
 
         let mut lines = Vec::new();
+
+        if !state.token_cardholder_name.messages.is_empty() {
+            lines.push(Line::styled(
+                "----- Progress logs -----", 
+                Style::new().fg(COLOR_BORDER).bold()
+            ));
+            lines.push(Line::default());
+        }
 
         for msg in state.token_cardholder_name.messages.iter() {
             match msg {
@@ -137,9 +138,6 @@ impl TokenSetCardholderName {
                 }
             }
         }
-        if !state.token_cardholder_name.messages.is_empty() {
-            lines.push(Line::default());
-        }
 
         if !self.started {
             lines.push(Line::from(vec![
@@ -149,6 +147,7 @@ impl TokenSetCardholderName {
                 Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
             ]));
         } else if state.token_set_touch.completed {
+            lines.push(Line::default());
             lines.push(Line::from(vec![
                 Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
                 Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),

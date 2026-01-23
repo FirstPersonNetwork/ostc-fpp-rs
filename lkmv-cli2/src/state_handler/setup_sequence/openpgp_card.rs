@@ -33,7 +33,7 @@ pub fn write_keys_to_card(
     card: Arc<Mutex<Card<Open>>>,
 ) -> Result<()> {
     state.setup.token_reset.messages.push(MessageType::Info(
-        "Writing keys to Hardware Token".to_string(),
+        "Writing keys to token...".to_string(),
     ));
 
     let Some(keys) = &state.setup.did_keys else {
@@ -41,7 +41,7 @@ pub fn write_keys_to_card(
     };
 
     state.setup.token_reset.messages.push(MessageType::Info(
-        "Unlocking Token in admin mode...".to_string(),
+        "Unlocking token in admin mode...".to_string(),
     ));
     let _ = action_tx.send(state.clone());
     // Try unlocking the card with the admin PIN
@@ -50,39 +50,39 @@ pub fn write_keys_to_card(
     open_card.verify_admin_pin(state.token_admin_pin.clone().unwrap())?;
     let mut card = open_card.to_admin_card(None)?;
     if let Some(last) = state.setup.token_reset.messages.last_mut() {
-        *last = MessageType::Info("✓ Unlocked Token in admin mode".to_string());
+        *last = MessageType::Info("✓ Unlocked token in admin mode".to_string());
     }
     let _ = action_tx.send(state.clone());
 
     // Create a PGP secret key packet
     state.setup.token_reset.messages.push(MessageType::Info(
-        "Writing Signing key to token...".to_string(),
+        "Writing signing key to token...".to_string(),
     ));
     let _ = action_tx.send(state.clone());
     let uk = create_pgp_secret_packet(&keys.signing, KeyPurpose::Signing)?;
     card.import_key(Box::new(uk), KeyType::Signing)?;
     if let Some(last) = state.setup.token_reset.messages.last_mut() {
-        *last = MessageType::Info("✓ Signing Key Written to Token".to_string());
+        *last = MessageType::Info("✓ Signing key written to token".to_string());
     }
 
     state.setup.token_reset.messages.push(MessageType::Info(
-        "Writing Authentication key to token...".to_string(),
+        "Writing authentication key to token...".to_string(),
     ));
     let _ = action_tx.send(state.clone());
     let uk = create_pgp_secret_packet(&keys.authentication, KeyPurpose::Authentication)?;
     card.import_key(Box::new(uk), KeyType::Authentication)?;
     if let Some(last) = state.setup.token_reset.messages.last_mut() {
-        *last = MessageType::Info("✓ Authentication Key Written to Token".to_string());
+        *last = MessageType::Info("✓ Authentication key written to token".to_string());
     }
 
     state.setup.token_reset.messages.push(MessageType::Info(
-        "Writing Decryption key to token...".to_string(),
+        "Writing decryption key to token...".to_string(),
     ));
     let _ = action_tx.send(state.clone());
     let uk = create_pgp_secret_packet(&keys.decryption, KeyPurpose::Encryption)?;
     card.import_key(Box::new(uk), KeyType::Decryption)?;
     if let Some(last) = state.setup.token_reset.messages.last_mut() {
-        *last = MessageType::Info("✓ Decryption Key Written to Token".to_string());
+        *last = MessageType::Info("✓ Decryption key written to token".to_string());
     }
 
     Ok(())
@@ -192,13 +192,13 @@ pub fn set_signing_touch_policy(
     let mut card = open_card.to_admin_card(None)?;
 
     state.setup.token_set_touch.messages.push(MessageType::Info(
-        "Setting Touch Policy on Signing Key...".to_string(),
+        "Setting touch policy on signing key...".to_string(),
     ));
     let _ = action_tx.send(state.clone());
 
     card.set_touch_policy(KeyType::Signing, TouchPolicy::On)?;
     state.setup.token_set_touch.messages.push(MessageType::Info(
-        "✓ Successfully enabled touch policy!".to_string(),
+        "✓ Successfully enabled touch policy.".to_string(),
     ));
 
     Ok(())

@@ -270,11 +270,11 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
     if let SetupPage::StartAsk = state.active_page {
         step = 1;
         line1.push_span(Span::styled(
-            "● Choice",
+            "● Get Started",
             Style::new().fg(COLOR_ORANGE).bold(),
         ));
     } else {
-        line1.push_span(Span::styled("✓ Choice", Style::new().fg(COLOR_SUCCESS)));
+        line1.push_span(Span::styled("✓ Get Started", Style::new().fg(COLOR_SUCCESS)));
     }
 
     if let SetupPage::BIP32PhraseAsk
@@ -292,7 +292,7 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
             Style::new().fg(COLOR_ORANGE).bold(),
         ));
         line1.push_span(Span::styled(
-            " → ○ Security → ○ Messaging → ○ Identity → ○ Complete",
+            " → ○ Profile Security → ○ Secure Messaging → ○ Digital Identity → ○ Setup Complete",
             Style::new().fg(COLOR_DARK_GRAY),
         ));
     } else if let SetupPage::ConfigImport = state.active_page {
@@ -313,11 +313,11 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
         ));
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
         line1.push_span(Span::styled(
-            "● Security",
+            "● Profile Security",
             Style::new().fg(COLOR_ORANGE).bold(),
         ));
         line1.push_span(Span::styled(
-            " → ○ Messaging → ○ Identity → ○ Complete",
+            " → ○ Secure Messaging → ○ Digital Identity → ○ Setup Complete",
             Style::new().fg(COLOR_DARK_GRAY),
         ));
     } else if let SetupPage::MediatorAsk | SetupPage::MediatorCustom = state.active_page {
@@ -328,14 +328,14 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
             Style::new().fg(COLOR_SUCCESS),
         ));
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
-        line1.push_span(Span::styled("✓ Security", Style::new().fg(COLOR_SUCCESS)));
+        line1.push_span(Span::styled("✓ Profile Security", Style::new().fg(COLOR_SUCCESS)));
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
         line1.push_span(Span::styled(
-            "● Messaging",
+            "● Secure Messaging",
             Style::new().fg(COLOR_ORANGE).bold(),
         ));
         line1.push_span(Span::styled(
-            " → ○ Identity → ○ Complete",
+            " → ○ Digital Identity → ○ Setup Complete",
             Style::new().fg(COLOR_DARK_GRAY),
         ));
     } else if let SetupPage::UserName | SetupPage::WebVHAddress = state.active_page {
@@ -346,16 +346,16 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
             Style::new().fg(COLOR_SUCCESS),
         ));
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
-        line1.push_span(Span::styled("✓ Security", Style::new().fg(COLOR_SUCCESS)));
+        line1.push_span(Span::styled("✓ Profile Security", Style::new().fg(COLOR_SUCCESS)));
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
-        line1.push_span(Span::styled("✓ Messaging", Style::new().fg(COLOR_SUCCESS)));
+        line1.push_span(Span::styled("✓ Secure Messaging", Style::new().fg(COLOR_SUCCESS)));
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
         line1.push_span(Span::styled(
-            "● Identity",
+            "● Digital Identity",
             Style::new().fg(COLOR_ORANGE).bold(),
         ));
         line1.push_span(Span::styled(
-            " → ○ Complete",
+            " → ○ Setup Complete",
             Style::new().fg(COLOR_DARK_GRAY),
         ));
     } else if let SetupPage::FinalPage = state.active_page {
@@ -366,14 +366,14 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
             Style::new().fg(COLOR_SUCCESS),
         ));
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
-        line1.push_span(Span::styled("✓ Security", Style::new().fg(COLOR_SUCCESS)));
+        line1.push_span(Span::styled("✓ Profile Security", Style::new().fg(COLOR_SUCCESS)));
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
-        line1.push_span(Span::styled("✓ Messaging", Style::new().fg(COLOR_SUCCESS)));
+        line1.push_span(Span::styled("✓ Secure Messaging", Style::new().fg(COLOR_SUCCESS)));
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
-        line1.push_span(Span::styled("✓ Identity", Style::new().fg(COLOR_SUCCESS)));
+        line1.push_span(Span::styled("✓ Digital Identity", Style::new().fg(COLOR_SUCCESS)));
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
         line1.push_span(Span::styled(
-            "● Complete",
+            "● Setup Complete",
             Style::new().fg(COLOR_ORANGE).bold(),
         ));
     } else {
@@ -392,23 +392,23 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
             ));
             line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
             line1.push_span(Span::styled(
-                "● Security",
+                "● Profile Security",
                 Style::new().fg(COLOR_ORANGE).bold(),
             ));
             line1.push_span(Span::styled(
-                " → ○ Messaging → ○ Identity → ○ Complete",
+                " → ○ Secure Messaging → ○ Digital Identity → ○ Setup Complete",
                 Style::new().fg(COLOR_DARK_GRAY),
             ));
         } else {
             line1.push_span(Span::styled(
-                " → ○ Key Management → ○ Security → ○ Messaging → ○ Identity → ○ Complete",
+                " → ○ Key Management → ○ Profile Security → ○ Secure Messaging → ○ Digital Identity → ○ Setup Complete",
                 Style::new().fg(COLOR_DARK_GRAY),
             ));
         }
 
         #[cfg(not(feature = "openpgp-card"))]
         line1.push_span(Span::styled(
-            " → ○ Key Management → ○ Security → ○ Messaging → ○ Identity → ○ Complete",
+            " → ○ Key Management → ○ Profile Security → ○ Secure Messaging → ○ Digital Identity → ○ Setup Complete",
             Style::new().fg(COLOR_DARK_GRAY),
         ));
     }

@@ -1,5 +1,5 @@
 use crossterm::event::{Event, KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT};
+use lkmv::colors::{COLOR_BORDER, COLOR_DARK_GRAY, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT};
 use ratatui::{
     Frame,
     layout::{
@@ -65,7 +65,7 @@ impl UserName {
             Block::bordered()
                 .fg(COLOR_BORDER)
                 .padding(Padding::proportional(1))
-                .title(" Your Display Name "),
+                .title(" Step 1/2: Set your display name "),
             middle,
         );
 
@@ -76,8 +76,8 @@ impl UserName {
                     Style::new().fg(COLOR_BORDER).bold(),
                 ),
                 Line::styled(
-                    "(how others will see your name)",
-                    Style::new().fg(COLOR_TEXT_DEFAULT),
+                    "This is the name that others will see when you interact with them.",
+                    Style::new().fg(COLOR_DARK_GRAY),
                 ),
             ]),
             content[0],

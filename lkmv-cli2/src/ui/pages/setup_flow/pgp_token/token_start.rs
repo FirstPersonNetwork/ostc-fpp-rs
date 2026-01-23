@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_TEXT_DEFAULT};
+use lkmv::colors::{COLOR_BORDER, COLOR_TEXT_DEFAULT, COLOR_DARK_GRAY};
 use ratatui::{
     Frame,
     layout::{
@@ -12,7 +12,7 @@ use ratatui::{
 };
 
 use crate::{
-    state_handler::{actions::Action, setup_sequence::SetupState},
+    state_handler::{actions::Action, setup_sequence::{SetupPage, SetupState}},
     ui::pages::setup_flow::{SetupFlow, render_setup_header},
 };
 
@@ -24,6 +24,9 @@ impl TokenStart {
         match key.code {
             KeyCode::F(10) => {
                 let _ = state.action_tx.send(Action::Exit);
+            }
+            KeyCode::Char('s') | KeyCode::Char('S') => {
+                state.props.state.active_page = SetupPage::UnlockCodeAsk;
             }
             KeyCode::Enter => {
                 let _ = state.action_tx.send(Action::GetTokens);
@@ -41,20 +44,27 @@ impl TokenStart {
         let block = Block::bordered()
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Hardware Token Setup ");
+            .title(" Step 1/6: Set up hardware token ");
 
         let lines = vec![
             Line::styled(
-                "Best practice security is to use a hardware token to help secure LKMV.",
-                Style::new().fg(COLOR_TEXT_DEFAULT),
+                "For enhanced security, you can protect your LKMV profile with a hardware token. This step is recommended but optional.",
+                Style::new().fg(COLOR_DARK_GRAY),
             ),
             Line::default(),
             Line::styled(
-                "If you have a openpgp compatible hardware token (NitroKey, YubiKey, etc) - Please ensure it is plugged in now.",
+                "Do you have an OpenPGP-compatible hardware token (e.g., NitroKey or YubiKey)?",
+                Style::new().fg(COLOR_BORDER).bold(),
+            ),
+            Line::default(),
+            Line::styled(
+                "Plug it in now to continue.",
                 Style::new().fg(COLOR_TEXT_DEFAULT).bold(),
             ),
             Line::default(),
             Line::from(vec![
+                Span::styled("[S]", Style::new().fg(COLOR_BORDER).bold()),
+                Span::styled(" to skip setup  |  ", Style::new().fg(COLOR_TEXT_DEFAULT)),
                 Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
                 Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
             ]),

@@ -1,8 +1,8 @@
 use arboard::Clipboard;
 use crossterm::event::{KeyCode, KeyEvent};
 use lkmv::colors::{
-    COLOR_BORDER, COLOR_DARK_PURPLE, COLOR_ORANGE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT,
-    COLOR_WARNING_ACCESSIBLE_RED,
+    COLOR_BORDER, COLOR_DARK_PURPLE, COLOR_ORANGE, COLOR_TEXT_DEFAULT,
+    COLOR_WARNING_ACCESSIBLE_RED, COLOR_DARK_GRAY, COLOR_SUCCESS,
 };
 use ratatui::{
     Frame,
@@ -28,11 +28,8 @@ use crate::{
 // ****************************************************************************
 #[derive(Copy, Clone, Debug, Default)]
 pub struct DIDKeysShow {
-    /// 0 = Nothing copied to clipboard
-    /// 1 = Signing Key copied
-    /// 2 = Authentication Key copied
-    /// 3 = Encryption Key copied
-    pub show_clipboard_copy: u8,
+    /// Whether all keys have been copied to clipboard
+    pub cc_copy: bool,
 }
 
 impl DIDKeysShow {
@@ -41,43 +38,20 @@ impl DIDKeysShow {
             KeyCode::F(10) => {
                 let _ = state.action_tx.send(Action::Exit);
             }
-            KeyCode::Char('1') => {
+            KeyCode::Char('c') | KeyCode::Char('C') => {
                 if let Some(did_keys) = &state.props.state.did_keys {
                     let mut clipboard = Clipboard::new().unwrap();
-                    clipboard
-                        .set_text(did_keys.signing.secret.get_public_keymultibase().unwrap())
-                        .unwrap();
-                    state.did_keys_show.show_clipboard_copy = 1;
-                }
-            }
-            KeyCode::Char('2') => {
-                if let Some(did_keys) = &state.props.state.did_keys {
-                    let mut clipboard = Clipboard::new().unwrap();
-                    clipboard
-                        .set_text(
-                            did_keys
-                                .authentication
-                                .secret
-                                .get_public_keymultibase()
-                                .unwrap(),
-                        )
-                        .unwrap();
-                    state.did_keys_show.show_clipboard_copy = 2;
-                }
-            }
-            KeyCode::Char('3') => {
-                if let Some(did_keys) = &state.props.state.did_keys {
-                    let mut clipboard = Clipboard::new().unwrap();
-                    clipboard
-                        .set_text(
-                            did_keys
-                                .decryption
-                                .secret
-                                .get_public_keymultibase()
-                                .unwrap(),
-                        )
-                        .unwrap();
-                    state.did_keys_show.show_clipboard_copy = 3;
+                    let signing_key = did_keys.signing.secret.get_public_keymultibase().unwrap();
+                    let auth_key = did_keys.authentication.secret.get_public_keymultibase().unwrap();
+                    let decrypt_key = did_keys.decryption.secret.get_public_keymultibase().unwrap();
+                    
+                    let clipboard_text = format!(
+                        "Signing Key (Ed25519): {}\n\nAuthentication Key (Ed25519): {}\n\nDecryption Key (X25519): {}",
+                        signing_key, auth_key, decrypt_key
+                    );
+                    
+                    clipboard.set_text(clipboard_text).unwrap();
+                    state.did_keys_show.cc_copy = true;
                 }
             }
             KeyCode::Enter => {
@@ -96,59 +70,44 @@ impl DIDKeysShow {
         let block = Block::bordered()
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Step 3/4: Derived DID Keys ");
+            .title(" Step 3/4: Derived DID keys ");
 
         let mut lines = vec![
-            Line::from(vec![
-                Span::styled("✓ ", Style::new().fg(COLOR_SUCCESS).bold()),
-                Span::styled(
-                    "The following keys were successfully derived from your BIP32 seed:",
-                    Style::new().fg(COLOR_BORDER).bold(),
-                ),
-            ]),
+            Line::styled(
+                "These DID keys are used for cryptographic operations, including signing and encrypting data.",
+                Style::new().fg(COLOR_DARK_GRAY),
+            ),
+            Line::default(),
+            Line::styled(
+                "Your keys have been generated from the BIP39 recovery phrase you just saved.",
+                Style::new().fg(COLOR_BORDER).bold(),
+            ),
             Line::default(),
         ];
 
         // Render the keys
         if let Some(did_keys) = &state.did_keys {
             // Signing Key
-            lines.push(Line::from(vec![
-                Span::styled("Signing Key ", Style::new().fg(COLOR_ORANGE).bold()),
-                Span::styled(
-                    format!("({}) created:", did_keys.signing.secret.get_key_type()),
-                    Style::new().fg(COLOR_BORDER),
-                ),
-            ]));
+            lines.push(Line::styled(
+                format!("Signing key ({}) created:", 
+                did_keys.signing.secret.get_key_type()), 
+                Style::new().fg(COLOR_SUCCESS).bold()
+            ));
             lines.push(Line::from(vec![
                 Span::styled("🔑 ", Style::new()),
                 Span::styled(
                     did_keys.signing.secret.get_public_keymultibase().unwrap(),
                     Style::new().fg(COLOR_DARK_PURPLE),
                 ),
-                Span::styled("  [1]", Style::new().fg(COLOR_BORDER)).bold(),
-                Span::styled(" to copy", Style::new().fg(COLOR_TEXT_DEFAULT)),
-                if self.show_clipboard_copy == 1 {
-                    Span::styled(
-                        "  (copied!)",
-                        Style::new().fg(COLOR_SUCCESS).bold().slow_blink(),
-                    )
-                } else {
-                    Span::styled("", Style::new())
-                },
             ]));
             lines.push(Line::default());
 
             // Authentication Key
-            lines.push(Line::from(vec![
-                Span::styled("Authentication Key ", Style::new().fg(COLOR_ORANGE).bold()),
-                Span::styled(
-                    format!(
-                        "({}) created:",
-                        did_keys.authentication.secret.get_key_type()
-                    ),
-                    Style::new().fg(COLOR_BORDER),
-                ),
-            ]));
+            lines.push(Line::styled(
+                format!("Authentication key ({}) created:", 
+                did_keys.authentication.secret.get_key_type()), 
+                Style::new().fg(COLOR_SUCCESS).bold()
+            ));
             lines.push(Line::from(vec![
                 Span::styled("🔑 ", Style::new()),
                 Span::styled(
@@ -159,27 +118,14 @@ impl DIDKeysShow {
                         .unwrap(),
                     Style::new().fg(COLOR_DARK_PURPLE),
                 ),
-                Span::styled("  [2]", Style::new().fg(COLOR_BORDER).bold()),
-                Span::styled(" to copy", Style::new().fg(COLOR_TEXT_DEFAULT)),
-                if self.show_clipboard_copy == 2 {
-                    Span::styled(
-                        "  (copied!)",
-                        Style::new().fg(COLOR_SUCCESS).bold().slow_blink(),
-                    )
-                } else {
-                    Span::styled("", Style::new())
-                },
             ]));
             lines.push(Line::default());
 
             // Decryption Key
-            lines.push(Line::from(vec![
-                Span::styled("Decryption Key ", Style::new().fg(COLOR_ORANGE).bold()),
-                Span::styled(
-                    format!("({}) created:", did_keys.decryption.secret.get_key_type()),
-                    Style::new().fg(COLOR_BORDER),
-                ),
-            ]));
+            lines.push(Line::styled(
+                format!("Decryption key ({}) created:", did_keys.decryption.secret.get_key_type()),
+                Style::new().fg(COLOR_SUCCESS).bold()
+            ));
             lines.push(Line::from(vec![
                 Span::styled("🔑 ", Style::new()),
                 Span::styled(
@@ -190,16 +136,6 @@ impl DIDKeysShow {
                         .unwrap(),
                     Style::new().fg(COLOR_DARK_PURPLE),
                 ),
-                Span::styled("  [3]", Style::new().fg(COLOR_BORDER).bold()),
-                Span::styled(" to copy", Style::new().fg(COLOR_TEXT_DEFAULT)),
-                if self.show_clipboard_copy == 3 {
-                    Span::styled(
-                        "  (copied!)",
-                        Style::new().fg(COLOR_SUCCESS).bold().slow_blink(),
-                    )
-                } else {
-                    Span::styled("", Style::new())
-                },
             ]));
             lines.push(Line::default());
         } else {
@@ -209,25 +145,35 @@ impl DIDKeysShow {
                     Style::new().fg(COLOR_WARNING_ACCESSIBLE_RED).bold(),
                 ),
                 Span::styled(
-                    "Expected to see DID Keys, instead they don't exist!",
+                    "Expected to see DID keys, instead they don't exist!",
                     Style::new().fg(COLOR_ORANGE),
                 ),
             ]));
         }
 
-        lines.push(Line::from(vec![
-            Span::styled("NOTE: ", Style::new().fg(COLOR_ORANGE).bold()),
-            Span::styled("You can export these keys for use in other applications from within LKMV at any point in the future.", Style::new().fg(COLOR_TEXT_DEFAULT))
-        ]));
+        lines.push(Line::default());
+        lines.push(
+            Line::styled(
+            "ℹ️ Note: These keys can be exported later from within the LKMV.",
+            Style::new().fg(COLOR_ORANGE),
+        ));
 
         lines.push(Line::default());
         lines.push(Line::from(vec![
-            Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
+            Span::styled("[C]", Style::new().fg(COLOR_BORDER).bold()),
             Span::styled(
-                " Continue to next step",
+                " Copy to clipboard  |  ",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ),
+            Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
+            Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
         ]));
+        if self.cc_copy {
+            lines.push(Line::styled(
+                "Derived keys copied!",
+                Style::new().fg(COLOR_SUCCESS).slow_blink(),
+            ));
+        }
 
         frame.render_widget(
             Paragraph::new(lines).block(block).wrap(Wrap { trim: true }),

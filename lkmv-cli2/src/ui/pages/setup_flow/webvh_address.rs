@@ -1,5 +1,5 @@
 use crossterm::event::{Event, KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_DARK_GRAY, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT};
+use lkmv::colors::{COLOR_BORDER, COLOR_DARK_GRAY, COLOR_ORANGE, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT};
 use ratatui::{
     Frame,
     layout::{
@@ -57,29 +57,36 @@ impl WebvhAddress {
         // 1: INPUT
         // 2: Key Bindings
         let content: [Rect; 3] =
-            Layout::vertical([Length(2), Length(2), Min(0)]).areas(middle.inner(Margin::new(3, 2)));
+            Layout::vertical([Length(4), Length(2), Min(0)]).areas(middle.inner(Margin::new(3, 2)));
 
-        let [input0_prompt, input0_box] = Layout::horizontal([Length(5), Min(0)]).areas(content[1]);
+        let [input0_prompt, input0_box] = Layout::horizontal([Length(2), Min(0)]).areas(content[1]);
 
         frame.render_widget(
             Block::bordered()
                 .fg(COLOR_BORDER)
                 .padding(Padding::proportional(1))
-                .title(" Community DID Setup "),
+                .title(" Step 2/2: Set up community DID "),
             middle,
         );
 
         frame.render_widget(
-            Paragraph::new(vec![Line::styled(
-                "Enter the Web Address where your DID will be hosted:",
-                Style::new().fg(COLOR_BORDER).bold(),
-            )]),
+            Paragraph::new(vec![
+                Line::styled(
+                    "Your identity within LKMV is represented using the Web Verifiable History (WebVH) DID method.", 
+                    Style::new().fg(COLOR_DARK_GRAY)
+                ),
+                Line::default(),
+                Line::styled(
+                    "Enter the web address where your DID will be hosted:",
+                    Style::new().fg(COLOR_BORDER).bold(),
+                )
+            ]),
             content[0],
         );
 
         frame.render_widget(
             Paragraph::new(Span::styled(
-                "URL: ",
+                "> ",
                 Style::new().fg(COLOR_SOFT_PURPLE).bold(),
             )),
             input0_prompt,
@@ -89,13 +96,15 @@ impl WebvhAddress {
 
         frame.render_widget(
             Paragraph::new(vec![
-                Line::from(vec![
-                    Span::styled("Example: ", Style::new().fg(COLOR_BORDER).bold()),
-                    Span::styled(
-                        "https::/<username>.github.io/",
-                        Style::new().fg(COLOR_DARK_GRAY),
-                    ),
-                ]),
+                Line::styled("ℹ️ Note: For example, if hosting your DID using GitHub Pages, use a URL like: ", Style::new().fg(COLOR_ORANGE)),
+                Line::styled(
+                    "         • https://<username>.github.io/",
+                    Style::new().fg(COLOR_ORANGE).bold(),
+                ),
+                Line::styled(
+                    "         • https://<username>.github.io/lkmv-did/",
+                    Style::new().fg(COLOR_ORANGE).bold(),
+                ),
                 Line::default(),
                 Line::from(vec![
                     Span::styled("[ESC]", Style::new().fg(COLOR_BORDER).bold()),
@@ -104,13 +113,11 @@ impl WebvhAddress {
                     Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
                 ]),
                 Line::default(),
-                Line::styled("Your identity within LKMV is represented using the Web Verifiable History (WebVH) DID Method.", Style::new().fg(COLOR_TEXT_DEFAULT)),
-                Line::default(),
                 Line::styled("What is WebVH DID?", Style::new().fg(COLOR_BORDER).bold()),
                 Line::styled("• Decentralized identifier accessible via HTTPS", Style::new().fg(COLOR_TEXT_DEFAULT)),
                 Line::styled("• Changes are tracked using Verifiable History Logs", Style::new().fg(COLOR_TEXT_DEFAULT)),
                 Line::styled("• No blockchain or external services required beyond simple web hosting", Style::new().fg(COLOR_TEXT_DEFAULT)),
-                Line::styled("• Full control and ownership oevr your DID and where you choose to host it", Style::new().fg(COLOR_TEXT_DEFAULT)),
+                Line::styled("• Full control and ownership over your DID and where you choose to host it", Style::new().fg(COLOR_TEXT_DEFAULT)),
             ]),
             content[2],
         );

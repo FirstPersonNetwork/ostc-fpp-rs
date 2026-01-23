@@ -68,13 +68,13 @@ impl MediatorCustom {
             Block::bordered()
                 .fg(COLOR_BORDER)
                 .padding(Padding::proportional(1))
-                .title(" Custom Mediator DID "),
+                .title(" Step 2/2: Set custom messaging mediator "),
             middle,
         );
 
         frame.render_widget(
             Paragraph::new(vec![Line::styled(
-                "Enter Custom Mediator DID",
+                "Enter custom mediator DID:",
                 Style::new().fg(COLOR_BORDER).bold(),
             )]),
             content[0],
@@ -92,13 +92,7 @@ impl MediatorCustom {
 
         frame.render_widget(
             Paragraph::new(vec![
-                Line::from(vec![
-                    Span::styled("NOTE: ", Style::new().fg(COLOR_ORANGE).bold()),
-                    Span::styled(
-                        "The Custom Mediator DID must support DIDComm v2 protocol",
-                        Style::new().fg(COLOR_TEXT_DEFAULT),
-                    ),
-                ]),
+                Line::styled("ℹ️ Note: The custom mediator DID must support DIDComm v2 protocol.", Style::new().fg(COLOR_ORANGE)),
                 Line::default(),
                 Line::from(vec![
                     Span::styled("[ESC]", Style::new().fg(COLOR_BORDER).bold()),

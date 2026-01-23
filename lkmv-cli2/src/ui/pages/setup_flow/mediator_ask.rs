@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
+use lkmv::colors::{COLOR_BORDER, COLOR_DARK_GRAY, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
 use ratatui::{
     Frame,
     layout::{
@@ -64,24 +64,25 @@ impl MediatorAsk {
 
         render_setup_header(frame, top, state);
 
+        // Dynamically set the title based on selected option
+        let title = match self {
+            MediatorAsk::Default => " Step 1/1: Configure messaging mediator ",
+            MediatorAsk::Custom => " Step 1/2: Configure messaging mediator ",
+        };
+
         let block = Block::bordered()
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Choose Messaging Mediator ");
+            .title(title);
 
         let mut lines = vec![
             Line::styled(
-                "Choose the DIDComm Messaging mediator:",
+                "All communication uses secure messaging based on the DIDComm protocol and requires a mediator (relay service) for reliable message delivery.",
+                Style::new().fg(COLOR_DARK_GRAY),
+            ),
+            Line::styled(
+                "Choose the default mediator, or select a custom mediator if your community requires one.",
                 Style::new().fg(COLOR_BORDER).bold(),
-            ),
-            Line::default(),
-            Line::styled(
-                "All communication occurs using secure messaging based on the DIDComm protocol.",
-                Style::new().fg(COLOR_TEXT_DEFAULT),
-            ),
-            Line::styled(
-                "The messaging service uses a mediator/relay, in some situations you may need to use a custom mediator DID.",
-                Style::new().fg(COLOR_TEXT_DEFAULT),
             ),
             Line::default(),
         ];
@@ -91,6 +92,10 @@ impl MediatorAsk {
             lines.push(Line::styled(
                 "[✓] Use Default LKMV Community Mediator (recommended)",
                 Style::new().fg(COLOR_SUCCESS).bold(),
+            ));
+            lines.push(Line::styled(
+                "    Uses the managed LKMV community mediator for reliable, out-of-the-box messaging.",
+                Style::new().fg(COLOR_DARK_GRAY),
             ));
             lines.push(Line::styled(
                 "[ ] Use Custom Mediator (requires a mediator DID)",
@@ -105,6 +110,10 @@ impl MediatorAsk {
                 "[✓] Use Custom Mediator (requires a mediator DID)",
                 Style::new().fg(COLOR_SUCCESS).bold(),
             ));
+            lines.push(Line::styled(
+                "    Specify a custom mediator DID for messaging, if your community requires it.",
+                Style::new().fg(COLOR_DARK_GRAY),
+            ));
         }
 
         lines.push(Line::default());
@@ -116,7 +125,7 @@ impl MediatorAsk {
         ]));
 
         frame.render_widget(
-            Paragraph::new(lines).block(block).wrap(Wrap { trim: true }),
+            Paragraph::new(lines).block(block).wrap(Wrap { trim: false }),
             middle,
         );
 

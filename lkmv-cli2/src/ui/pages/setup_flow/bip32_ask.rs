@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
+use lkmv::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_DARK_GRAY};
 use ratatui::{
     Frame,
     layout::{
@@ -67,26 +67,30 @@ impl BIP32PhraseAskChoice {
         let block = Block::bordered()
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Step 1/4: BIP32 Seed Phrase ");
+            .title(" Step 1/4: Setup recovery phrase ");
 
         let mut lines = vec![
             Line::styled(
-                "Choose how to setup your BIP32 recovery phrase",
-                Style::new().fg(COLOR_BORDER).bold(),
+                "LKMV uses a single BIP32 recovery phrase to securely generate all keys for your profile. This means you only need to back up one phrase instead of managing multiple keys.",
+                Style::new().fg(COLOR_DARK_GRAY),
             ),
             Line::default(),
             Line::styled(
-                "LKMV derives individual keys from a common BIP32 seed phrase. This allows for a secure and private deterministic generation of key material from a single seed, rather than having to back up and restore seed material for every key.",
-                Style::new().fg(COLOR_TEXT_DEFAULT),
+                "How would you like to set up your recovery phrase?",
+                Style::new().fg(COLOR_BORDER).bold(),
             ),
             Line::default(),
         ];
 
-        // Render the active chocie
+        // Render the active choice
         if let BIP32PhraseAskChoice::Create = self {
             lines.push(Line::styled(
                 "[✓] Generate a new 24-word recovery phrase (recommended)",
                 Style::new().fg(COLOR_SUCCESS).bold(),
+            ));
+            lines.push(Line::styled(
+                "    Create a new recovery phrase for this profile. You'll be shown the phrase and asked to back it up safely.",
+                Style::new().fg(COLOR_DARK_GRAY),
             ));
             lines.push(Line::styled(
                 "[ ] Import an existing recovery phrase",
@@ -101,6 +105,10 @@ impl BIP32PhraseAskChoice {
                 "[✓] Import an existing recovery phrase",
                 Style::new().fg(COLOR_SUCCESS).bold(),
             ));
+            lines.push(Line::styled(
+                "    Use an existing recovery phrase to restore your profile keys. Make sure you have the phrase available.",
+                Style::new().fg(COLOR_DARK_GRAY),
+            ));
         }
 
         lines.push(Line::default());
@@ -112,7 +120,7 @@ impl BIP32PhraseAskChoice {
         ]));
 
         frame.render_widget(
-            Paragraph::new(lines).block(block).wrap(Wrap { trim: true }),
+            Paragraph::new(lines).block(block).wrap(Wrap { trim: false }),
             middle,
         );
 

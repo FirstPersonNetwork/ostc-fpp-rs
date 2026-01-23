@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_ORANGE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
+use lkmv::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_DARK_GRAY,};
 use ratatui::{
     Frame,
     layout::{
@@ -75,40 +75,30 @@ impl DIDKeysExportAsk {
         let block = Block::bordered()
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Step 4/4: Export Private DID Keys ");
+            .title(" Step 4/4: Export private DID keys ");
 
         let mut lines = vec![
             Line::styled(
-                "Export private keys for use in other tools?",
-                Style::new().fg(COLOR_BORDER).bold(),
+                "You may want to export the private key material used by your profile so you can reuse the same keys in other applications or with other DIDs.",
+                Style::new().fg(COLOR_DARK_GRAY),
             ),
             Line::default(),
             Line::styled(
-                "You may want to export the secret key material that your DID keys are using so that you can use the same key values in other applications or other DID's.",
-                Style::new().fg(COLOR_TEXT_DEFAULT),
+                "Would you like to export your private DID keys now?",
+                Style::new().fg(COLOR_BORDER).bold(),
             ),
-            Line::from(vec![
-                Span::styled("NOTE: ", Style::new().fg(COLOR_ORANGE).bold()),
-                Span::styled(
-                    "You can export your active DID keys from LKMV at any point in the future if you change your mind.",
-                    Style::new().fg(COLOR_ORANGE),
-                ),
-            ]),
-            Line::from(vec![
-                Span::styled("NOTE: ", Style::new().fg(COLOR_ORANGE).bold()),
-                Span::styled(
-                    "Keys will be exported in an armored PGP key export format.",
-                    Style::new().fg(COLOR_ORANGE),
-                ),
-            ]),
             Line::default(),
         ];
 
-        // Render the active chocie
+        // Render the active choice
         if let DIDKeysExportAsk::Skip = self {
             lines.push(Line::styled(
                 "[✓] Skip for now (recommended)",
                 Style::new().fg(COLOR_SUCCESS).bold(),
+            ));
+            lines.push(Line::styled(
+                "    You can continue setting up your profile and export them later from within LKMV if needed.",
+                Style::new().fg(COLOR_DARK_GRAY),
             ));
             lines.push(Line::styled(
                 "[ ] Export private DID keys",
@@ -123,6 +113,10 @@ impl DIDKeysExportAsk {
                 "[✓] Export private DID keys",
                 Style::new().fg(COLOR_SUCCESS).bold(),
             ));
+            lines.push(Line::styled(
+                "    Private keys will be exported in a secure, text-based PGP-armoured format suitable for secure storage and transfer.",
+                Style::new().fg(COLOR_DARK_GRAY),
+            ));
         }
 
         lines.push(Line::default());
@@ -134,7 +128,7 @@ impl DIDKeysExportAsk {
         ]));
 
         frame.render_widget(
-            Paragraph::new(lines).block(block).wrap(Wrap { trim: true }),
+            Paragraph::new(lines).block(block).wrap(Wrap { trim: false }),
             middle,
         );
 
