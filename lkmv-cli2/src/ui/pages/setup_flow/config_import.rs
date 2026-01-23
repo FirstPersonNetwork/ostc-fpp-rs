@@ -256,7 +256,7 @@ impl ConfigImport {
                 Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
             ]));
         }
-        frame.render_widget(Paragraph::new(lines), content[7]);
+        frame.render_widget(Paragraph::new(lines), content[6]);
 
         let bottom_line = Line::from(vec![
             Span::styled("[F10]", Style::new().fg(COLOR_BORDER).bold()),
