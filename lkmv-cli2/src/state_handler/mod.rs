@@ -8,8 +8,10 @@ use crate::{
     state_handler::{
         actions::Action,
         main_page::MainPanel,
-        setup_sequence::{SetupPage, did_keys::export_persona_did_keys},
-        state::State,
+        setup_sequence::{
+            Completion, SetupPage, config::ConfigExtension, did_keys::export_persona_did_keys,
+        },
+        state::{ActivePage, State},
     },
 };
 use anyhow::Result;
@@ -88,6 +90,12 @@ impl StateHandler {
 
                         break interrupted;
                     },
+                    Action::ActivateMainMenu => {
+                        // Switch to Main Menu
+                        state.active_page = ActivePage::Main;
+                        state.main_page.menu_panel.selected = true;
+                        state.main_page.content_panel.selected = false;
+                    },
                     Action::MainMenuSelected(menu_item) => {
                         // User has changed main menu selection
                         state.main_page.menu_panel.selected_menu = menu_item;
@@ -103,6 +111,28 @@ impl StateHandler {
                                 // When switching to MainMenu, reset any content-specific state if needed
                                 state.main_page.menu_panel.selected = true;
                                 state.main_page.content_panel.selected = false;
+                            }
+                        }
+                    },
+                    Action::ImportConfig(filename, import_unlock_passphrase, new_unlock_passphrase) => {
+                        // Import a configuration backup
+                        let import_unlock_passphrase = SecretString::new(import_unlock_passphrase);
+                        let new_unlock_passphrase = SecretString::new(new_unlock_passphrase);
+                        state.setup.active_page = SetupPage::ConfigImport;
+                        match Config::import(
+                            &mut state, &self.state_tx,
+                            &import_unlock_passphrase,
+                            &new_unlock_passphrase,
+                            &filename,
+                            &self.profile,
+                        ) {
+                            Ok(()) => {
+                                state.setup.config_import.completed = Completion::CompletedOK;
+                                state.setup.config_import.messages.push(MessageType::Info("Configuration import completed successfully.".to_string()));
+                            }
+                            Err(e) => {
+                                state.setup.config_import.messages.push(MessageType::Error(format!("Importing Config failed: {e}")));
+                                state.setup.config_import.completed = Completion::CompletedFail;
                             }
                         }
                     },

@@ -21,19 +21,30 @@ pub enum Action {
     /// An unrecoverable error has occurred on the UX Side
     UXError(Interrupted),
 
+    /// Make MainMenu active
+    /// This is used from the setup flow to switch back to the main menu
+    ActivateMainMenu,
+
     /// A main menu item has been selected
     MainMenuSelected(MainMenu),
 
     /// Active Panel switched to
     MainPanelSwitch(MainPanel),
 
+    // ************************************************************************
     // SETUP Pages
+    /// Import existing Config
+    /// Filename, config_unlock_passphrase, new_unlock_passphrase
+    ImportConfig(String, String, String),
+
     /// Sets the DID Persona Keys
     SetDIDKeys(Box<PersonaDIDKeys>),
 
     /// Export DID Private keys as PGP Armored file
     ExportDIDKeys(DIDKeysExportInputs),
 
+    // ************************************************************************
+    // PGP Hardware token Specific Actions
     /// Fetches PGP Hardware Tokens that are connected
     #[cfg(feature = "openpgp-card")]
     GetTokens,
@@ -58,6 +69,7 @@ pub enum Action {
     #[cfg(feature = "openpgp-card")]
     TokenWriteKeys(Option<Arc<Mutex<Card<Open>>>>),
 
+    // ************************************************************************
     /// Using a custom mediator DID
     SetCustomMediator(String),
 

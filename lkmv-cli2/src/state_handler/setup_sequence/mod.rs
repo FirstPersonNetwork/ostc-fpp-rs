@@ -13,6 +13,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 pub mod bip32;
+pub mod config;
 pub mod did_keys;
 #[cfg(feature = "openpgp-card")]
 pub mod openpgp_card;
@@ -63,6 +64,8 @@ pub enum SetupPage {
 pub struct SetupState {
     pub active_page: SetupPage,
 
+    pub config_import: ConfigImport,
+
     /// BIP32 mnemonic to use
     pub mnemonic: BIP32_39,
 
@@ -98,10 +101,27 @@ pub struct SetupState {
     pub webvh_address: String,
 }
 
+/// Helps format messages from backend to the frontend
 #[derive(Clone, Debug)]
 pub enum MessageType {
     Info(String),
     Error(String),
+}
+
+/// Completion States for tasks
+#[derive(Clone, Debug, Default)]
+pub enum Completion {
+    #[default]
+    NotFinished,
+    CompletedOK,
+    CompletedFail,
+}
+
+/// State relating to importing configuration
+#[derive(Clone, Default, Debug)]
+pub struct ConfigImport {
+    pub completed: Completion,
+    pub messages: Vec<MessageType>,
 }
 
 /// Update messages as the Key export works through

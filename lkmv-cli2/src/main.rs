@@ -1,9 +1,8 @@
-use std::{env, fs, path::Path, process, str::FromStr};
-
 use crate::{cli::cli, state_handler::StateHandler, ui::UiManager};
 use anyhow::{Context, Result, bail};
 use console::style;
 use lkmv::colors::{CLI_BLUE, CLI_ORANGE, CLI_PURPLE, CLI_RED};
+use std::{env, fs, path::Path, process, str::FromStr};
 use sysinfo::{Pid, ProcessRefreshKind, RefreshKind, System};
 #[cfg(unix)]
 use tokio::signal::unix::signal;
