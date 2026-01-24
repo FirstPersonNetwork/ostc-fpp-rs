@@ -1,19 +1,38 @@
 /*! Contains specific Config extensions for the CLI Application. */
 
+use affinidi_tdk::{TDK, messaging::profiles::ATMProfile};
 use anyhow::{Result, bail};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
-use console::style;
+use chrono::Utc;
 use ed25519_dalek_bip32::ExtendedSigningKey;
-use lkmv::config::{
-    Config, ConfigProtectionType, ExportedConfig, protected_config::ProtectedConfig,
-    public_config::PublicConfig, secured_config::unlock_code_decrypt,
+use lkmv::{
+    LF_ORG_DID, LF_PUBLIC_MEDIATOR_DID,
+    bip32::get_bip32_root,
+    config::{
+        Config, ConfigProtectionType, ExportedConfig, KeyTypes, PersonaDID,
+        protected_config::ProtectedConfig,
+        public_config::PublicConfig,
+        secured_config::{KeyInfoConfig, ProtectionMethod, unlock_code_decrypt},
+    },
+    logs::{LogFamily, LogMessage, Logs},
 };
 use secrecy::{ExposeSecret, SecretString};
 use sha2::{Digest, Sha256};
-use std::fs;
+use std::{
+    collections::{HashMap, VecDeque},
+    fs,
+    rc::Rc,
+    sync::Arc,
+};
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::state_handler::{setup_sequence::MessageType, state::State};
+use crate::{
+    state_handler::{
+        setup_sequence::{ConfigProtection, MessageType, SetupState},
+        state::State,
+    },
+    ui::pages::setup_flow::SetupFlow,
+};
 
 pub trait ConfigExtension {
     /// Imports a backup of lkmv configuration settings from an encrypted file
@@ -31,6 +50,15 @@ pub trait ConfigExtension {
         file: &str,
         profile: &str,
     ) -> Result<()>;
+
+    /// Creates a new Config instance based on the setup state
+    /// Saves this to disk and returns the created Config
+    async fn create(
+        state: &SetupState,
+        setup_flow: &SetupFlow,
+        tdk: &TDK,
+        profile: &str,
+    ) -> Result<Config>;
 }
 
 impl ConfigExtension for Config {
@@ -128,7 +156,7 @@ impl ConfigExtension for Config {
                         None
                     },
                     Some(
-                        &sha2::Sha256::digest(import_unlock_passphrase.expose_secret().as_bytes())
+                        &sha2::Sha256::digest(new_unlock_passphrase.expose_secret().as_bytes())
                             .to_vec(),
                     ),
                     &move || {
@@ -156,10 +184,118 @@ impl ConfigExtension for Config {
                 } else {
                     None
                 },
-                Some(&import_unlock_passphrase.expose_secret().as_bytes().to_vec()),
+                Some(&new_unlock_passphrase.expose_secret().as_bytes().to_vec()),
             )
             .expect("Couldn't save Secured Config");
 
         Ok(())
+    }
+
+    async fn create(
+        state: &SetupState,
+        setup_flow: &SetupFlow,
+        tdk: &TDK,
+        profile: &str,
+    ) -> Result<Config> {
+        // Initial Configuration state
+
+        let mut unlock_code = None;
+        let protection = match &state.protection {
+            ConfigProtection::PlainText => ConfigProtectionType::Plaintext,
+            ConfigProtection::Token(token) => ConfigProtectionType::Token(token.to_string()),
+            ConfigProtection::Passcode(unlock) => {
+                unlock_code = Some(unlock.expose_secret().to_vec());
+                ConfigProtectionType::Encrypted
+            }
+        };
+
+        let mediator_did = if let Some(mediator) = &state.custom_mediator {
+            mediator.to_string()
+        } else {
+            LF_PUBLIC_MEDIATOR_DID.to_string()
+        };
+
+        // Keys are all derived from the BIP32 root seed
+        let mut key_info = HashMap::new();
+        let persona_keys = state.did_keys.clone().unwrap();
+        key_info.insert(
+            persona_keys.signing.secret.id.clone(),
+            KeyInfoConfig {
+                path: persona_keys.signing.source.clone(),
+                create_time: persona_keys.signing.created,
+                purpose: KeyTypes::PersonaSigning,
+            },
+        );
+        key_info.insert(
+            persona_keys.authentication.secret.id.clone(),
+            KeyInfoConfig {
+                path: persona_keys.authentication.source.clone(),
+                create_time: persona_keys.authentication.created,
+                purpose: KeyTypes::PersonaAuthentication,
+            },
+        );
+        key_info.insert(
+            persona_keys.decryption.secret.id.clone(),
+            KeyInfoConfig {
+                path: persona_keys.decryption.source.clone(),
+                create_time: persona_keys.decryption.created,
+                purpose: KeyTypes::PersonaEncryption,
+            },
+        );
+
+        let config = Config {
+            bip32_root: get_bip32_root(state.mnemonic.mnemonic.to_entropy().as_slice())?,
+            bip32_seed: SecretString::new(
+                BASE64_URL_SAFE_NO_PAD.encode(state.mnemonic.mnemonic.to_entropy()),
+            ),
+            public: PublicConfig {
+                protection,
+                persona_did: Rc::new(state.webvh_address.did.clone()),
+                mediator_did: mediator_did.clone(),
+                private: None,
+                logs: Logs {
+                    messages: VecDeque::from([LogMessage {
+                        created: Utc::now(),
+                        type_: LogFamily::Config,
+                        message: "Initial lkmv setup completed".to_string(),
+                    }]),
+                    ..Default::default()
+                },
+                friendly_name: setup_flow.username.username.value().to_string(),
+                lk_did: LF_ORG_DID.to_string(),
+            },
+            private: ProtectedConfig::default(),
+            persona_did: PersonaDID {
+                document: state.webvh_address.document.clone(),
+                profile: Arc::new(
+                    ATMProfile::new(
+                        tdk.atm.as_ref().unwrap(),
+                        Some("Persona DID".to_string()),
+                        state.webvh_address.did.to_string(),
+                        Some(mediator_did.clone()),
+                    )
+                    .await?,
+                ),
+            },
+            key_info,
+            #[cfg(feature = "openpgp-card")]
+            token_admin_pin: None,
+            #[cfg(feature = "openpgp-card")]
+            token_user_pin: SecretString::new(String::new()),
+            protection_method: ProtectionMethod::default(),
+            unlock_code,
+            atm_profiles: HashMap::new(),
+            vrcs: HashMap::new(),
+        };
+
+        config.save(
+            profile,
+            #[cfg(feature = "openpgp-card")]
+            &|| {
+                eprintln!("Touch confirmation needed for decryption");
+            },
+        )?;
+
+        Ok(config)
     }
 }

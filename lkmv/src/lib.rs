@@ -21,6 +21,14 @@ pub mod relationships;
 pub mod tasks;
 pub mod vrc;
 
+/// Primary Linux Kernel Mediator DID
+pub const LF_PUBLIC_MEDIATOR_DID: &str =
+    "did:webvh:QmetnhxzJXTJ9pyXR1BbZ2h6DomY6SB1ZbzFPrjYyaEq9V:fpp.storm.ws:public-mediator";
+
+/// Primary Linux Kernel Organisation DID
+pub const LF_ORG_DID: &str =
+    "did:webvh:QmXkYcFCbvFFcYZf2q5gNk8Vp4b4vMbVKWbbc7oivcdZHK:fpp.storm.ws";
+
 /// Defined Message Types for LKMV
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[non_exhaustive]

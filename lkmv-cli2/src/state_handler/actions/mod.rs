@@ -11,8 +11,11 @@ use tokio::sync::Mutex;
 
 use crate::{
     Interrupted,
-    state_handler::main_page::{MainPanel, menu::MainMenu},
-    ui::pages::setup_flow::did_keys_export_inputs::DIDKeysExportInputs,
+    state_handler::{
+        main_page::{MainPanel, menu::MainMenu},
+        setup_sequence::{ConfigProtection, SetupPage},
+    },
+    ui::pages::setup_flow::{SetupFlow, did_keys_export_inputs::DIDKeysExportInputs},
 };
 
 pub enum Action {
@@ -37,6 +40,11 @@ pub enum Action {
     /// Filename, config_unlock_passphrase, new_unlock_passphrase
     ImportConfig(String, String, String),
 
+    /// How is the Config file protected?
+    /// 1. Send the Protection Method
+    /// 2. The next page to render
+    SetProtection(ConfigProtection, SetupPage),
+
     /// Sets the DID Persona Keys
     SetDIDKeys(Box<PersonaDIDKeys>),
 
@@ -50,8 +58,9 @@ pub enum Action {
     GetTokens,
 
     /// Set the Admin PIN Code for the Hardware Token
+    /// Token ID, Admin PIN
     #[cfg(feature = "openpgp-card")]
-    SetAdminPin(SecretString),
+    SetAdminPin(String, SecretString),
 
     /// Set the Touch Policy
     #[cfg(feature = "openpgp-card")]
@@ -76,6 +85,9 @@ pub enum Action {
     /// What username to be known as
     SetUsername(String),
 
-    /// Final setup step completed, send the WEBVH Hosting Address
-    SetupCompleted(String),
+    /// Creates the initial WebVH DID
+    CreateWebVHDID(String),
+
+    /// Final setup step completed, sends the whole setup flow
+    SetupCompleted(SetupFlow),
 }

@@ -33,7 +33,7 @@ impl WebvhAddress {
                 let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Enter => {
-                let _ = state.action_tx.send(Action::SetupCompleted(
+                let _ = state.action_tx.send(Action::CreateWebVHDID(
                     state.webvh_address.address.value().to_string(),
                 ));
             }
