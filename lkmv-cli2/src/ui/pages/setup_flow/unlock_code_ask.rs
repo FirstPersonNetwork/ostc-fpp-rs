@@ -71,11 +71,12 @@ impl UnlockCodeAsk {
 
         let mut lines = vec![
             Line::styled(
-                "An unlock code protects your cryptographic keys and sensitive data by requiring verification each time LKMV starts.",
+                "An unlock code encrypts your cryptographic keys, configuration, and private data stored by LKMV.",
                 Style::new().fg(COLOR_DARK_GRAY),
             ),
+            Line::default(),
             Line::styled(
-                "This helps prevent unauthorised access if someone else gains access to your computer.",
+                "This prevents unauthorized access even if someone gains access to your device.",
                 Style::new().fg(COLOR_DARK_GRAY),
             ),
             Line::default(),
@@ -93,8 +94,8 @@ impl UnlockCodeAsk {
                 Style::new().fg(COLOR_SUCCESS).bold(),
             ));
             lines.push(Line::styled(
-                "    Adds a layer of protection to your profile and prevents unauthorised access to your keys and sensitive data.",
-                Style::new().fg(COLOR_DARK_GRAY).bold(),
+                "    Encrypts your keys, configuration, and private data for protection against unauthorized access.",
+                Style::new().fg(COLOR_DARK_GRAY),
             ));
             lines.push(Line::styled(
                 "[ ] No, do not require unlock code",
@@ -110,7 +111,7 @@ impl UnlockCodeAsk {
                 Style::new().fg(COLOR_SUCCESS).bold(),
             ));
             lines.push(Line::styled(
-                "    Anyone with access to this computer will be able to open LKMV and use your cryptographic keys.",
+                "    Anyone with access to this device will be able to open LKMV and use your keys and access your private data.",
                 Style::new().fg(COLOR_DARK_GRAY).bold(),
             ));
         }

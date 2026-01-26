@@ -99,11 +99,11 @@ impl WebvhAddress {
                 Line::styled("ℹ️ Note: For example, if hosting your DID using GitHub Pages, use a URL like: ", Style::new().fg(COLOR_ORANGE)),
                 Line::styled(
                     "         • https://<username>.github.io/",
-                    Style::new().fg(COLOR_ORANGE).bold(),
+                    Style::new().fg(COLOR_ORANGE).bold().italic(),
                 ),
                 Line::styled(
                     "         • https://<username>.github.io/lkmv-did/",
-                    Style::new().fg(COLOR_ORANGE).bold(),
+                    Style::new().fg(COLOR_ORANGE).bold().italic(),
                 ),
                 Line::default(),
                 Line::from(vec![

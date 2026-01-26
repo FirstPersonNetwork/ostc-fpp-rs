@@ -115,9 +115,10 @@ impl TokenSetCardholderName {
         let mut lines = Vec::new();
 
         if !state.token_cardholder_name.messages.is_empty() {
+            lines.push(Line::default());
             lines.push(Line::styled(
-                "----- Progress logs -----", 
-                Style::new().fg(COLOR_BORDER).bold()
+                "Cardholder name setup status", 
+                Style::new().fg(COLOR_BORDER).bold().underlined()
             ));
             lines.push(Line::default());
         }

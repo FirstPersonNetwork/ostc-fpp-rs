@@ -67,7 +67,7 @@ impl DIDKeysExportShow {
         let block = Block::bordered()
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Step 4/4: Exported Private Keys ");
+            .title(" Step 4/4: Exported private DID keys ");
 
         frame.render_widget(block, middle);
 
@@ -76,7 +76,7 @@ impl DIDKeysExportShow {
 
         let mut lines: Vec<Line> = vec![
             Line::styled(
-                "Export Status",
+                "Export status",
                 Style::new().fg(COLOR_BORDER).bold().underlined(),
             ),
             Line::default(),
@@ -92,17 +92,9 @@ impl DIDKeysExportShow {
         if let Some(exported) = &state.did_keys_export.exported {
             let mut lines = vec![
                 Line::styled(
-                    "Private Keys Successfully Exported",
+                    "Private DID keys exported successfully.",
                     Style::new().fg(COLOR_SUCCESS).bold(),
                 ),
-                Line::default(),
-                Line::from(vec![
-                    Span::styled("⚠ WARNING: ", Style::new().fg(COLOR_ORANGE).bold()),
-                    Span::styled(
-                        "Keep this key safe and secure!",
-                        Style::new().fg(COLOR_BORDER),
-                    ),
-                ]),
                 Line::default(),
             ];
 
@@ -110,6 +102,11 @@ impl DIDKeysExportShow {
                 lines.push(Line::styled(line, Style::new().fg(COLOR_SOFT_PURPLE)));
             }
 
+            lines.push(Line::default());
+            lines.push(Line::styled(
+                    "⚠️ Important Note: Keep this private key safe and secure.",
+                    Style::new().fg(COLOR_ORANGE).bold()
+                ));
             lines.push(Line::default());
             if state.did_keys_export.exported.is_some() {
                 lines.push(Line::from(vec![
@@ -124,8 +121,8 @@ impl DIDKeysExportShow {
 
                 if self.clipboard_copy {
                     lines.push(Line::styled(
-                        "✓ Copied to clipboard!",
-                        Style::new().fg(COLOR_ORANGE).bold().slow_blink(),
+                        "Private key block copied!",
+                        Style::new().fg(COLOR_SUCCESS).slow_blink(),
                     ));
                 }
             }

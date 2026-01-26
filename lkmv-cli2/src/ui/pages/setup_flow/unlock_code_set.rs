@@ -76,12 +76,17 @@ impl UnlockCodeSet {
         frame.render_widget(
             Paragraph::new(vec![
                 Line::styled(
+                    "Your unlock code will encrypt and protect your cryptographic keys, configuration, and private data.",
+                    Style::new().fg(COLOR_DARK_GRAY),
+                ),
+                Line::default(),
+                Line::styled(
                     "Create a strong unlock code:",
                     Style::new().fg(COLOR_BORDER).bold(),
                 ),
                 Line::styled(
                     "Use a long, unique code. Letters, numbers, spaces, and symbols are supported.",
-                    Style::new().fg(COLOR_DARK_GRAY).bold(),
+                    Style::new().fg(COLOR_DARK_GRAY),
                 ),
             ]),
             content[0],

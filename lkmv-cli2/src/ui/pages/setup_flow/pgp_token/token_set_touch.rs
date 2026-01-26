@@ -121,9 +121,10 @@ impl TokenSetTouch {
         lines.push(Line::default());
 
         if !state.token_set_touch.messages.is_empty() {
+            lines.push(Line::default());
             lines.push(Line::styled(
-                "----- Progress logs -----", 
-                Style::new().fg(COLOR_BORDER).bold()
+                "Hardware token touch setup status", 
+                Style::new().fg(COLOR_BORDER).bold().underlined()
             ));
             lines.push(Line::default());
         }
