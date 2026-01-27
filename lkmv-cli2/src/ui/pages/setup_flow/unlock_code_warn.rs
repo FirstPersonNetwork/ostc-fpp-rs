@@ -1,6 +1,6 @@
 use crossterm::event::{KeyCode, KeyEvent};
 use lkmv::colors::{
-    COLOR_BORDER, COLOR_ORANGE, COLOR_SOFT_PURPLE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT,
+    COLOR_BORDER, COLOR_ORANGE, COLOR_DARK_GRAY, COLOR_SUCCESS, COLOR_TEXT_DEFAULT,
     COLOR_WARNING_ACCESSIBLE_RED,
 };
 use ratatui::{
@@ -69,65 +69,52 @@ impl UnlockCodeWarn {
         let block = Block::bordered()
             .fg(COLOR_ORANGE)
             .padding(Padding::proportional(1))
-            .title(" Unlock Code WARNING ");
+            .title(" SECURITY WARNING ");
 
         let mut lines = vec![
             Line::styled(
-                "⚠ SECURITY WARNING:",
+                "⚠️ Without an unlock code, your cryptographic keys, configuration, and private data will be stored unencrypted on this computer.",
                 Style::new().fg(COLOR_WARNING_ACCESSIBLE_RED).bold(),
             ),
             Line::default(),
             Line::styled(
-                "You have chosen NOT to use an unlock code.",
-                Style::new().fg(COLOR_ORANGE),
-            ),
-            Line::default(),
-            Line::from(vec![
-                Span::styled("📋 Storage: ", Style::new().fg(COLOR_SOFT_PURPLE).bold()),
-                Span::styled(
-                    "Your keys will be stored as Base64-encoded plain text!",
-                    Style::new().fg(COLOR_ORANGE),
-                ),
-            ]),
-            Line::default(),
-            Line::from(vec![
-                Span::styled("⚡ Risk: ", Style::new().fg(COLOR_SOFT_PURPLE).bold()),
-                Span::styled(
-                    "Anyone with access to your device can easily decode and use your keys without any protection.",
-                    Style::new().fg(COLOR_ORANGE),
-                ),
-            ]),
-            Line::default(),
-            Line::styled(
-                "This is not recommended for production use.",
+                "Anyone who gains access to this device can use your keys to sign messages, decrypt data, impersonate your identity, and access your private information.",
                 Style::new().fg(COLOR_ORANGE),
             ),
             Line::default(),
             Line::styled(
-                "Do you accept this risk?",
+                "Are you sure you want to continue without an unlock code?",
                 Style::new().fg(COLOR_BORDER).bold(),
             ),
             Line::default(),
         ];
 
-        // Render the active chocie
+        // Render the active choice
         if let UnlockCodeWarn::UseCode = self {
             lines.push(Line::styled(
-                "[✓] No, I want to set an unlock code (recommended)",
+                "[✓] No, take me back to set an unlock code (recommended)",
                 Style::new().fg(COLOR_SUCCESS).bold(),
             ));
             lines.push(Line::styled(
-                "[ ] I know what I am doing, I accept this risk",
+                "    Encrypt and protect your keys, configuration, and private data for safer storage.",
+                Style::new().fg(COLOR_DARK_GRAY),
+            ));
+            lines.push(Line::styled(
+                "[ ] Yes, I understand the risks and want to continue",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ));
         } else {
             lines.push(Line::styled(
-                "[ ] No, I want to set an unlock code (recommended)",
+                "[ ] No, take me back to set an unlock code (recommended)",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ));
             lines.push(Line::styled(
-                "[✓] I know what I am doing, I accept this risk",
+                "[✓] Yes, I understand the risks and want to continue",
                 Style::new().fg(COLOR_SUCCESS).bold(),
+            ));
+            lines.push(Line::styled(
+                "    Skip encryption. Only recommended for testing or development environments where security is not a concern.",
+                Style::new().fg(COLOR_DARK_GRAY),
             ));
         }
 
@@ -140,7 +127,7 @@ impl UnlockCodeWarn {
         ]));
 
         frame.render_widget(
-            Paragraph::new(lines).block(block).wrap(Wrap { trim: true }),
+            Paragraph::new(lines).block(block).wrap(Wrap { trim: false }),
             middle,
         );
 

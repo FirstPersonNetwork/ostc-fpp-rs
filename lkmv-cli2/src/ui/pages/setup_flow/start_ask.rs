@@ -94,7 +94,7 @@ impl StartAskPanel {
 }
 
 // ****************************************************************************
-// Render Left Panel (Setup new profile)
+// Render Left Panel (New profile setup)
 // ****************************************************************************
 fn render_left_panel(frame: &mut Frame, rect: Rect, state: &StartAskPanel) {
     let block = if let StartAskPanel::Create = state {
@@ -103,32 +103,32 @@ fn render_left_panel(frame: &mut Frame, rect: Rect, state: &StartAskPanel) {
             .border_type(BorderType::Double)
             .fg(COLOR_SUCCESS)
             .padding(Padding::proportional(1))
-            .title(" Setup new profile ")
+            .title(" New profile setup ")
     } else {
         Block::bordered()
             .merge_borders(MergeStrategy::Fuzzy)
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Setup new profile ")
+            .title(" New profile setup ")
     };
 
     let mut lines = vec![
         Line::styled(
-            "Create and configure a brand new profile from scratch.",
+            "Create a brand-new profile and complete the initial configuration.",
             Style::new().fg(COLOR_TEXT_DEFAULT),
         ),
         Line::default(),
         Line::styled("You will:", Style::new().fg(COLOR_TEXT_DEFAULT)),
         Line::styled(
-            "• Set up key management",
+            "• Configure key management",
             Style::new().fg(COLOR_TEXT_DEFAULT),
         ),
-        Line::styled("• Choose mediator", Style::new().fg(COLOR_TEXT_DEFAULT)),
+        Line::styled("• Choose a mediator", Style::new().fg(COLOR_TEXT_DEFAULT)),
         Line::styled(
             "• Create your Decentralized Identifier (DID)",
             Style::new().fg(COLOR_TEXT_DEFAULT),
         ),
-        Line::styled("• Verify setup", Style::new().fg(COLOR_TEXT_DEFAULT)),
+        Line::styled("• Verify the setup", Style::new().fg(COLOR_TEXT_DEFAULT)),
     ];
 
     if let StartAskPanel::Create = state {
@@ -148,7 +148,7 @@ fn render_left_panel(frame: &mut Frame, rect: Rect, state: &StartAskPanel) {
 }
 
 // ****************************************************************************
-// Render Right Panel (Recovery from backup)
+// Render Right Panel (Recover from backup)
 // ****************************************************************************
 fn render_right_panel(frame: &mut Frame, rect: Rect, state: &StartAskPanel) {
     let block = if let StartAskPanel::Import = state {
@@ -157,28 +157,28 @@ fn render_right_panel(frame: &mut Frame, rect: Rect, state: &StartAskPanel) {
             .border_type(BorderType::Double)
             .fg(COLOR_SUCCESS)
             .padding(Padding::proportional(1))
-            .title(" Recovery from backup ")
+            .title(" Recover from backup ")
     } else {
         Block::bordered()
             .merge_borders(MergeStrategy::Fuzzy)
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Recovery from backup ")
+            .title(" Recover from backup ")
     };
 
     let mut lines = vec![
         Line::styled(
-            "Restore from an existing .lkmv backup file.",
+            "Restore a profile from an existing backup file.",
             Style::new().fg(COLOR_TEXT_DEFAULT),
         ),
         Line::default(),
-        Line::styled("Requires:", Style::new().fg(COLOR_TEXT_DEFAULT)),
-        Line::styled("• Path to .lkmv file", Style::new().fg(COLOR_TEXT_DEFAULT)),
+        Line::styled("You will:", Style::new().fg(COLOR_TEXT_DEFAULT)),
+        Line::styled("• Provide the backup file path (.lkmv)", Style::new().fg(COLOR_TEXT_DEFAULT)),
         Line::styled(
-            "• Unlock code (if set)",
+            "• Enter the unlock code (if set)",
             Style::new().fg(COLOR_TEXT_DEFAULT),
         ),
-        Line::styled("• Verification", Style::new().fg(COLOR_TEXT_DEFAULT)),
+        Line::styled("• Verify the restoration", Style::new().fg(COLOR_TEXT_DEFAULT)),
     ];
 
     if let StartAskPanel::Import = state {

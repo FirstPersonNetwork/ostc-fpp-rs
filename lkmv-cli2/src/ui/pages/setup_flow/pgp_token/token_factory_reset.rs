@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED};
+use lkmv::colors::{COLOR_BORDER, COLOR_DARK_GRAY, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED};
 use ratatui::{
     Frame,
     layout::{
@@ -117,30 +117,30 @@ impl TokenFactoryReset {
         let block = Block::bordered()
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Step 3/5: Factory Reset Token ");
+            .title(" Step 4/6: Factory reset token ");
 
         let mut lines = vec![
             Line::styled(
-                "Would you like to do a factory reset your hardware token?",
-                Style::new().fg(COLOR_BORDER).bold(),
+                "Hardware tokens may retain previous configurations, keys, or application data from prior use, which can cause conflicts when writing LKMV keys.",
+                Style::new().fg(COLOR_DARK_GRAY),
             ),
             Line::default(),
             Line::styled(
-                "Hardware Tokens can be in many possible states, causing unintended behaviour.",
-                Style::new().fg(COLOR_TEXT_DEFAULT),
-            ),
-            Line::styled(
-                "Resetting the token prior to writing your LKMV keys ensures a consistent and predictable state for the token.",
-                Style::new().fg(COLOR_TEXT_DEFAULT),
+                "Would you like to perform a factory reset on your hardware token?",
+                Style::new().fg(COLOR_BORDER).bold(),
             ),
             Line::default(),
         ];
 
-        // Render the active chocie
+        // Render the active choice
         if let TokenFactoryResetOptions::Reset = self.options {
             lines.push(Line::styled(
-                "[✓] Factory Reset (recommended)",
+                "[✓] Factory reset (recommended)",
                 Style::new().fg(COLOR_SUCCESS).bold(),
+            ));
+            lines.push(Line::styled(
+                "    Clears all existing data and restores default settings for a clean start.",
+                Style::new().fg(COLOR_DARK_GRAY),
             ));
             lines.push(Line::styled(
                 "[ ] Do not reset token",
@@ -148,12 +148,16 @@ impl TokenFactoryReset {
             ));
         } else {
             lines.push(Line::styled(
-                "[ ] Factory Reset (recommended)",
+                "[ ] Factory reset (recommended)",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ));
             lines.push(Line::styled(
                 "[✓] Do not reset token",
                 Style::new().fg(COLOR_SUCCESS).bold(),
+            ));
+            lines.push(Line::styled(
+                "    Write keys to the token in its current state. Only use if the token is new or already clean.",
+                Style::new().fg(COLOR_DARK_GRAY),
             ));
         }
 
@@ -169,6 +173,13 @@ impl TokenFactoryReset {
                 ]));
             }
             ResetState::Resetting => {
+                lines.push(Line::default());
+                lines.push(Line::styled(
+                    "Hardware token setup status", 
+                    Style::new().fg(COLOR_BORDER).bold().underlined()
+                ));
+                lines.push(Line::default());
+
                 for msg in state.token_reset.messages.iter() {
                     match msg {
                         MessageType::Info(info) => {
@@ -195,6 +206,13 @@ impl TokenFactoryReset {
                 }
             }
             ResetState::Writing => {
+                lines.push(Line::default());
+                lines.push(Line::styled(
+                    "Hardware token setup status", 
+                    Style::new().fg(COLOR_BORDER).bold().underlined()
+                ));
+                lines.push(Line::default());
+
                 for msg in state.token_reset.messages.iter() {
                     match msg {
                         MessageType::Info(info) => {
@@ -223,7 +241,7 @@ impl TokenFactoryReset {
         }
 
         frame.render_widget(
-            Paragraph::new(lines).block(block).wrap(Wrap { trim: true }),
+            Paragraph::new(lines).block(block).wrap(Wrap { trim: false }),
             middle,
         );
 

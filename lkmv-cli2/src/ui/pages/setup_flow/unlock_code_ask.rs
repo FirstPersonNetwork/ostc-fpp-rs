@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
+use lkmv::colors::{COLOR_BORDER, COLOR_DARK_GRAY, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
 use ratatui::{
     Frame,
     layout::{
@@ -67,43 +67,52 @@ impl UnlockCodeAsk {
         let block = Block::bordered()
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Unlock Code ");
+            .title(" Step 1/2: Set up unlock code ");
 
         let mut lines = vec![
             Line::styled(
-                "Use an unlock code to protect access to LKMV?",
-                Style::new().fg(COLOR_BORDER).bold(),
+                "An unlock code encrypts your cryptographic keys, configuration, and private data stored by LKMV.",
+                Style::new().fg(COLOR_DARK_GRAY),
             ),
             Line::default(),
             Line::styled(
-                "As LKMV is a critical part of securing the overall Linux Community, this tool requires strong protection from unauthorized access.",
-                Style::new().fg(COLOR_TEXT_DEFAULT),
+                "This prevents unauthorized access even if someone gains access to your device.",
+                Style::new().fg(COLOR_DARK_GRAY),
             ),
+            Line::default(),
             Line::styled(
-                "It is strongly recommended to set an unlock passphrase that will be used to further protect access to this tool",
-                Style::new().fg(COLOR_TEXT_DEFAULT),
+                "Would you like to set an unlock code?",
+                Style::new().fg(COLOR_BORDER).bold(),
             ),
             Line::default(),
         ];
 
-        // Render the active chocie
+        // Render the active choice
         if let UnlockCodeAsk::UseCode = self {
             lines.push(Line::styled(
-                "[✓] Yes, require unlock code when starting LKMV (recommended)",
+                "[✓] Yes, require unlock code (recommended)",
                 Style::new().fg(COLOR_SUCCESS).bold(),
             ));
             lines.push(Line::styled(
-                "[ ] No, keep unprotected",
+                "    Encrypts your keys, configuration, and private data for protection against unauthorized access.",
+                Style::new().fg(COLOR_DARK_GRAY),
+            ));
+            lines.push(Line::styled(
+                "[ ] No, do not require unlock code",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ));
         } else {
             lines.push(Line::styled(
-                "[ ] Yes, require unlock code when starting LKMV (recommended)",
+                "[ ] Yes, require unlock code (recommended)",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ));
             lines.push(Line::styled(
-                "[✓] No, keep unprotected",
+                "[✓] No, do not require unlock code",
                 Style::new().fg(COLOR_SUCCESS).bold(),
+            ));
+            lines.push(Line::styled(
+                "    Anyone with access to this device will be able to open LKMV and use your keys and access your private data.",
+                Style::new().fg(COLOR_DARK_GRAY).bold(),
             ));
         }
 
@@ -116,7 +125,7 @@ impl UnlockCodeAsk {
         ]));
 
         frame.render_widget(
-            Paragraph::new(lines).block(block).wrap(Wrap { trim: true }),
+            Paragraph::new(lines).block(block).wrap(Wrap { trim: false }),
             middle,
         );
 

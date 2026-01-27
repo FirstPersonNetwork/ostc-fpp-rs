@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crossterm::event::{Event, KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT};
+use lkmv::colors::{COLOR_BORDER, COLOR_DARK_GRAY, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT};
 use ratatui::{
     Frame,
     layout::{
@@ -70,29 +70,40 @@ impl UnlockCodeSet {
         // 1: INPUT <-- Passphrase
         // 2: Key Bindings
         let content: [Rect; 3] =
-            Layout::vertical([Length(2), Length(2), Min(0)]).areas(middle.inner(Margin::new(3, 2)));
+            Layout::vertical([Length(3), Length(2), Min(0)]).areas(middle.inner(Margin::new(3, 2)));
 
-        let [input0_prompt, input0_box] = Layout::horizontal([Length(6), Min(0)]).areas(content[1]);
+        let [input0_prompt, input0_box] = Layout::horizontal([Length(2), Min(0)]).areas(content[1]);
 
         frame.render_widget(
             Block::bordered()
                 .fg(COLOR_BORDER)
                 .padding(Padding::proportional(1))
-                .title(" Set Unlock Code "),
+                .title(" Step 2/2: Enter unlock code "),
             middle,
         );
 
         frame.render_widget(
-            Paragraph::new(vec![Line::styled(
-                "Create a strong unlock code (any characters):",
-                Style::new().fg(COLOR_BORDER).bold(),
-            )]),
+            Paragraph::new(vec![
+                Line::styled(
+                    "Your unlock code will encrypt and protect your cryptographic keys, configuration, and private data.",
+                    Style::new().fg(COLOR_DARK_GRAY),
+                ),
+                Line::default(),
+                Line::styled(
+                    "Create a strong unlock code:",
+                    Style::new().fg(COLOR_BORDER).bold(),
+                ),
+                Line::styled(
+                    "Use a long, unique code. Letters, numbers, spaces, and symbols are supported.",
+                    Style::new().fg(COLOR_DARK_GRAY),
+                ),
+            ]),
             content[0],
         );
 
         frame.render_widget(
             Paragraph::new(Span::styled(
-                "Code: ",
+                "> ",
                 Style::new().fg(COLOR_SOFT_PURPLE).bold(),
             )),
             input0_prompt,

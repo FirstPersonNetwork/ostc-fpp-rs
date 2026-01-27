@@ -1,7 +1,7 @@
 use arboard::Clipboard;
 use crossterm::event::{KeyCode, KeyEvent};
 use lkmv::colors::{
-    COLOR_BORDER, COLOR_ORANGE, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED,
+    COLOR_BORDER, COLOR_ORANGE, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT, COLOR_DARK_GRAY, COLOR_SUCCESS,
 };
 use ratatui::{
     Frame,
@@ -71,22 +71,28 @@ impl BIP32PhraseShow {
         let block = Block::bordered()
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Step 2/4: Save your recovery phrase ");
+            .title(" Step 2/4: Save recovery phrase ");
 
         let mut lines = vec![
             Line::styled(
-                "Your BIP39 Recovery phrase (mnemonic of 24 words) below can be used to recover and regenerate your BIP32 based identity and security keys within LKMV.",
-                Style::new().fg(COLOR_TEXT_DEFAULT),
+                "Your 24-word recovery phrase lets you restore your profile or set it up on another device using the same identity and security keys.",
+                Style::new().fg(COLOR_DARK_GRAY),
             ),
             Line::default(),
             Line::styled(
-                "You must protect this seed phrase. Store it in a safe and secure location",
-                Style::new().fg(COLOR_WARNING_ACCESSIBLE_RED).bold(),
+                "This recovery phrase is a BIP39 mnemonic used to deterministically derive your BIP32 keys.",
+                Style::new().fg(COLOR_DARK_GRAY),
             ),
             Line::default(),
             Line::styled(
                 state.mnemonic.get_mnemonic_string(),
                 Style::new().fg(COLOR_SOFT_PURPLE).bold(),
+            ),
+            Line::default(),
+            Line::default(),
+            Line::styled(
+                "⚠️ Important Note: Keep this recovery phrase in a safe place, as it is required to restore your profile keys.",
+                Style::new().fg(COLOR_ORANGE).bold(),
             ),
         ];
 
@@ -102,8 +108,8 @@ impl BIP32PhraseShow {
         ]));
         if self.cc_copy {
             lines.push(Line::styled(
-                "Phrase copied to the clipboard!",
-                Style::new().fg(COLOR_ORANGE).bold().slow_blink(),
+                "Recovery phrase copied!",
+                Style::new().fg(COLOR_SUCCESS).slow_blink(),
             ));
         }
 

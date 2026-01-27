@@ -1,5 +1,5 @@
 use crossterm::event::{Event, KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT};
+use lkmv::colors::{COLOR_BORDER, COLOR_DARK_GRAY, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT};
 use ratatui::{
     Frame,
     layout::{
@@ -89,14 +89,14 @@ impl DIDKeysExportInputs {
                 .areas(middle.inner(Margin::new(3, 2)));
 
         let [input0_prompt, input0_box] =
-            Layout::horizontal([Length(12), Min(0)]).areas(content[1]);
-        let [input1_prompt, input1_box] = Layout::horizontal([Length(9), Min(0)]).areas(content[3]);
+            Layout::horizontal([Length(2), Min(0)]).areas(content[1]);
+        let [input1_prompt, input1_box] = Layout::horizontal([Length(2), Min(0)]).areas(content[3]);
 
         frame.render_widget(
             Block::bordered()
                 .fg(COLOR_BORDER)
                 .padding(Padding::proportional(1))
-                .title(" Step 4/4: Export private DID Keys - Inputs "),
+                .title(" Step 4/4: Export private DID keys settings "),
             middle,
         );
 
@@ -107,8 +107,8 @@ impl DIDKeysExportInputs {
                     Style::new().fg(COLOR_BORDER).bold(),
                 ),
                 Line::styled(
-                    "(Leave blank for no protection)",
-                    Style::new().fg(COLOR_BORDER),
+                    "Leave blank to export DID keys with no protection.",
+                    Style::new().fg(COLOR_DARK_GRAY),
                 ),
             ]),
             content[0],
@@ -116,7 +116,7 @@ impl DIDKeysExportInputs {
 
         frame.render_widget(
             Paragraph::new(Span::styled(
-                "Passphrase: ",
+                "> ",
                 Style::new().fg(COLOR_SOFT_PURPLE).bold(),
             )),
             input0_prompt,
@@ -133,14 +133,14 @@ impl DIDKeysExportInputs {
         frame.render_widget(
             Paragraph::new(vec![
                 Line::styled(
-                    "Enter PGP user ID for exported Keys:",
+                    "Enter PGP user ID for exported keys:",
                     Style::new().fg(COLOR_BORDER).bold(),
                 ),
                 Line::from(vec![
-                    Span::styled("Format: ", Style::new().fg(COLOR_BORDER)),
+                    Span::styled("Use the format ", Style::new().fg(COLOR_DARK_GRAY)),
                     Span::styled(
                         "Name <email@example.com>: ",
-                        Style::new().fg(COLOR_BORDER).bold().italic(),
+                        Style::new().fg(COLOR_DARK_GRAY).bold().italic(),
                     ),
                 ]),
             ]),
@@ -148,7 +148,7 @@ impl DIDKeysExportInputs {
         );
         frame.render_widget(
             Paragraph::new(Span::styled(
-                "User ID: ",
+                "> ",
                 Style::new().fg(COLOR_SOFT_PURPLE).bold(),
             )),
             input1_prompt,

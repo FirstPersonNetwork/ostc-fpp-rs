@@ -138,16 +138,16 @@ impl TokenSelect {
             // 1: Input 0 Header (ADMIN PIN)
             // 2: INPUT <-- ADMIN PIN
             // 3: Key Bindings
-            let content: [Rect; 4] = Layout::vertical([Length(2), Length(2), Length(2), Min(0)])
-                .areas(middle.inner(Margin::new(3, 2)));
+            let content: [Rect; 5] = Layout::vertical([Length(2), Length(2), Length(2), Length(2), Min(0)])
+                .areas(middle.inner(Margin::new(4, 2)));
 
             let [input0_prompt, input0_box] =
-                Layout::horizontal([Length(11), Min(0)]).areas(content[2]);
+                Layout::horizontal([Length(2), Min(0)]).areas(content[3]);
 
             let block = Block::bordered()
                 .fg(COLOR_BORDER)
                 .padding(Padding::proportional(1))
-                .title(" Step 2/5: Get Admin PIN ");
+                .title(" Step 3/6: Get admin PIN ");
             frame.render_widget(block, middle);
 
             frame.render_widget(
@@ -155,17 +155,17 @@ impl TokenSelect {
                     Span::styled("Selected Card: ", Style::new().fg(COLOR_SUCCESS).bold()),
                     Span::styled(
                         app_identifier.ident(),
-                        Style::new().fg(COLOR_SOFT_PURPLE).bold(),
+                        Style::new().fg(COLOR_TEXT_DEFAULT).bold(),
                     ),
                     Span::styled(" Manufacturer: ", Style::new().fg(COLOR_SUCCESS).bold()),
                     Span::styled(
                         app_identifier.manufacturer_name(),
-                        Style::new().fg(COLOR_SOFT_PURPLE).bold(),
+                        Style::new().fg(COLOR_TEXT_DEFAULT).bold(),
                     ),
-                    Span::styled(" CardHolder Name: ", Style::new().fg(COLOR_SUCCESS).bold()),
+                    Span::styled(" Cardholder Name: ", Style::new().fg(COLOR_SUCCESS).bold()),
                     Span::styled(
                         open_card.cardholder_name().unwrap_or("NOT SET".to_string()),
-                        Style::new().fg(COLOR_SOFT_PURPLE).bold(),
+                        Style::new().fg(COLOR_TEXT_DEFAULT).bold(),
                     ),
                 ])),
                 content[0],
@@ -174,22 +174,26 @@ impl TokenSelect {
             frame.render_widget(
                 Paragraph::new(Line::from(vec![
                     Span::styled(
-                        "Enter the Admin PIN for the selected token:",
+                        "Enter the admin PIN for the selected token:",
                         Style::new().fg(COLOR_BORDER).bold(),
                     ),
-                    Span::styled(
-                        " (leave blank for default PIN: ",
-                        Style::new().fg(COLOR_DARK_GRAY).bold(),
-                    ),
-                    Span::styled("12345678", Style::new().fg(COLOR_DARK_GRAY)),
-                    Span::styled(")", Style::new().fg(COLOR_DARK_GRAY).bold()),
                 ])),
                 content[1],
             );
 
             frame.render_widget(
+                Paragraph::new(Line::from(vec![
+                    Span::styled(
+                        "Leave blank for default PIN '12345678'.",
+                        Style::new().fg(COLOR_DARK_GRAY),
+                    ),
+                ])),
+                content[2],
+            );
+
+            frame.render_widget(
                 Paragraph::new(Span::styled(
-                    "Admin Pin: ",
+                    "> ",
                     Style::new().fg(COLOR_SOFT_PURPLE).bold(),
                 )),
                 input0_prompt,
@@ -203,13 +207,13 @@ impl TokenSelect {
                     Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
                     Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
                 ])),
-                content[3],
+                content[4],
             );
         } else {
             let block = Block::bordered()
                 .fg(COLOR_BORDER)
                 .padding(Padding::proportional(1))
-                .title(" Step 1/5: Select Hardware Token ");
+                .title(" Step 2/6: Select hardware token ");
 
             let mut lines = Vec::new();
             if !state.tokens.messages.is_empty() {
@@ -224,8 +228,13 @@ impl TokenSelect {
 
             if state.tokens.tokens.is_empty() {
                 lines.push(Line::styled(
-                    "No hardware tokens were detected. Ensure tokens are plugged in and rescan.",
-                    Style::new().fg(COLOR_ORANGE).italic(),
+                    "No OpenPGP-compatible hardware tokens were detected on your system.",
+                    Style::new().fg(COLOR_ORANGE),
+                ));
+                lines.push(Line::default());
+                lines.push(Line::styled(
+                    "If you have a token, ensure it is properly plugged in and recognized by your system, then rescan.",
+                    Style::new().fg(COLOR_TEXT_DEFAULT).bold(),
                 ));
                 lines.push(Line::default());
                 lines.push(Line::from(vec![
@@ -236,14 +245,23 @@ impl TokenSelect {
                     ),
                     Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
                     Span::styled(
-                        " to continue with no tokens",
+                        " to continue without a token",
                         Style::new().fg(COLOR_TEXT_DEFAULT),
                     ),
                 ]));
+                frame.render_widget(
+                    Paragraph::new(lines).block(block).wrap(Wrap { trim: true }),
+                    middle,
+                );
             } else {
                 // Show tokens
                 lines.push(Line::styled(
-                    "Select token to use from detected hardware tokens:",
+                    "The following hardware tokens were detected from your system.",
+                    Style::new().fg(COLOR_DARK_GRAY),
+                ));
+                lines.push(Line::default());
+                lines.push(Line::styled(
+                    "Select one to securely store your keys, or continue without a token:",
                     Style::new().fg(COLOR_BORDER).bold(),
                 ));
                 lines.push(Line::default());
@@ -323,7 +341,7 @@ impl TokenSelect {
                     Span::styled(" to select  |  ", Style::new().fg(COLOR_TEXT_DEFAULT)),
                     Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
                     Span::styled(
-                        " to continue with selected",
+                        " to continue",
                         Style::new().fg(COLOR_TEXT_DEFAULT),
                     ),
                 ]));
