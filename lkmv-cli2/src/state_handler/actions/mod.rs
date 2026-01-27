@@ -88,6 +88,12 @@ pub enum Action {
     /// Creates the initial WebVH DID
     CreateWebVHDID(String),
 
+    /// Resets the state of the WebVH DID
+    ResetWebVHDID,
+
+    /// Attempts to resolve a WebVH DID
+    ResolveWebVHDID(String),
+
     /// Final setup step completed, sends the whole setup flow
     SetupCompleted(SetupFlow),
 }

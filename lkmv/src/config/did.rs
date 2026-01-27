@@ -8,7 +8,7 @@ use affinidi_tdk::{
     },
     secrets_resolver::secrets::Secret,
 };
-use didwebvh_rs::{DIDWebVHError, DIDWebVHState, parameters::Parameters};
+use didwebvh_rs::{DIDWebVHError, DIDWebVHState, parameters::Parameters, url::WebVHURL};
 use ed25519_dalek_bip32::{DerivationPath, ExtendedSigningKey};
 use serde_json::{Value, json};
 use url::Url;
@@ -16,14 +16,20 @@ use url::Url;
 use crate::{config::PersonaDIDKeys, errors::LKMVError};
 
 pub fn create_initial_webvh_did(
-    did_url: &str,
+    raw_url: &str,
     keys: &mut PersonaDIDKeys,
     mediator_did: &str,
     bip32_root: ExtendedSigningKey,
 ) -> Result<(String, Document), LKMVError> {
+    let did_url = WebVHURL::parse_url(&Url::parse(raw_url).map_err(|e| {
+        LKMVError::WebVH(DIDWebVHError::ValidationError(format!(
+            "Invalid URL ({raw_url}). {e}"
+        )))
+    })?)?;
+
     // Create the basic DID Document Structure
-    let mut did_document =
-        Document::new(did_url).map_err(|e| LKMVError::Config(format!("Invalid DID URL: {e}")))?;
+    let mut did_document = Document::new(&did_url.to_string())
+        .map_err(|e| LKMVError::Config(format!("Invalid DID URL: {e}")))?;
 
     // Add the verification methods to the DID Document
     let mut property_set: HashMap<String, Value> = HashMap::new();

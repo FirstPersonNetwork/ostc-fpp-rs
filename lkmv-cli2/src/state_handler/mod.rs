@@ -300,10 +300,8 @@ impl StateHandler {
                                 state.setup.webvh_address.did = did;
                                 state.setup.webvh_address.document = document;
                                 state.setup.did_keys = Some(keys);
-                                state.setup.active_page = SetupPage::FinalPage;
                                 state.setup.webvh_address.completed = Completion::CompletedOK;
                                 state.setup.webvh_address.messages.push(MessageType::Info("WebVH DID created successfully.".to_string()));
-                                state.setup.webvh_address.messages.push(MessageType::Info(format!("WebVH DID: {}", &state.setup.webvh_address.did)));
                             },
                             Err(e) => {
                                 state.setup.webvh_address.completed = Completion::CompletedFail;
@@ -311,6 +309,33 @@ impl StateHandler {
                             }
                         }
                     },
+                    Action::ResetWebVHDID => {
+                        // Reset the WebVH DID state
+                        state.setup.webvh_address.messages.clear();
+                        state.setup.webvh_address.completed = Completion::NotFinished;
+                    },
+                    Action::ResolveWebVHDID(did) => {
+                        // Check if can resolve DID
+                        match tdk.did_resolver().resolve(&did).await {
+                            Ok(response) => {
+                                // Change the key ID's to match the DID VM ID's
+                                if let Some(keys) = &mut state.setup.did_keys {
+                                    keys.signing.secret.id = [&did, "#key-1"].concat();
+                                    keys.authentication.secret.id = [&did, "#key-2"].concat();
+                                    keys.decryption.secret.id = [&did, "#key-3"].concat();
+                                }
+
+                                state.setup.webvh_address.did = did;
+                                state.setup.webvh_address.document = response.doc;
+                                state.setup.webvh_address.completed = Completion::CompletedOK;
+                                state.setup.webvh_address.messages.push(MessageType::Info("DID resolved successfully.".to_string()));
+                            },
+                            Err(e) => {
+                                state.setup.webvh_address.completed = Completion::CompletedFail;
+                                state.setup.webvh_address.messages.push(MessageType::Error(format!("Error resolving DID: {e}")));
+                            }
+                        }
+                    }
                     Action::SetupCompleted(setup_flow) => {
                         // Final setup step completed
                         state.setup.active_page = SetupPage::FinalPage;
