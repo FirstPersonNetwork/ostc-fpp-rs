@@ -53,7 +53,6 @@ pub enum SetupPage {
     MediatorCustom,
     UserName,
     WebVHAddress,
-    WebVHAddressImport,
     FinalPage,
 }
 

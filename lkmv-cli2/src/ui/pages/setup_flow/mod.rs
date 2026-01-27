@@ -20,7 +20,7 @@ use crate::{
             final_page::FinalPage, mediator_ask::MediatorAsk, mediator_custom::MediatorCustom,
             start_ask::StartAskPanel, unlock_code_ask::UnlockCodeAsk,
             unlock_code_set::UnlockCodeSet, unlock_code_warn::UnlockCodeWarn, username::UserName,
-            webvh_address::WebvhAddress, webvh_address_import::WebvhAddressImport,
+            webvh_address::WebvhAddress,
         },
     },
 };
@@ -54,7 +54,6 @@ pub mod unlock_code_set;
 pub mod unlock_code_warn;
 pub mod username;
 pub mod webvh_address;
-pub mod webvh_address_import;
 
 #[cfg(feature = "openpgp-card")]
 pub mod pgp_token;
@@ -99,7 +98,6 @@ pub struct SetupFlow {
     pub username: UserName,
 
     pub webvh_address: WebvhAddress,
-    pub webvh_address_import: WebvhAddressImport,
 
     pub final_page: FinalPage,
 
@@ -155,7 +153,6 @@ impl Component for SetupFlow {
             mediator_custom: MediatorCustom::default(),
             username: UserName::default(),
             webvh_address: WebvhAddress::default(),
-            webvh_address_import: WebvhAddressImport::default(),
             final_page: FinalPage::default(),
 
             // set the props
@@ -211,7 +208,6 @@ impl Component for SetupFlow {
             SetupPage::MediatorCustom => MediatorCustom::handle_key_event(self, key),
             SetupPage::UserName => UserName::handle_key_event(self, key),
             SetupPage::WebVHAddress => WebvhAddress::handle_key_event(self, key),
-            SetupPage::WebVHAddressImport => WebvhAddressImport::handle_key_event(self, key),
             SetupPage::FinalPage => FinalPage::handle_key_event(self, key),
         }
     }
@@ -261,9 +257,6 @@ impl ComponentRender<()> for SetupFlow {
             SetupPage::MediatorCustom => self.mediator_custom.render(&self.props.state, frame),
             SetupPage::UserName => self.username.render(&self.props.state, frame),
             SetupPage::WebVHAddress => self.webvh_address.render(&self.props.state, frame),
-            SetupPage::WebVHAddressImport => {
-                self.webvh_address_import.render(&self.props.state, frame)
-            }
             SetupPage::FinalPage => self.final_page.render(&self.props.state, frame),
         }
     }
@@ -345,9 +338,7 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
             " → ○ Identity → ○ Complete",
             Style::new().fg(COLOR_DARK_GRAY),
         ));
-    } else if let SetupPage::UserName | SetupPage::WebVHAddress | SetupPage::WebVHAddressImport =
-        state.active_page
-    {
+    } else if let SetupPage::UserName | SetupPage::WebVHAddress = state.active_page {
         step = 5;
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
         line1.push_span(Span::styled(

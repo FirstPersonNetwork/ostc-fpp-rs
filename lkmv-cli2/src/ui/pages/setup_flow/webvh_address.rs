@@ -3,8 +3,8 @@
 //! be shown. Otherwise it defaults to asking the hosting URL
 use crossterm::event::{Event, KeyCode, KeyEvent};
 use lkmv::colors::{
-    COLOR_BORDER, COLOR_DARK_GRAY, COLOR_DARK_PURPLE, COLOR_SOFT_PURPLE, COLOR_SUCCESS,
-    COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED,
+    COLOR_BORDER, COLOR_DARK_GRAY, COLOR_DARK_PURPLE, COLOR_ORANGE, COLOR_SOFT_PURPLE,
+    COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED,
 };
 use ratatui::{
     Frame,
@@ -147,7 +147,7 @@ impl WebvhAddress {
             Block::bordered()
                 .fg(COLOR_BORDER)
                 .padding(Padding::proportional(1))
-                .title(" Community DID Setup "),
+                .title(" Step 2/2 Community DID Setup "),
             middle,
         );
 
@@ -243,21 +243,28 @@ fn render_new_did(
     // 1: INPUT
     // 2: Key Bindings
     let content: [Rect; 3] =
-        Layout::vertical([Length(2), Length(2), Min(0)]).areas(area.inner(Margin::new(3, 2)));
+        Layout::vertical([Length(4), Length(2), Min(0)]).areas(area.inner(Margin::new(3, 2)));
 
-    let [input0_prompt, input0_box] = Layout::horizontal([Length(5), Min(0)]).areas(content[1]);
+    let [input0_prompt, input0_box] = Layout::horizontal([Length(2), Min(0)]).areas(content[1]);
 
     frame.render_widget(
-        Paragraph::new(vec![Line::styled(
-            "Enter the Web Address where your DID will be hosted:",
-            Style::new().fg(COLOR_BORDER).bold(),
-        )]),
+Paragraph::new(vec![
+                Line::styled(
+                    "Your identity within LKMV is represented using the Web Verifiable History (WebVH) DID method.", 
+                    Style::new().fg(COLOR_DARK_GRAY)
+                ),
+                Line::default(),
+                Line::styled(
+                    "Enter the web address where your DID will be hosted:",
+                    Style::new().fg(COLOR_BORDER).bold(),
+                )
+            ]),
         content[0],
     );
 
     frame.render_widget(
         Paragraph::new(Span::styled(
-            "URL: ",
+            "> ",
             Style::new().fg(COLOR_SOFT_PURPLE).bold(),
         )),
         input0_prompt,
@@ -331,43 +338,45 @@ fn render_new_did(
             }
         }
     } else {
-        lines.push(Line::from(vec![
-            Span::styled("Example: ", Style::new().fg(COLOR_BORDER).bold()),
-            Span::styled(
-                "https::/<username>.github.io/",
-                Style::new().fg(COLOR_DARK_GRAY),
+        lines.extend_from_slice(&[
+            Line::styled(
+                "ℹ️ Note: For example, if hosting your DID using GitHub Pages, use a URL like: ",
+                Style::new().fg(COLOR_ORANGE),
             ),
-        ]));
-        lines.push(Line::default());
-        lines.push(Line::from(vec![
-            Span::styled("[ESC]", Style::new().fg(COLOR_BORDER).bold()),
-            Span::styled(" to clear input  |  ", Style::new().fg(COLOR_TEXT_DEFAULT)),
-            Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
-            Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
-        ]));
-        lines.push(Line::default());
-        lines.push(Line::styled("Your identity within LKMV is represented using the Web Verifiable History (WebVH) DID Method.", Style::new().fg(COLOR_TEXT_DEFAULT)));
-        lines.push(Line::default());
-        lines.push(Line::styled(
-            "What is WebVH DID?",
-            Style::new().fg(COLOR_BORDER).bold(),
-        ));
-        lines.push(Line::styled(
-            "• Decentralized identifier accessible via HTTPS",
-            Style::new().fg(COLOR_TEXT_DEFAULT),
-        ));
-        lines.push(Line::styled(
-            "• Changes are tracked using Verifiable History Logs",
-            Style::new().fg(COLOR_TEXT_DEFAULT),
-        ));
-        lines.push(Line::styled(
-            "• No blockchain or external services required beyond simple web hosting",
-            Style::new().fg(COLOR_TEXT_DEFAULT),
-        ));
-        lines.push(Line::styled(
-            "• Full control and ownership oevr your DID and where you choose to host it",
-            Style::new().fg(COLOR_TEXT_DEFAULT),
-        ));
+            Line::styled(
+                "         • https://<username>.github.io/",
+                Style::new().fg(COLOR_ORANGE).bold().italic(),
+            ),
+            Line::styled(
+                "         • https://<username>.github.io/lkmv-did/",
+                Style::new().fg(COLOR_ORANGE).bold().italic(),
+            ),
+            Line::default(),
+            Line::from(vec![
+                Span::styled("[ESC]", Style::new().fg(COLOR_BORDER).bold()),
+                Span::styled(" to clear input  |  ", Style::new().fg(COLOR_TEXT_DEFAULT)),
+                Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
+                Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
+            ]),
+            Line::default(),
+            Line::styled("What is WebVH DID?", Style::new().fg(COLOR_BORDER).bold()),
+            Line::styled(
+                "• Decentralized identifier accessible via HTTPS",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ),
+            Line::styled(
+                "• Changes are tracked using Verifiable History Logs",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ),
+            Line::styled(
+                "• No blockchain or external services required beyond simple web hosting",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ),
+            Line::styled(
+                "• Full control and ownership over your DID and where you choose to host it",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ),
+        ]);
     }
     frame.render_widget(Paragraph::new(lines), content[2]);
 }
@@ -385,7 +394,7 @@ fn render_import_did(
     let content: [Rect; 3] =
         Layout::vertical([Length(2), Length(2), Min(0)]).areas(area.inner(Margin::new(3, 2)));
 
-    let [input0_prompt, input0_box] = Layout::horizontal([Length(5), Min(0)]).areas(content[1]);
+    let [input0_prompt, input0_box] = Layout::horizontal([Length(2), Min(0)]).areas(content[1]);
 
     frame.render_widget(
         Paragraph::new(vec![Line::styled(
@@ -397,7 +406,7 @@ fn render_import_did(
 
     frame.render_widget(
         Paragraph::new(Span::styled(
-            "DID: ",
+            "> ",
             Style::new().fg(COLOR_SOFT_PURPLE).bold(),
         )),
         input0_prompt,
@@ -449,36 +458,45 @@ fn render_import_did(
             }
         }
     } else {
-        lines.push(Line::default());
-        lines.push(Line::from(vec![
-            Span::styled("[ESC]", Style::new().fg(COLOR_BORDER).bold()),
-            Span::styled(" to clear input  |  ", Style::new().fg(COLOR_TEXT_DEFAULT)),
-            Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
-            Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
-        ]));
-        lines.push(Line::default());
-        lines.push(Line::styled("Your identity within LKMV is represented using the Web Verifiable History (WebVH) DID Method.", Style::new().fg(COLOR_TEXT_DEFAULT)));
-        lines.push(Line::default());
-        lines.push(Line::styled(
-            "What is WebVH DID?",
-            Style::new().fg(COLOR_BORDER).bold(),
-        ));
-        lines.push(Line::styled(
-            "• Decentralized identifier accessible via HTTPS",
-            Style::new().fg(COLOR_TEXT_DEFAULT),
-        ));
-        lines.push(Line::styled(
-            "• Changes are tracked using Verifiable History Logs",
-            Style::new().fg(COLOR_TEXT_DEFAULT),
-        ));
-        lines.push(Line::styled(
-            "• No blockchain or external services required beyond simple web hosting",
-            Style::new().fg(COLOR_TEXT_DEFAULT),
-        ));
-        lines.push(Line::styled(
-            "• Full control and ownership oevr your DID and where you choose to host it",
-            Style::new().fg(COLOR_TEXT_DEFAULT),
-        ));
+        lines.extend_from_slice(&[
+            Line::styled(
+                "ℹ️ Note: For example, if hosting your DID using GitHub Pages, use a URL like: ",
+                Style::new().fg(COLOR_ORANGE),
+            ),
+            Line::styled(
+                "         • https://<username>.github.io/",
+                Style::new().fg(COLOR_ORANGE).bold().italic(),
+            ),
+            Line::styled(
+                "         • https://<username>.github.io/lkmv-did/",
+                Style::new().fg(COLOR_ORANGE).bold().italic(),
+            ),
+            Line::default(),
+            Line::from(vec![
+                Span::styled("[ESC]", Style::new().fg(COLOR_BORDER).bold()),
+                Span::styled(" to clear input  |  ", Style::new().fg(COLOR_TEXT_DEFAULT)),
+                Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
+                Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
+            ]),
+            Line::default(),
+            Line::styled("What is WebVH DID?", Style::new().fg(COLOR_BORDER).bold()),
+            Line::styled(
+                "• Decentralized identifier accessible via HTTPS",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ),
+            Line::styled(
+                "• Changes are tracked using Verifiable History Logs",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ),
+            Line::styled(
+                "• No blockchain or external services required beyond simple web hosting",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ),
+            Line::styled(
+                "• Full control and ownership over your DID and where you choose to host it",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ),
+        ]);
     }
     frame.render_widget(Paragraph::new(lines), content[2]);
 }
