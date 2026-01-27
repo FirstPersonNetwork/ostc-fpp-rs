@@ -9,7 +9,6 @@ use affinidi_tdk::did_common::Document;
 use lkmv::config::PersonaDIDKeys;
 use secrecy::SecretVec;
 use std::fmt;
-#[cfg(feature = "openpgp-card")]
 use std::sync::Arc;
 #[cfg(feature = "openpgp-card")]
 use tokio::sync::Mutex;

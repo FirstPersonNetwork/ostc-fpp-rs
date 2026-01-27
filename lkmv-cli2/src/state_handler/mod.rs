@@ -1,7 +1,6 @@
 #[cfg(feature = "openpgp-card")]
-use crate::state_handler::setup_sequence::{
-    ConfigProtection, MessageType,
-    openpgp_card::{set_cardholder_name, set_signing_touch_policy, write_keys_to_card},
+use crate::state_handler::setup_sequence::openpgp_card::{
+    set_cardholder_name, set_signing_touch_policy, write_keys_to_card,
 };
 use crate::{
     Interrupted, Terminator,
@@ -9,7 +8,8 @@ use crate::{
         actions::Action,
         main_page::MainPanel,
         setup_sequence::{
-            Completion, SetupPage, config::ConfigExtension, did_keys::export_persona_did_keys,
+            Completion, ConfigProtection, MessageType, SetupPage, config::ConfigExtension,
+            did_keys::export_persona_did_keys,
         },
         state::{ActivePage, State},
     },
@@ -342,7 +342,7 @@ impl StateHandler {
                         match Config::create(&state.setup, &setup_flow, &tdk, &self.profile).await {
                             Ok(_) => {
                                 state.setup.final_page.completed = Completion::CompletedOK;
-                                state.setup.final_page.messages.push(MessageType::Info("".to_string()));
+                                state.setup.final_page.messages.push(MessageType::Info("Setup Completed".to_string()));
                             },
                             Err(e) => {
                                 state.setup.final_page.completed = Completion::CompletedFail;
