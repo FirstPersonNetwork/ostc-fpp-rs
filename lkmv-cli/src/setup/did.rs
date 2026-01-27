@@ -223,7 +223,7 @@ pub async fn did_setup(
     let endpoint = Endpoint::Map(json!([{"accept": ["didcomm/v2"], "uri": mediator_did}]));
     did_document.service.push(Service {
         id: Some(Url::parse(
-            &[did_url.to_string(), "#publip-didcomm".to_string()].concat(),
+            &[did_url.to_string(), "#public-didcomm".to_string()].concat(),
         )?),
         type_: vec!["DIDCommMessaging".to_string()],
         property_set: HashMap::new(),

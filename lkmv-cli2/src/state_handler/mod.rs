@@ -1,6 +1,6 @@
 #[cfg(feature = "openpgp-card")]
 use crate::state_handler::setup_sequence::{
-    MessageType,
+    ConfigProtection, MessageType,
     openpgp_card::{set_cardholder_name, set_signing_touch_policy, write_keys_to_card},
 };
 use crate::{
@@ -8,14 +8,21 @@ use crate::{
     state_handler::{
         actions::Action,
         main_page::MainPanel,
-        setup_sequence::{SetupPage, did_keys::export_persona_did_keys},
-        state::State,
+        setup_sequence::{
+            Completion, SetupPage, config::ConfigExtension, did_keys::export_persona_did_keys,
+        },
+        state::{ActivePage, State},
     },
 };
+use affinidi_tdk::{TDK, common::config::TDKConfig};
 use anyhow::Result;
-use lkmv::config::{Config, public_config::PublicConfig};
 #[cfg(feature = "openpgp-card")]
 use lkmv::openpgp_card::{factory_reset, get_cards};
+use lkmv::{
+    LF_PUBLIC_MEDIATOR_DID,
+    bip32::get_bip32_root,
+    config::{Config, did::create_initial_webvh_did, public_config::PublicConfig},
+};
 use pgp::composed::ArmorOptions;
 use secrecy::SecretString;
 use std::str::FromStr;
@@ -71,6 +78,13 @@ impl StateHandler {
             }
         };
 
+        // Instantiate TDK
+        let tdk = TDK::new(
+            TDKConfig::builder().with_load_environment(false).build()?,
+            None,
+        )
+        .await?;
+
         // Send the initial state once
         self.state_tx.send(state.clone())?;
 
@@ -87,6 +101,12 @@ impl StateHandler {
                         let _ = terminator.terminate(interrupted.clone());
 
                         break interrupted;
+                    },
+                    Action::ActivateMainMenu => {
+                        // Switch to Main Menu
+                        state.active_page = ActivePage::Main;
+                        state.main_page.menu_panel.selected = true;
+                        state.main_page.content_panel.selected = false;
                     },
                     Action::MainMenuSelected(menu_item) => {
                         // User has changed main menu selection
@@ -105,6 +125,33 @@ impl StateHandler {
                                 state.main_page.content_panel.selected = false;
                             }
                         }
+                    },
+                    Action::ImportConfig(filename, import_unlock_passphrase, new_unlock_passphrase) => {
+                        // Import a configuration backup
+                        let import_unlock_passphrase = SecretString::new(import_unlock_passphrase);
+                        let new_unlock_passphrase = SecretString::new(new_unlock_passphrase);
+                        state.setup.active_page = SetupPage::ConfigImport;
+                        match Config::import(
+                            &mut state, &self.state_tx,
+                            &import_unlock_passphrase,
+                            &new_unlock_passphrase,
+                            &filename,
+                            &self.profile,
+                        ) {
+                            Ok(()) => {
+                                state.setup.config_import.completed = Completion::CompletedOK;
+                                state.setup.config_import.messages.push(MessageType::Info("Configuration import completed successfully.".to_string()));
+                            }
+                            Err(e) => {
+                                state.setup.config_import.messages.push(MessageType::Error(format!("Importing Config failed: {e}")));
+                                state.setup.config_import.completed = Completion::CompletedFail;
+                            }
+                        }
+                    },
+                    Action::SetProtection(protection, next_page) => {
+                        // Set the Config Protection method in setup state
+                        state.setup.protection = protection;
+                        state.setup.active_page = next_page;
                     },
                     Action::SetDIDKeys(persona_keys) => {
                         // Set the DID Persona Keys in setup state
@@ -158,7 +205,8 @@ impl StateHandler {
                         }
                     },
                     #[cfg(feature = "openpgp-card")]
-                    Action::SetAdminPin(admin_pin) => {
+                    Action::SetAdminPin(token, admin_pin) => {
+                        state.setup.protection = ConfigProtection::Token(token);
                         state.token_admin_pin = Some(admin_pin);
                         state.setup.active_page = SetupPage::TokenFactoryReset;
                     }
@@ -243,10 +291,64 @@ impl StateHandler {
                         state.setup.username = username;
                         state.setup.active_page = SetupPage::WebVHAddress;
                     },
-                    Action::SetupCompleted(webvh_address) => {
+                    Action::CreateWebVHDID(webvh_address) => {
+                        // Set the WebVH DID in setup state
+                        let mut keys = state.setup.did_keys.clone().unwrap();
+                        match create_initial_webvh_did(&webvh_address, &mut keys, state.setup.custom_mediator.as_ref().unwrap_or(&LF_PUBLIC_MEDIATOR_DID.to_string()),
+                        get_bip32_root(state.setup.mnemonic.mnemonic.to_entropy().as_slice()).unwrap()){
+                            Ok((did, document)) => {
+                                state.setup.webvh_address.did = did;
+                                state.setup.webvh_address.document = document;
+                                state.setup.did_keys = Some(keys);
+                                state.setup.webvh_address.completed = Completion::CompletedOK;
+                                state.setup.webvh_address.messages.push(MessageType::Info("WebVH DID created successfully.".to_string()));
+                            },
+                            Err(e) => {
+                                state.setup.webvh_address.completed = Completion::CompletedFail;
+                                state.setup.webvh_address.messages.push(MessageType::Error(format!("Error creating WebVH DID: {e}")));
+                            }
+                        }
+                    },
+                    Action::ResetWebVHDID => {
+                        // Reset the WebVH DID state
+                        state.setup.webvh_address.messages.clear();
+                        state.setup.webvh_address.completed = Completion::NotFinished;
+                    },
+                    Action::ResolveWebVHDID(did) => {
+                        // Check if can resolve DID
+                        match tdk.did_resolver().resolve(&did).await {
+                            Ok(response) => {
+                                // Change the key ID's to match the DID VM ID's
+                                if let Some(keys) = &mut state.setup.did_keys {
+                                    keys.signing.secret.id = [&did, "#key-1"].concat();
+                                    keys.authentication.secret.id = [&did, "#key-2"].concat();
+                                    keys.decryption.secret.id = [&did, "#key-3"].concat();
+                                }
+
+                                state.setup.webvh_address.did = did;
+                                state.setup.webvh_address.document = response.doc;
+                                state.setup.webvh_address.completed = Completion::CompletedOK;
+                                state.setup.webvh_address.messages.push(MessageType::Info("DID resolved successfully.".to_string()));
+                            },
+                            Err(e) => {
+                                state.setup.webvh_address.completed = Completion::CompletedFail;
+                                state.setup.webvh_address.messages.push(MessageType::Error(format!("Error resolving DID: {e}")));
+                            }
+                        }
+                    }
+                    Action::SetupCompleted(setup_flow) => {
                         // Final setup step completed
-                        state.setup.webvh_address = webvh_address;
                         state.setup.active_page = SetupPage::FinalPage;
+                        match Config::create(&state.setup, &setup_flow, &tdk, &self.profile).await {
+                            Ok(_) => {
+                                state.setup.final_page.completed = Completion::CompletedOK;
+                                state.setup.final_page.messages.push(MessageType::Info("".to_string()));
+                            },
+                            Err(e) => {
+                                state.setup.final_page.completed = Completion::CompletedFail;
+                                state.setup.final_page.messages.push(MessageType::Error(format!("Couldn't create LKMV configuration. Reason: {e}")));
+                            }
+                        }
                     },
                 },
                 // Catch and handle interrupt signal to gracefully shutdown

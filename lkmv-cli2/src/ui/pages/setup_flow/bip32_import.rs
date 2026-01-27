@@ -18,7 +18,7 @@ use crate::{
         actions::Action,
         setup_sequence::{SetupState, bip32::BIP32_39, did_keys::create_keys},
     },
-    ui::pages::setup_flow::{SetupFlow, render_setup_header},
+    ui::pages::setup_flow::{SetupFlow, render_setup_header, webvh_address::WebVHState},
 };
 
 // ****************************************************************************
@@ -60,6 +60,8 @@ impl BIP32PhraseImport {
                                 ));
                             }
                         }
+                        // Set the WebVH DID to be import option
+                        state.webvh_address.state = WebVHState::Unknown;
                     }
                     Err(e) => {
                         // Invalid mnemonic entered

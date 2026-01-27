@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crossterm::event::{Event, KeyCode, KeyEvent};
 use lkmv::colors::{COLOR_BORDER, COLOR_DARK_GRAY, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT};
 use ratatui::{
@@ -10,12 +12,14 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Padding, Paragraph},
 };
+use secrecy::SecretVec;
+use sha2::{Digest, Sha256};
 use tui_input::{Input, backend::crossterm::EventHandler};
 
 use crate::{
     state_handler::{
         actions::Action,
-        setup_sequence::{SetupPage, SetupState},
+        setup_sequence::{ConfigProtection, SetupPage, SetupState},
     },
     ui::pages::setup_flow::{SetupFlow, render_setup_header},
 };
@@ -36,7 +40,12 @@ impl UnlockCodeSet {
                 let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Enter => {
-                state.props.state.active_page = SetupPage::MediatorAsk;
+                let _ = state.action_tx.send(Action::SetProtection(
+                    ConfigProtection::Passcode(Arc::new(SecretVec::new(
+                        Sha256::digest(state.unlock_code_set.passphrase.value()).to_vec(),
+                    ))),
+                    SetupPage::MediatorAsk,
+                ));
             }
             KeyCode::Esc => {
                 state.unlock_code_set.passphrase.reset();

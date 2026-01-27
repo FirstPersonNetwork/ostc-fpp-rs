@@ -4,7 +4,7 @@
 #[cfg(feature = "openpgp-card")]
 use crate::setup::openpgp_card::setup_hardware_token;
 use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_PURPLE, LF_ORG_DID, LF_PUBLIC_MEDIATOR_DID,
+    CLI_BLUE, CLI_GREEN, CLI_PURPLE,
     setup::{
         bip32_bip39::{generate_bip39_mnemonic, mnemonic_from_recovery_phrase},
         did::did_setup,
@@ -20,7 +20,7 @@ use chrono::Utc;
 use console::{Term, style};
 use dialoguer::{Confirm, Input, theme::ColorfulTheme};
 use lkmv::{
-    KeyPurpose,
+    KeyPurpose, LF_ORG_DID, LF_PUBLIC_MEDIATOR_DID,
     bip32::{Bip32Extension, get_bip32_root},
     config::{
         Config, ConfigProtectionType, KeyInfo, KeyTypes, PersonaDID, PersonaDIDKeys,

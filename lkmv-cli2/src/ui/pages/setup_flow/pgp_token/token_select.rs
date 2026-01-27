@@ -68,7 +68,27 @@ impl TokenSelect {
                     } else {
                         SecretString::new(state.token_select.token_admin_pin.value().to_string())
                     };
-                    let _ = state.action_tx.send(Action::SetAdminPin(admin_pin));
+                    let token = if let Some(token) = &state.token_select.selected_token {
+                        // Need to get ADMIN Pin from the user
+                        let mut lock = token.try_lock().unwrap();
+                        let open_card = match lock.transaction() {
+                            Ok(card) => card,
+                            Err(e) => {
+                                panic!(
+                                    "Selected a token but then couldn't read from it - likely could have been unplugged. Reason: {e}"
+                                );
+                            }
+                        };
+                        open_card
+                            .application_identifier()
+                            .expect("Couldn't get card app_identifier")
+                            .ident()
+                    } else {
+                        panic!(
+                            "Code logic error, should never get here without having a valid token selected"
+                        )
+                    };
+                    let _ = state.action_tx.send(Action::SetAdminPin(token, admin_pin));
                 } else {
                     // Selected Token - Now get Admin PIN
                     if state.token_select.selected == state.props.state.tokens.tokens.len() {

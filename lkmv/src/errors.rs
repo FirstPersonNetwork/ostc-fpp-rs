@@ -3,6 +3,7 @@
 
 use affinidi_data_integrity::DataIntegrityError;
 use affinidi_tdk::{didcomm, messaging::errors::ATMError};
+use didwebvh_rs::DIDWebVHError;
 use thiserror::Error;
 
 /// Linux Kernel Maintainer Verification Errors
@@ -56,4 +57,7 @@ pub enum LKMVError {
 
     #[error("Contacts Error: {0}")]
     Contact(String),
+
+    #[error("WebVH DID error: {0}")]
+    WebVH(#[from] DIDWebVHError),
 }

@@ -5,7 +5,9 @@
 use crate::state_handler::setup_sequence::bip32::BIP32_39;
 #[cfg(feature = "openpgp-card")]
 use ::openpgp_card::{Card, state::Open};
+use affinidi_tdk::did_common::Document;
 use lkmv::config::PersonaDIDKeys;
+use secrecy::SecretVec;
 use std::fmt;
 #[cfg(feature = "openpgp-card")]
 use std::sync::Arc;
@@ -13,6 +15,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 pub mod bip32;
+pub mod config;
 pub mod did_keys;
 #[cfg(feature = "openpgp-card")]
 pub mod openpgp_card;
@@ -63,6 +66,8 @@ pub enum SetupPage {
 pub struct SetupState {
     pub active_page: SetupPage,
 
+    pub config_import: ConfigImport,
+
     /// BIP32 mnemonic to use
     pub mnemonic: BIP32_39,
 
@@ -71,6 +76,9 @@ pub struct SetupState {
 
     /// Contains the PGP formatted export of DID keys if user selected to export
     pub did_keys_export: DIDKeysExportState,
+
+    /// How is the config protected?
+    pub protection: ConfigProtection,
 
     /// PGP Hardware Tokens that are connected
     #[cfg(feature = "openpgp-card")]
@@ -94,14 +102,55 @@ pub struct SetupState {
     /// What username is the user using?
     pub username: String,
 
-    /// What address to sue for WebVH?
-    pub webvh_address: String,
+    /// What address to use for WebVH?
+    pub webvh_address: WebVHAddress,
+
+    pub final_page: FinalSetupPage,
 }
 
+/// How is the configuration protected?
+#[derive(Clone, Default)]
+pub enum ConfigProtection {
+    #[default]
+    PlainText,
+    Token(String),
+    /// Is a SHA256 digest of the input passcode
+    Passcode(Arc<SecretVec<u8>>),
+}
+
+impl std::fmt::Debug for ConfigProtection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ConfigProtection::PlainText => write!(f, "ConfigProtection::PlainText"),
+            ConfigProtection::Token(token_id) => {
+                write!(f, "ConfigProtection::Token({})", token_id)
+            }
+            ConfigProtection::Passcode(_) => write!(f, "ConfigProtection::Passcode(****)"),
+        }
+    }
+}
+
+/// Helps format messages from backend to the frontend
 #[derive(Clone, Debug)]
 pub enum MessageType {
     Info(String),
     Error(String),
+}
+
+/// Completion States for tasks
+#[derive(Clone, Debug, Default)]
+pub enum Completion {
+    #[default]
+    NotFinished,
+    CompletedOK,
+    CompletedFail,
+}
+
+/// State relating to importing configuration
+#[derive(Clone, Default, Debug)]
+pub struct ConfigImport {
+    pub completed: Completion,
+    pub messages: Vec<MessageType>,
 }
 
 /// Update messages as the Key export works through
@@ -154,5 +203,21 @@ pub struct TokenSetTouchPolicy {
 #[derive(Clone, Default, Debug)]
 pub struct TokenSetCardholderName {
     pub completed: bool,
+    pub messages: Vec<MessageType>,
+}
+
+/// WebVH DID State
+#[derive(Clone, Default, Debug)]
+pub struct WebVHAddress {
+    pub completed: Completion,
+    pub messages: Vec<MessageType>,
+    pub did: String,
+    pub document: Document,
+}
+
+/// Final Setup Page State
+#[derive(Clone, Default, Debug)]
+pub struct FinalSetupPage {
+    pub completed: Completion,
     pub messages: Vec<MessageType>,
 }

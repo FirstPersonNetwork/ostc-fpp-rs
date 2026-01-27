@@ -39,6 +39,7 @@ use sha2::{Digest, Sha256};
 use std::{collections::HashMap, fmt::Display, fs, rc::Rc, sync::Arc};
 use tracing::warn;
 
+pub mod did;
 pub mod protected_config;
 pub mod public_config;
 pub mod secured_config;

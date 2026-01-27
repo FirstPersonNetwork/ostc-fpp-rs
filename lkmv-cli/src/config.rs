@@ -1,17 +1,20 @@
 /*! Contains specific Config extensions for the CLI Application. */
 
 use crate::{
-    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, LF_PUBLIC_MEDIATOR_DID,
-    relationships::RelationshipsExtension, setup::create_unlock_code,
+    CLI_BLUE, CLI_GREEN, CLI_ORANGE, CLI_PURPLE, CLI_RED, relationships::RelationshipsExtension,
+    setup::create_unlock_code,
 };
 use anyhow::{Result, bail};
 use base64::{Engine, prelude::BASE64_URL_SAFE_NO_PAD};
 use console::style;
 use dialoguer::{Password, theme::ColorfulTheme};
 use ed25519_dalek_bip32::ExtendedSigningKey;
-use lkmv::config::{
-    Config, ConfigProtectionType, ExportedConfig, protected_config::ProtectedConfig,
-    public_config::PublicConfig, secured_config::unlock_code_decrypt,
+use lkmv::{
+    LF_PUBLIC_MEDIATOR_DID,
+    config::{
+        Config, ConfigProtectionType, ExportedConfig, protected_config::ProtectedConfig,
+        public_config::PublicConfig, secured_config::unlock_code_decrypt,
+    },
 };
 use secrecy::{ExposeSecret, SecretString};
 use sha2::{Digest, Sha256};

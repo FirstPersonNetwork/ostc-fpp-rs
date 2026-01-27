@@ -44,13 +44,6 @@ mod setup;
 mod status;
 mod tasks;
 
-/// Primary Linux Kernel Mediator DID
-const LF_PUBLIC_MEDIATOR_DID: &str =
-    "did:webvh:QmetnhxzJXTJ9pyXR1BbZ2h6DomY6SB1ZbzFPrjYyaEq9V:fpp.storm.ws:public-mediator";
-
-/// Primary Linux Kernel Organisation DID
-const LF_ORG_DID: &str = "did:webvh:QmXkYcFCbvFFcYZf2q5gNk8Vp4b4vMbVKWbbc7oivcdZHK:fpp.storm.ws";
-
 // Handles initial setup and configuration of the CLI tool
 fn initialize(term: &Term) {
     // Setup logging/tracing

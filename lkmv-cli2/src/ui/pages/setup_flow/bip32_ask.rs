@@ -16,7 +16,7 @@ use crate::{
         actions::Action,
         setup_sequence::{SetupPage, SetupState},
     },
-    ui::pages::setup_flow::{SetupFlow, render_setup_header},
+    ui::pages::setup_flow::{SetupFlow, render_setup_header, webvh_address::WebVHState},
 };
 
 // ****************************************************************************
@@ -50,7 +50,10 @@ impl BIP32PhraseAskChoice {
             KeyCode::Enter => {
                 // User has chosen whether to create or import their BIP32 phrase
                 state.props.state.active_page = match state.bip32_ask {
-                    BIP32PhraseAskChoice::Create => SetupPage::BIP32PhraseShow,
+                    BIP32PhraseAskChoice::Create => {
+                        state.webvh_address.state = WebVHState::NewDID;
+                        SetupPage::BIP32PhraseShow
+                    }
                     BIP32PhraseAskChoice::Import => SetupPage::BIP32PhraseImport,
                 }
             }
