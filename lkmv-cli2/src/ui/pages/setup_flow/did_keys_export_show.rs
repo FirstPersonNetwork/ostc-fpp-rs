@@ -90,6 +90,10 @@ impl DIDKeysExportShow {
 
         // Has the export completed? If so then display the exported armor text
         if let Some(exported) = &state.did_keys_export.exported {
+            // Split right panel into content area and fixed controls at bottom
+            let [content_area, controls_area] = Layout::vertical([Percentage(50), Percentage(50)])
+                .areas(right);
+            
             let mut lines = vec![
                 Line::styled(
                     "Private DID keys exported successfully.",
@@ -101,15 +105,19 @@ impl DIDKeysExportShow {
             for line in exported.lines() {
                 lines.push(Line::styled(line, Style::new().fg(COLOR_SOFT_PURPLE)));
             }
-
-            lines.push(Line::default());
-            lines.push(Line::styled(
-                    "⚠️ Important Note: Keep this private key safe and secure.",
-                    Style::new().fg(COLOR_ORANGE).bold()
-                ));
-            lines.push(Line::default());
+            
+            frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: true }), content_area);
+            
+            // Always show controls at the bottom
+            let mut control_lines = vec![];
             if state.did_keys_export.exported.is_some() {
-                lines.push(Line::from(vec![
+                control_lines.push(Line::default());
+                control_lines.push(Line::styled(
+                        "⚠️ Important Note: Keep this private key safe and secure.",
+                        Style::new().fg(COLOR_ORANGE).bold()
+                    ));
+                control_lines.push(Line::default());
+                control_lines.push(Line::from(vec![
                     Span::styled("[C]", Style::new().fg(COLOR_BORDER).bold()),
                     Span::styled(
                         " Copy to clipboard  |  ",
@@ -120,13 +128,13 @@ impl DIDKeysExportShow {
                 ]));
 
                 if self.clipboard_copy {
-                    lines.push(Line::styled(
+                    control_lines.push(Line::styled(
                         "Private key block copied!",
                         Style::new().fg(COLOR_SUCCESS).slow_blink(),
                     ));
                 }
             }
-            frame.render_widget(Paragraph::new(lines).wrap(Wrap { trim: true }), right);
+            frame.render_widget(Paragraph::new(control_lines).wrap(Wrap { trim: true }), controls_area);
         }
 
         let bottom_line = Line::from(vec![
