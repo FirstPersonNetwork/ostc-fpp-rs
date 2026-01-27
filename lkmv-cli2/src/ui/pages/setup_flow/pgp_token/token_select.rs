@@ -208,8 +208,13 @@ impl TokenSelect {
 
             if state.tokens.tokens.is_empty() {
                 lines.push(Line::styled(
-                    "No hardware tokens were detected. Ensure tokens are plugged in and rescan.",
-                    Style::new().fg(COLOR_ORANGE).italic(),
+                    "No OpenPGP-compatible hardware tokens were detected on your system.",
+                    Style::new().fg(COLOR_ORANGE),
+                ));
+                lines.push(Line::default());
+                lines.push(Line::styled(
+                    "If you have a token, ensure it is properly plugged in and recognized by your system, then rescan.",
+                    Style::new().fg(COLOR_TEXT_DEFAULT).bold(),
                 ));
                 lines.push(Line::default());
                 lines.push(Line::from(vec![
@@ -220,10 +225,14 @@ impl TokenSelect {
                     ),
                     Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
                     Span::styled(
-                        " to continue with no tokens",
+                        " to continue without a token",
                         Style::new().fg(COLOR_TEXT_DEFAULT),
                     ),
                 ]));
+                frame.render_widget(
+                    Paragraph::new(lines).block(block).wrap(Wrap { trim: true }),
+                    middle,
+                );
             } else {
                 // Show tokens
                 lines.push(Line::styled(
