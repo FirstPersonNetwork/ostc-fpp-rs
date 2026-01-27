@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_TEXT_DEFAULT};
+use lkmv::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED};
 use ratatui::{
     Frame,
     layout::{
@@ -12,7 +12,10 @@ use ratatui::{
 };
 
 use crate::{
-    state_handler::{actions::Action, setup_sequence::SetupState},
+    state_handler::{
+        actions::Action,
+        setup_sequence::{MessageType, SetupState},
+    },
     ui::pages::setup_flow::{SetupFlow, render_setup_header},
 };
 
@@ -25,7 +28,9 @@ impl FinalPage {
             KeyCode::F(10) => {
                 let _ = state.action_tx.send(Action::Exit);
             }
-            KeyCode::Enter => {}
+            KeyCode::Enter => {
+                let _ = state.action_tx.send(Action::ActivateMainMenu);
+            }
             _ => {}
         }
     }
@@ -41,13 +46,28 @@ impl FinalPage {
             .padding(Padding::proportional(1))
             .title(" Setup Complete ");
 
-        let lines = vec![
-            Line::default(),
-            Line::from(vec![
-                Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
-                Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
-            ]),
-        ];
+        let mut lines = Vec::new();
+        for msg in state.final_page.messages.iter() {
+            match msg {
+                MessageType::Info(info) => {
+                    lines.push(Line::styled(
+                        format!("INFO: {}", info),
+                        Style::new().fg(COLOR_SUCCESS),
+                    ));
+                }
+                MessageType::Error(err) => {
+                    lines.push(Line::styled(
+                        format!("ERROR: {}", err),
+                        Style::new().fg(COLOR_WARNING_ACCESSIBLE_RED),
+                    ));
+                }
+            }
+        }
+        lines.push(Line::default());
+        lines.push(Line::from(vec![
+            Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
+            Span::styled(" to continue", Style::new().fg(COLOR_TEXT_DEFAULT)),
+        ]));
 
         frame.render_widget(
             Paragraph::new(lines).block(block).wrap(Wrap { trim: true }),

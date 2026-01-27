@@ -91,7 +91,7 @@ impl WebvhAddress {
                 match state.props.state.webvh_address.completed {
                     Completion::CompletedOK => {
                         // Already completed
-                        state.props.state.active_page = SetupPage::FinalPage;
+                        let _ = state.action_tx.send(Action::SetupCompleted(state.clone()));
                     }
                     Completion::CompletedFail => {
                         // Reset to try again
@@ -111,7 +111,7 @@ impl WebvhAddress {
                 match state.props.state.webvh_address.completed {
                     Completion::CompletedOK => {
                         // Already completed
-                        state.props.state.active_page = SetupPage::FinalPage;
+                        let _ = state.action_tx.send(Action::SetupCompleted(state.clone()));
                     }
                     Completion::CompletedFail => {
                         // Reset to try again
@@ -330,7 +330,10 @@ Paragraph::new(vec![
             Completion::NotFinished => {}
             Completion::CompletedOK => {
                 lines.push(Line::from(vec![
-                    Span::styled("Your Community DID: ", Style::new().fg(COLOR_SUCCESS).bold()),
+                    Span::styled(
+                        "Your Community DID: ",
+                        Style::new().fg(COLOR_SUCCESS).bold(),
+                    ),
                     Span::styled(
                         &backend_state.webvh_address.did,
                         Style::new().fg(COLOR_SOFT_PURPLE).bold(),
@@ -343,34 +346,31 @@ Paragraph::new(vec![
                     Style::new().fg(COLOR_ORANGE).bold(),
                 ));
                 lines.push(Line::default());
-                
+
                 // Trim base url to remove trailing slash
                 let base_url = state.address.value().trim_end_matches('/');
-                
+
                 // Check if there's a subpath after the base domain
                 let has_subfolder = base_url
                     .trim_start_matches("https://")
                     .trim_start_matches("http://")
                     .contains('/');
-                
+
                 let expected_url = if has_subfolder {
                     format!("{}/did.jsonl", base_url)
                 } else {
                     format!("{}/.well-known/did.jsonl", base_url)
                 };
-                
+
                 lines.push(Line::from(vec![
-                    Span::styled(
-                        "1. Find ",
-                        Style::new().fg(COLOR_TEXT_DEFAULT),
-                    ),
+                    Span::styled("1. Find ", Style::new().fg(COLOR_TEXT_DEFAULT)),
                     Span::styled("did.jsonl", Style::new().fg(COLOR_SOFT_PURPLE).bold()),
                     Span::styled(
                         " in your current directory.",
                         Style::new().fg(COLOR_TEXT_DEFAULT),
                     ),
                 ]));
-                
+
                 lines.push(Line::default());
                 lines.push(Line::from(vec![
                     Span::styled(
@@ -379,11 +379,11 @@ Paragraph::new(vec![
                     ),
                     Span::styled(expected_url, Style::new().fg(COLOR_SOFT_PURPLE).bold()),
                 ]));
-                
+
                 lines.push(Line::default());
                 lines.push(Line::styled(
-                        "3. Ensure the file is publicly accessible via HTTPS.",
-                        Style::new().fg(COLOR_TEXT_DEFAULT),
+                    "3. Ensure the file is publicly accessible via HTTPS.",
+                    Style::new().fg(COLOR_TEXT_DEFAULT),
                 ));
                 lines.push(Line::default());
                 lines.push(Line::from(vec![

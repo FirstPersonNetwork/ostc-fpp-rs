@@ -339,6 +339,9 @@ impl StateHandler {
                     Action::SetupCompleted(setup_flow) => {
                         // Final setup step completed
                         state.setup.active_page = SetupPage::FinalPage;
+                        state.setup.final_page.messages.push(MessageType::Info("Creating Configuration...".to_string()));
+                        state.setup.final_page.messages.push(MessageType::Info("You may be asked to unlock OS Secure Store...".to_string()));
+                        self.state_tx.send(state.clone())?;
                         match Config::create(&state.setup, &setup_flow, &tdk, &self.profile).await {
                             Ok(_) => {
                                 state.setup.final_page.completed = Completion::CompletedOK;

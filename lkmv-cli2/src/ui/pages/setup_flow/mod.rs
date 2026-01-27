@@ -59,6 +59,7 @@ pub mod webvh_address;
 pub mod pgp_token;
 
 /// Handles the Setup Flow sequence
+#[derive(Clone)]
 pub struct SetupFlow {
     /// Action sender
     pub action_tx: UnboundedSender<Action>,
@@ -105,6 +106,7 @@ pub struct SetupFlow {
     pub props: Props,
 }
 
+#[derive(Clone)]
 pub struct Props {
     pub state: SetupState,
 }
@@ -275,7 +277,10 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
             Style::new().fg(COLOR_ORANGE).bold(),
         ));
     } else {
-        line1.push_span(Span::styled("✓ Get Started", Style::new().fg(COLOR_SUCCESS)));
+        line1.push_span(Span::styled(
+            "✓ Get Started",
+            Style::new().fg(COLOR_SUCCESS),
+        ));
     }
 
     if let SetupPage::BIP32PhraseAsk
@@ -330,7 +335,10 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
             Style::new().fg(COLOR_SUCCESS),
         ));
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
-        line1.push_span(Span::styled("✓ Profile Security", Style::new().fg(COLOR_SUCCESS)));
+        line1.push_span(Span::styled(
+            "✓ Profile Security",
+            Style::new().fg(COLOR_SUCCESS),
+        ));
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
         line1.push_span(Span::styled(
             "● Secure Messaging",
@@ -348,9 +356,15 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
             Style::new().fg(COLOR_SUCCESS),
         ));
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
-        line1.push_span(Span::styled("✓ Profile Security", Style::new().fg(COLOR_SUCCESS)));
+        line1.push_span(Span::styled(
+            "✓ Profile Security",
+            Style::new().fg(COLOR_SUCCESS),
+        ));
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
-        line1.push_span(Span::styled("✓ Secure Messaging", Style::new().fg(COLOR_SUCCESS)));
+        line1.push_span(Span::styled(
+            "✓ Secure Messaging",
+            Style::new().fg(COLOR_SUCCESS),
+        ));
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
         line1.push_span(Span::styled(
             "● Digital Identity",
@@ -368,11 +382,20 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
             Style::new().fg(COLOR_SUCCESS),
         ));
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
-        line1.push_span(Span::styled("✓ Profile Security", Style::new().fg(COLOR_SUCCESS)));
+        line1.push_span(Span::styled(
+            "✓ Profile Security",
+            Style::new().fg(COLOR_SUCCESS),
+        ));
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
-        line1.push_span(Span::styled("✓ Secure Messaging", Style::new().fg(COLOR_SUCCESS)));
+        line1.push_span(Span::styled(
+            "✓ Secure Messaging",
+            Style::new().fg(COLOR_SUCCESS),
+        ));
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
-        line1.push_span(Span::styled("✓ Digital Identity", Style::new().fg(COLOR_SUCCESS)));
+        line1.push_span(Span::styled(
+            "✓ Digital Identity",
+            Style::new().fg(COLOR_SUCCESS),
+        ));
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
         line1.push_span(Span::styled(
             "● Setup Complete",
