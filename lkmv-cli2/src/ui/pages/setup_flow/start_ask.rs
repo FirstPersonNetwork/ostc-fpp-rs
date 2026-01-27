@@ -175,9 +175,10 @@ fn render_right_panel(frame: &mut Frame, rect: Rect, state: &StartAskPanel) {
         Line::styled("You will:", Style::new().fg(COLOR_TEXT_DEFAULT)),
         Line::styled("• Provide the backup file path (.lkmv)", Style::new().fg(COLOR_TEXT_DEFAULT)),
         Line::styled(
-            "• Enter the unlock code (if set)",
+            "• Enter the backup file passphrase (if set)",
             Style::new().fg(COLOR_TEXT_DEFAULT),
         ),
+        Line::styled("• Set an unlock code", Style::new().fg(COLOR_TEXT_DEFAULT)),
         Line::styled("• Verify the restoration", Style::new().fg(COLOR_TEXT_DEFAULT)),
     ];
 

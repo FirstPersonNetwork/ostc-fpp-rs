@@ -74,7 +74,11 @@ impl BIP32PhraseAskChoice {
 
         let mut lines = vec![
             Line::styled(
-                "LKMV uses a single BIP32 recovery phrase to securely generate all keys for your profile. This means you only need to back up one phrase instead of managing multiple keys.",
+                "LKMV uses a single BIP32 recovery phrase to securely generate all keys for your profile.",
+                Style::new().fg(COLOR_DARK_GRAY),
+            ),
+            Line::styled(
+                "This means you only need to back up one phrase instead of managing multiple keys.",
                 Style::new().fg(COLOR_DARK_GRAY),
             ),
             Line::default(),

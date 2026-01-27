@@ -266,6 +266,7 @@ impl ComponentRender<()> for SetupFlow {
 pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
     let mut line1 = Line::default();
     let mut step = 0;
+    let mut total_step = 6;
 
     if let SetupPage::StartAsk = state.active_page {
         step = 1;
@@ -297,9 +298,10 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
         ));
     } else if let SetupPage::ConfigImport = state.active_page {
         step = 2;
+        total_step = 2;
         line1.push_span(Span::styled(" → ", Style::new().fg(COLOR_TEXT_DEFAULT)));
         line1.push_span(Span::styled(
-            "● Locate Backup",
+            "● Restore Backup",
             Style::new().fg(COLOR_ORANGE).bold(),
         ));
     } else if let SetupPage::UnlockCodeAsk | SetupPage::UnlockCodeSet | SetupPage::UnlockCodeWarn =
@@ -414,7 +416,7 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
     }
 
     let line2 = Line::from(Span::styled(
-        format!("Section {}/6", step),
+        format!("Section {}/{}", step, total_step),
         Style::new().fg(COLOR_BORDER),
     ));
 
