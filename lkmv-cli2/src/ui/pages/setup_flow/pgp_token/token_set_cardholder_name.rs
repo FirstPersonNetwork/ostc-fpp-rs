@@ -37,7 +37,7 @@ impl TokenSetCardholderName {
             KeyCode::Enter => {
                 if !state.token_set_cardholder_name.started {
                     if state.token_set_cardholder_name.name.value().is_empty() {
-                        state.props.state.active_page = SetupPage::UnlockCodeAsk;
+                        state.props.state.active_page = SetupPage::MediatorAsk;
                     } else {
                         state.token_set_cardholder_name.started = true;
                         let _ = state.action_tx.send(Action::SetTokenName(
@@ -46,7 +46,7 @@ impl TokenSetCardholderName {
                         ));
                     }
                 } else if state.props.state.token_cardholder_name.completed {
-                    state.props.state.active_page = SetupPage::UnlockCodeAsk;
+                    state.props.state.active_page = SetupPage::MediatorAsk;
                 }
             }
             KeyCode::Esc => {
