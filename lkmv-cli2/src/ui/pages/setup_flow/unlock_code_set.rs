@@ -70,7 +70,7 @@ impl UnlockCodeSet {
         // 1: INPUT <-- Passphrase
         // 2: Key Bindings
         let content: [Rect; 3] =
-            Layout::vertical([Length(3), Length(2), Min(0)]).areas(middle.inner(Margin::new(3, 2)));
+            Layout::vertical([Length(5), Length(2), Min(0)]).areas(middle.inner(Margin::new(3, 2)));
 
         let [input0_prompt, input0_box] = Layout::horizontal([Length(2), Min(0)]).areas(content[1]);
 

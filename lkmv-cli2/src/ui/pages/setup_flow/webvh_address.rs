@@ -197,24 +197,51 @@ fn render_input(input: &Input, frame: &mut Frame, area: Rect) {
 fn render_selection(state: &WebvhAddress, frame: &mut Frame<'_>, area: Rect) {
     let mut lines = Vec::new();
 
-    // Render the active chocie
+    lines.push(Line::styled(
+        "You can create a new WebVH DID using the keys derived from your recovery phrase, or restore an existing DID you previously created with this same recovery phrase.",
+        Style::new().fg(COLOR_DARK_GRAY),
+    ));
+    lines.push(Line::default());
+    lines.push(Line::styled(
+        "How would you like to set up your DID?",
+        Style::new().fg(COLOR_BORDER).bold(),
+    ));
+    lines.push(Line::default());
+
+    // Render the active choice
     if let WebVHChoice::Create = state.choice {
         lines.push(Line::styled(
-            "[✓] Create a new WebVH DID for yourself?",
+            "[✓] Create a new WebVH DID",
             Style::new().fg(COLOR_SUCCESS).bold(),
         ));
         lines.push(Line::styled(
-            "[ ] Import an existing WebVH DID that uses the same derived keys",
+            "    Generate a brand new DID for this profile. You'll provide a hosting URL where the DID document will be hosted.",
+            Style::new().fg(COLOR_DARK_GRAY),
+        ));
+        lines.push(Line::styled(
+            "[ ] Import an existing WebVH DID",
             Style::new().fg(COLOR_TEXT_DEFAULT),
+        ));
+        lines.push(Line::styled(
+            "    Restore a DID you previously created with the same recovery phrase. You'll need to provide the WebVH DID value.",
+            Style::new().fg(COLOR_DARK_GRAY),
         ));
     } else {
         lines.push(Line::styled(
-            "[ ] Create a new WebVH DID for yourself?",
+            "[ ] Create a new WebVH DID",
             Style::new().fg(COLOR_TEXT_DEFAULT),
         ));
         lines.push(Line::styled(
-            "[✓] Import an existing WebVH DID that uses the same derived keys",
+            "    Generate a brand new DID for this profile. You'll provide a hosting URL where the DID document will be hosted.",
+            Style::new().fg(COLOR_DARK_GRAY),
+        ));
+        lines.push(Line::styled(
+            "[✓] Import an existing WebVH DID",
             Style::new().fg(COLOR_SUCCESS).bold(),
+        ));
+        lines.push(Line::styled(
+            "    Restore a DID you previously created with the same recovery phrase. You'll need to provide the WebVH DID value.",
+            Style::new().fg(COLOR_DARK_GRAY),
         ));
     }
 
@@ -227,7 +254,7 @@ fn render_selection(state: &WebvhAddress, frame: &mut Frame<'_>, area: Rect) {
     ]));
 
     frame.render_widget(
-        Paragraph::new(lines).wrap(Wrap { trim: true }),
+        Paragraph::new(lines).wrap(Wrap { trim: false }),
         area.inner(Margin::new(3, 2)),
     );
 }
@@ -303,27 +330,61 @@ Paragraph::new(vec![
             Completion::NotFinished => {}
             Completion::CompletedOK => {
                 lines.push(Line::from(vec![
-                    Span::styled("WebVH DID: ", Style::new().fg(COLOR_BORDER).bold()),
+                    Span::styled("Your Community DID: ", Style::new().fg(COLOR_SUCCESS).bold()),
                     Span::styled(
                         &backend_state.webvh_address.did,
-                        Style::new().fg(COLOR_DARK_PURPLE).bold(),
+                        Style::new().fg(COLOR_SOFT_PURPLE).bold(),
                     ),
                 ]));
 
                 lines.push(Line::default());
+                lines.push(Line::styled(
+                    "ℹ️ Upload Instructions:",
+                    Style::new().fg(COLOR_ORANGE).bold(),
+                ));
+                lines.push(Line::default());
+                
+                // Trim base url to remove trailing slash
+                let base_url = state.address.value().trim_end_matches('/');
+                
+                // Check if there's a subpath after the base domain
+                let has_subfolder = base_url
+                    .trim_start_matches("https://")
+                    .trim_start_matches("http://")
+                    .contains('/');
+                
+                let expected_url = if has_subfolder {
+                    format!("{}/did.jsonl", base_url)
+                } else {
+                    format!("{}/.well-known/did.jsonl", base_url)
+                };
+                
                 lines.push(Line::from(vec![
                     Span::styled(
-                        "You need to upload the DID document (",
+                        "1. Find ",
                         Style::new().fg(COLOR_TEXT_DEFAULT),
                     ),
-                    Span::styled("did.jsonl", Style::new().fg(COLOR_SOFT_PURPLE)),
+                    Span::styled("did.jsonl", Style::new().fg(COLOR_SOFT_PURPLE).bold()),
                     Span::styled(
-                        ") to your hosting URL: ",
+                        " in your current directory.",
                         Style::new().fg(COLOR_TEXT_DEFAULT),
                     ),
-                    Span::styled(state.address.value(), Style::new().fg(COLOR_SOFT_PURPLE)),
                 ]));
-
+                
+                lines.push(Line::default());
+                lines.push(Line::from(vec![
+                    Span::styled(
+                        "2. Upload it to your hosting service so it's accessible at: ",
+                        Style::new().fg(COLOR_TEXT_DEFAULT),
+                    ),
+                    Span::styled(expected_url, Style::new().fg(COLOR_SOFT_PURPLE).bold()),
+                ]));
+                
+                lines.push(Line::default());
+                lines.push(Line::styled(
+                        "3. Ensure the file is publicly accessible via HTTPS.",
+                        Style::new().fg(COLOR_TEXT_DEFAULT),
+                ));
                 lines.push(Line::default());
                 lines.push(Line::from(vec![
                     Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
@@ -398,7 +459,7 @@ fn render_import_did(
 
     frame.render_widget(
         Paragraph::new(vec![Line::styled(
-            "Enter the WebVH DID that you want to import:",
+            "Enter your WebVH DID:",
             Style::new().fg(COLOR_BORDER).bold(),
         )]),
         content[0],
@@ -459,18 +520,6 @@ fn render_import_did(
         }
     } else {
         lines.extend_from_slice(&[
-            Line::styled(
-                "ℹ️ Note: For example, if hosting your DID using GitHub Pages, use a URL like: ",
-                Style::new().fg(COLOR_ORANGE),
-            ),
-            Line::styled(
-                "         • https://<username>.github.io/",
-                Style::new().fg(COLOR_ORANGE).bold().italic(),
-            ),
-            Line::styled(
-                "         • https://<username>.github.io/lkmv-did/",
-                Style::new().fg(COLOR_ORANGE).bold().italic(),
-            ),
             Line::default(),
             Line::from(vec![
                 Span::styled("[ESC]", Style::new().fg(COLOR_BORDER).bold()),

@@ -74,7 +74,6 @@ impl UnlockCodeAsk {
                 "An unlock code encrypts your cryptographic keys, configuration, and private data stored by LKMV.",
                 Style::new().fg(COLOR_DARK_GRAY),
             ),
-            Line::default(),
             Line::styled(
                 "This prevents unauthorized access even if someone gains access to your device.",
                 Style::new().fg(COLOR_DARK_GRAY),

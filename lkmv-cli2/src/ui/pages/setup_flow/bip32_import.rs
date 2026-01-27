@@ -85,7 +85,7 @@ impl BIP32PhraseImport {
 
         render_setup_header(frame, top, state);
 
-        let content: [Rect; 4] = Layout::vertical([Length(3), Length(2), Length(2), Min(0)])
+        let content: [Rect; 4] = Layout::vertical([Length(4), Length(2), Length(2), Min(0)])
             .areas(middle.inner(Margin::new(3, 2)));
 
         let [input_prompt, input_box] = Layout::horizontal([Length(2), Min(0)]).areas(content[1]);
@@ -104,6 +104,7 @@ impl BIP32PhraseImport {
                     "Create your profile using an existing BIP39 recovery phrase to restore the same identity and security keys.",
                     Style::new().fg(COLOR_DARK_GRAY).bold(),
                 ),
+                Line::default(),
                 Line::styled(
                     "Enter your 24-word recovery phrase, separated by spaces:",
                     Style::new().fg(COLOR_BORDER).bold(),

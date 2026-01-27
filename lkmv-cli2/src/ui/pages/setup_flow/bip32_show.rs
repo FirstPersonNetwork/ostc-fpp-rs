@@ -78,7 +78,6 @@ impl BIP32PhraseShow {
                 "Your 24-word recovery phrase lets you restore your profile or set it up on another device using the same identity and security keys.",
                 Style::new().fg(COLOR_DARK_GRAY),
             ),
-            Line::default(),
             Line::styled(
                 "This recovery phrase is a BIP39 mnemonic used to deterministically derive your BIP32 keys.",
                 Style::new().fg(COLOR_DARK_GRAY),

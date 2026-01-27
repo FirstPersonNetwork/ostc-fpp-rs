@@ -134,23 +134,23 @@ impl ConfigImport {
         .areas(middle.inner(Margin::new(3, 2)));
 
         let [input0_prompt, input0_box] =
-            Layout::horizontal([Length(10), Min(0)]).areas(content[1]);
+            Layout::horizontal([Length(2), Min(0)]).areas(content[1]);
         let [input1_prompt, input1_box] =
-            Layout::horizontal([Length(12), Min(0)]).areas(content[3]);
+            Layout::horizontal([Length(2), Min(0)]).areas(content[3]);
         let [input2_prompt, input2_box] =
-            Layout::horizontal([Length(12), Min(0)]).areas(content[5]);
+            Layout::horizontal([Length(2), Min(0)]).areas(content[5]);
 
         frame.render_widget(
             Block::bordered()
                 .fg(COLOR_BORDER)
                 .padding(Padding::proportional(1))
-                .title(" Enter backup information "),
+                .title(" Import profile backup "),
             middle,
         );
 
         frame.render_widget(
             Paragraph::new(Line::styled(
-                "Enter filename of the backup file to import:",
+                "Backup file path:",
                 Style::new().fg(COLOR_BORDER).bold(),
             )),
             content[0],
@@ -158,7 +158,7 @@ impl ConfigImport {
 
         frame.render_widget(
             Paragraph::new(Span::styled(
-                "Filename: ",
+                "> ",
                 Style::new().fg(COLOR_SOFT_PURPLE).bold(),
             )),
             input0_prompt,
@@ -174,14 +174,14 @@ impl ConfigImport {
 
         frame.render_widget(
             Paragraph::new(Line::styled(
-                "Enter passphrase to decrypt the backup file",
+                "Backup file passphrase (leave blank if none):",
                 Style::new().fg(COLOR_BORDER).bold(),
             )),
             content[2],
         );
         frame.render_widget(
             Paragraph::new(Span::styled(
-                "Passphrase: ",
+                "> ",
                 Style::new().fg(COLOR_SOFT_PURPLE).bold(),
             )),
             input1_prompt,
@@ -197,14 +197,14 @@ impl ConfigImport {
 
         frame.render_widget(
             Paragraph::new(Line::styled(
-                "New passphrase for LKMV (Leave blank for no passphrase)",
+                "New unlock code for this profile (leave blank for none):",
                 Style::new().fg(COLOR_BORDER).bold(),
             )),
             content[4],
         );
         frame.render_widget(
             Paragraph::new(Span::styled(
-                "Passphrase: ",
+                "> ",
                 Style::new().fg(COLOR_SOFT_PURPLE).bold(),
             )),
             input2_prompt,
