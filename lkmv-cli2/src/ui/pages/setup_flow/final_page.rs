@@ -44,7 +44,7 @@ impl FinalPage {
         let block = Block::bordered()
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Profile Configuration ");
+            .title(" Profile configuration ");
 
         let mut lines = Vec::new();
         
