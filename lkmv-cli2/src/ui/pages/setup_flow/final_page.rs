@@ -1,5 +1,5 @@
 use crossterm::event::{KeyCode, KeyEvent};
-use lkmv::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED};
+use lkmv::{LF_PUBLIC_MEDIATOR_DID, colors::{COLOR_BORDER, COLOR_DARK_GRAY, COLOR_SOFT_PURPLE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED}};
 use ratatui::{
     Frame,
     layout::{
@@ -14,7 +14,7 @@ use ratatui::{
 use crate::{
     state_handler::{
         actions::Action,
-        setup_sequence::{MessageType, SetupState},
+        setup_sequence::{Completion, MessageType, SetupState},
     },
     ui::pages::setup_flow::{SetupFlow, render_setup_header},
 };
@@ -44,9 +44,10 @@ impl FinalPage {
         let block = Block::bordered()
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Setup Complete ");
+            .title(" Profile Configuration ");
 
         let mut lines = Vec::new();
+        
         for msg in state.final_page.messages.iter() {
             match msg {
                 MessageType::Info(info) => {
@@ -63,6 +64,52 @@ impl FinalPage {
                 }
             }
         }
+        
+        // Show congratulations and next steps if setup completed successfully
+        if matches!(state.final_page.completed, Completion::CompletedOK) {
+            lines.push(Line::default());
+            lines.push(Line::styled(
+                "Congratulations! Your LKMV profile is ready.",
+                Style::new().fg(COLOR_SUCCESS).bold(),
+            ));
+            lines.push(Line::default());
+            
+            // Display profile information
+            lines.push(Line::styled(
+                "Profile Summary:",
+                Style::new().fg(COLOR_BORDER).bold(),
+            ));
+            lines.push(Line::from(vec![
+                Span::styled("  Display Name: ", Style::new().fg(COLOR_SUCCESS)),
+                Span::styled(&state.username, Style::new().fg(COLOR_SOFT_PURPLE)),
+            ]));
+            lines.push(Line::from(vec![
+                Span::styled("  Persona DID: ", Style::new().fg(COLOR_SUCCESS)),
+                Span::styled(&state.webvh_address.did, Style::new().fg(COLOR_SOFT_PURPLE)),
+            ]));
+            
+            let mediator_did = state.custom_mediator.as_deref()
+                .unwrap_or(LF_PUBLIC_MEDIATOR_DID);
+            lines.push(Line::from(vec![
+                Span::styled("  Mediator DID: ", Style::new().fg(COLOR_SUCCESS)),
+                Span::styled(mediator_did, Style::new().fg(COLOR_SOFT_PURPLE)),
+            ]));
+            
+            lines.push(Line::default());
+            lines.push(Line::styled(
+                "You can now access the dashboard to:",
+                Style::new().fg(COLOR_BORDER).bold(),
+            ));
+            lines.push(Line::styled(
+                "  • Send relationship requests and connect with others.",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ));
+            lines.push(Line::styled(
+                "  • Issue and manage verifiable relationship credentials (VRCs).",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ));
+        }
+        
         lines.push(Line::default());
         lines.push(Line::from(vec![
             Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),

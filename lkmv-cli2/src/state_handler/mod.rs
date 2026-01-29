@@ -328,7 +328,7 @@ impl StateHandler {
                                 state.setup.webvh_address.did = did;
                                 state.setup.webvh_address.document = response.doc;
                                 state.setup.webvh_address.completed = Completion::CompletedOK;
-                                state.setup.webvh_address.messages.push(MessageType::Info("DID resolved successfully.".to_string()));
+                                state.setup.webvh_address.messages.push(MessageType::Info("Your DID resolved successfully.".to_string()));
                             },
                             Err(e) => {
                                 state.setup.webvh_address.completed = Completion::CompletedFail;
@@ -339,13 +339,14 @@ impl StateHandler {
                     Action::SetupCompleted(setup_flow) => {
                         // Final setup step completed
                         state.setup.active_page = SetupPage::FinalPage;
-                        state.setup.final_page.messages.push(MessageType::Info("Creating Configuration...".to_string()));
-                        state.setup.final_page.messages.push(MessageType::Info("You may be asked to unlock OS Secure Store...".to_string()));
+                        state.setup.final_page.messages.push(MessageType::Info("Generating your profile configuration...".to_string()));
+                        state.setup.final_page.messages.push(MessageType::Info("Securing sensitive data for storage...".to_string()));
+                        state.setup.final_page.messages.push(MessageType::Info("Your device may prompt for authentication to access OS secure storage.".to_string()));
                         self.state_tx.send(state.clone())?;
                         match Config::create(&state.setup, &setup_flow, &tdk, &self.profile).await {
                             Ok(_) => {
                                 state.setup.final_page.completed = Completion::CompletedOK;
-                                state.setup.final_page.messages.push(MessageType::Info("Setup Completed".to_string()));
+                                state.setup.final_page.messages.push(MessageType::Info("Profile setup completed successfully.".to_string()));
                             },
                             Err(e) => {
                                 state.setup.final_page.completed = Completion::CompletedFail;

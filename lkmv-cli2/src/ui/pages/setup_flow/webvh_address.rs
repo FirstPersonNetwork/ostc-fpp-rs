@@ -147,7 +147,7 @@ impl WebvhAddress {
             Block::bordered()
                 .fg(COLOR_BORDER)
                 .padding(Padding::proportional(1))
-                .title(" Step 2/2 Community DID Setup "),
+                .title(" Step 2/2 Persona DID Setup "),
             middle,
         );
 
@@ -331,7 +331,7 @@ Paragraph::new(vec![
             Completion::CompletedOK => {
                 lines.push(Line::from(vec![
                     Span::styled(
-                        "Your Community DID: ",
+                        "Your Persona DID: ",
                         Style::new().fg(COLOR_SUCCESS).bold(),
                     ),
                     Span::styled(

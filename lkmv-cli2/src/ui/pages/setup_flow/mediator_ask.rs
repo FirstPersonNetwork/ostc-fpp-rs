@@ -80,6 +80,7 @@ impl MediatorAsk {
                 "All communication uses secure messaging based on the DIDComm protocol and requires a mediator (relay service) for reliable message delivery.",
                 Style::new().fg(COLOR_DARK_GRAY),
             ),
+            Line::default(),
             Line::styled(
                 "Choose the default mediator, or select a custom mediator if your community requires one.",
                 Style::new().fg(COLOR_BORDER).bold(),
