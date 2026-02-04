@@ -92,13 +92,7 @@ impl StateHandler {
                 .await?;
 
                 match self
-                    .setup_wizard(
-                        &mut terminator,
-                        &mut action_rx,
-                        &mut interrupt_rx,
-                        &mut state,
-                        &tdk,
-                    )
+                    .setup_wizard(&mut action_rx, &mut interrupt_rx, &mut state, &tdk)
                     .await
                 {
                     Ok(SetupWizardExit::Config(config)) => (tdk, config),
@@ -176,7 +170,6 @@ impl StateHandler {
 
     async fn setup_wizard(
         &self,
-        terminator: &mut Terminator,
         action_rx: &mut UnboundedReceiver<Action>,
         interrupt_rx: &mut broadcast::Receiver<Interrupted>,
         state: &mut State,
@@ -184,6 +177,8 @@ impl StateHandler {
     ) -> Result<SetupWizardExit> {
         state.active_page = ActivePage::Setup;
 
+        // Holder for the created config
+        let mut config: Option<Config> = None;
         let exit = loop {
             self.state_tx.send(state.clone())?;
             tokio::select! {
@@ -221,6 +216,13 @@ impl StateHandler {
                         state.active_page = ActivePage::Main;
                         state.main_page.menu_panel.selected = true;
                         state.main_page.content_panel.selected = false;
+
+                        if let Some(cfg) = config {
+                            break SetupWizardExit::Config(Box::new(cfg));
+                        } else {
+                            // Somehow we don't have a config - this is a code logic error
+                            state.setup.final_page.messages.push(MessageType::Error("Setup Wizard completed but no configuration was created.".to_string()));
+                        }
                     },
                 Action::SetProtection(protection, next_page) => {
                         // Set the Config Protection method in setup state
@@ -425,10 +427,10 @@ impl StateHandler {
                         state.setup.final_page.messages.push(MessageType::Info("Your device may prompt for authentication to access OS secure storage.".to_string()));
                         self.state_tx.send(state.clone())?;
                         match Config::create(&state.setup, &setup_flow, tdk, &self.profile).await {
-                            Ok(config) => {
+                            Ok(cfg) => {
                                 state.setup.final_page.completed = Completion::CompletedOK;
                                 state.setup.final_page.messages.push(MessageType::Info("Profile setup completed successfully.".to_string()));
-                                break SetupWizardExit::Config(Box::new(config));
+                                config = Some(cfg);
                             },
                             Err(e) => {
                                 state.setup.final_page.completed = Completion::CompletedFail;

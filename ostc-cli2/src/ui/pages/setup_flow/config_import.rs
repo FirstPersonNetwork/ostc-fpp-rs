@@ -7,7 +7,7 @@ use crate::{
 };
 use crossterm::event::{Event, KeyCode, KeyEvent};
 use ostc::colors::{
-    COLOR_BORDER, COLOR_SOFT_PURPLE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT,
+    COLOR_BORDER, COLOR_DARK_GRAY, COLOR_SOFT_PURPLE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT,
     COLOR_WARNING_ACCESSIBLE_RED,
 };
 use ratatui::{
@@ -25,7 +25,7 @@ use tui_input::{Input, backend::crossterm::EventHandler};
 // ****************************************************************************
 // Config Import
 // ****************************************************************************
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct ConfigImport {
     /// 0 = filename
     /// 1 = config unlock passphrase
@@ -35,6 +35,17 @@ pub struct ConfigImport {
     pub filename: Input,
     pub config_unlock_passphrase: Input,
     pub new_unlock_passphrase: Input,
+}
+
+impl Default for ConfigImport {
+    fn default() -> Self {
+        Self {
+            active_input: 0,
+            filename: Input::new("export.ostc".to_string()),
+            config_unlock_passphrase: Input::default(),
+            new_unlock_passphrase: Input::default(),
+        }
+    }
 }
 
 impl ConfigImport {
@@ -235,6 +246,11 @@ impl ConfigImport {
         lines.push(Line::default());
 
         if let Completion::CompletedOK = state.config_import.completed {
+            lines.push(Line::styled(
+                "You need to exit and reload OSTC to activate the imported configuration.",
+                Style::new().fg(COLOR_DARK_GRAY),
+            ));
+            lines.push(Line::default());
             lines.push(Line::from(vec![
                 Span::styled("[ENTER]", Style::new().fg(COLOR_BORDER).bold()),
                 Span::styled(" to exit", Style::new().fg(COLOR_TEXT_DEFAULT)),
