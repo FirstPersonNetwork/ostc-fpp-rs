@@ -1,6 +1,6 @@
 # Open Source Trust Communities with First Person Protocol
 
-[![Rust](https://img.shields.io/badge/rust-1.88.0%2B-blue.svg?maxAge=3600)](https://github.com/FirstPersonNetwork/ostc-ostc-rs)
+[![Rust](https://img.shields.io/badge/rust-1.90.0%2B-blue.svg?maxAge=3600)](https://github.com/FirstPersonNetwork/ostc-ostc-rs)
 
 A CLI tool for establishing verifiable trust relationships within developer
 communities using Decentralised Identifiers (DIDs) and Verifiable Credentials
