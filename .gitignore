@@ -2,6 +2,6 @@
 *.key
 did.jsonl
 did.json
-export.lkmv
+export.ostc
 /.vscode
 /.github
