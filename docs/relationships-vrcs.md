@@ -1,6 +1,6 @@
 # Relationships and VRCs
 
-The OSTC tool enables you to establish relationships with other DIDs (e.g., peers, coworkers, or community members) and communicate privately through the DIDComm protocol using your **Persona DID (P-DID)** or **Relationship DID (R-DID)**.
+The OpenVTC tool enables you to establish relationships with other DIDs (e.g., peers, coworkers, or community members) and communicate privately through the DIDComm protocol using your **Persona DID (P-DID)** or **Relationship DID (R-DID)**.
 
 Once a relationship is established, you can request a **Verifiable Relationship Credential (VRC)**, a peer-to-peer credential that attests to verifiable trust relationships between personhood credential holders.
 
@@ -52,7 +52,7 @@ Follow these steps to establish a relationship with another Persona DID.
 Send a relationship request to another DID:
 
 ```bash
-ostc relationships request --respondent <Persona_DID> --alias <Respondent_Alias>
+openvtc relationships request --respondent <Persona_DID> --alias <Respondent_Alias>
 ```
 
 This command sends a relationship request and sets an alias for the relationship.
@@ -60,7 +60,7 @@ This command sends a relationship request and sets an alias for the relationship
 **Optional:** Generate a local Relationship DID (R-DID) for private communication:
 
 ```bash
-ostc relationships request --respondent <Persona_DID> --alias <Respondent_Alias> --generate-did
+openvtc relationships request --respondent <Persona_DID> --alias <Respondent_Alias> --generate-did
 ```
 
 When an R-DID is present, subsequent communication uses the R-DID for privacy; otherwise, it uses your P-DID.
@@ -75,14 +75,14 @@ Generated new Relationship DID for contact FrancisP2 :: did:peer:2.Vz6Mkkop...
 ✅ Successfully sent Relationship Request to did:webvh:QmQzm...
 ```
 
-For more details, see the [CLI documentation](./ostc-tool-commands.md/#ostc-relationships).
+For more details, see the [CLI documentation](./openvtc-tool-commands.md/#openvtc-relationships).
 
 ### 2. Accept Relationship Request (Respondent)
 
 1. Fetch and process incoming requests:
 
    ```bash
-   ostc tasks interact
+   openvtc tasks interact
    ```
 
    The tool fetches messages from the mediator. If you have a relationship request, you'll see a task with type **`Relationship Request`**.
@@ -107,7 +107,7 @@ Both parties must complete finalisation:
 
 #### 1. Requestor
 
-Run `ostc tasks interact` to fetch the acceptance message. This updates the relationship status from **`Request Sent`** to **`Established`** and sends a finalisation message to the respondent.
+Run `openvtc tasks interact` to fetch the acceptance message. This updates the relationship status from **`Request Sent`** to **`Established`** and sends a finalisation message to the respondent.
 
 Refer to the sample response below:
 
@@ -118,7 +118,7 @@ Task Id: 020bb98e-5460-4d42-b369-bf4a65b4909c Type: Relationship request accepte
 
 #### 2. Respondent
 
-Run `ostc tasks interact` to fetch the finalisation message. This updates the relationship status from **`Request Accepted`** to **`Established`**.
+Run `openvtc tasks interact` to fetch the finalisation message. This updates the relationship status from **`Request Accepted`** to **`Established`**.
 
 Once both parties have **`Established`** status, you can communicate and request VRCs.
 
@@ -144,7 +144,7 @@ You must establish a relationship before requesting a VRC. To request for relati
 Request a VRC from an established relationship:
 
 ```bash
-ostc vrcs request
+openvtc vrcs request
 ```
 
 1. Select the relationship from which you want to request a VRC.
@@ -168,7 +168,7 @@ ostc vrcs request
 1. Fetch and process VRC requests:
 
    ```bash
-   ostc tasks interact
+   openvtc tasks interact
    ```
 
    You'll see tasks with type `VRC Request`. Select the task and click **Accept this VRC request**.
@@ -220,7 +220,7 @@ For more details, see the [draft specification](https://github.com/trustoverip/d
 After the VRC is issued, claim it:
 
 ```bash
-ostc tasks interact
+openvtc tasks interact
 ```
 
 Select the task with type **`VRC Issued`**. Review the credential details and select **Accept this VRC** to store it locally.
@@ -230,7 +230,7 @@ Select the task with type **`VRC Issued`**. Review the credential details and se
 **List all VRCs:**
 
 ```bash
-ostc vrcs list
+openvtc vrcs list
 ```
 
 This displays all VRCs (issued or claimed) stored locally.
@@ -238,9 +238,9 @@ This displays all VRCs (issued or claimed) stored locally.
 **View a specific VRC:**
 
 ```bash
-ostc vrcs show <VRC_ID>
+openvtc vrcs show <VRC_ID>
 ```
 
 This displays the credential details on the screen.
 
-For more details, see the [CLI documentation](ostc-tool-commands.md#ostc-vrcs).
+For more details, see the [CLI documentation](openvtc-tool-commands.md#openvtc-vrcs).

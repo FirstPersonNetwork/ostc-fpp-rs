@@ -1,12 +1,12 @@
-# Open Source Trust Communities with First Person Protocol
+# Open Verifiable Trust Community (OpenVTC) with First Person Protocol
 
-[![Rust](https://img.shields.io/badge/rust-1.90.0%2B-blue.svg?maxAge=3600)](https://github.com/FirstPersonNetwork/ostc-ostc-rs)
+[![Rust](https://img.shields.io/badge/rust-1.90.0%2B-blue.svg?maxAge=3600)](https://github.com/FirstPersonNetwork/openvtc-openvtc-rs)
 
 A CLI tool for establishing verifiable trust relationships within developer
 communities using Decentralised Identifiers (DIDs) and Verifiable Credentials
 (VCs).
 
-OSTC OSTC implements open standards and protocols to enable _"Know Your Developer"_
+OpenVTC implements open standards and protocols to enable _"Know Your Developer"_
 capabilities, following the [First Person Project white paper](https://www.firstperson.network/white-paper)
 for establishing and verifying **first-person trust relationships** using
 Personhood Credentials (PHCs) and Verifiable Relationship Credentials (VRCs).
@@ -41,19 +41,19 @@ cargo install --path .
 Run setup wizard.
 
 ```bash
-ostc setup
+openvtc setup
 ```
 
 Check status.
 
 ```bash
-ostc status
+openvtc status
 ```
 
 View available commands.
 
 ```bash
-ostc --help
+openvtc --help
 ```
 
 ## Core Concepts
@@ -70,9 +70,9 @@ ostc --help
 
 ## Decentralised Identity
 
-The OSTC tool uses the did:webvh to create your Persona DID. WebVH is a DID method that enhances the existing did:web method, introducing:
+The OpenVTC tool uses the did:webvh to create your Persona DID. WebVH is a DID method that enhances the existing did:web method, introducing:
 
-The OSTC tool uses the `did:webvh` to create your **Persona DID (P-DID)**. It enhances the existing `did:web` method, providing:
+The OpenVTC tool uses the `did:webvh` to create your **Persona DID (P-DID)**. It enhances the existing `did:web` method, providing:
 
 - Portability with a self-certifying identifier (SCID), allowing you to move to a different domain.
 
@@ -88,7 +88,7 @@ _Sample did:webvh identifier:_
 
 ## Decentralised Communication
 
-OSTC seamlessly integrates with DIDComm-compatible mediators for secure, private communication using your **Persona DID (P-DID)** or **Relationship DID (R-DID)**.
+OpenVTC seamlessly integrates with DIDComm-compatible mediators for secure, private communication using your **Persona DID (P-DID)** or **Relationship DID (R-DID)**.
 
 DIDComm mediators handle message routing and storage while preserving privacy through end-to-end encryption. Messages are structured in multiple "envelope" layers providing:
 
@@ -103,15 +103,15 @@ _Sample DIDComm message envelopes._
 
 ## Profiles and Configurations
 
-OSTC supports multiple profiles, allowing you to represent different identities across various contexts.
+OpenVTC supports multiple profiles, allowing you to represent different identities across various contexts.
 
-To use a specific profile when running the tool, set the environment variable `OSTC_CONFIG_PROFILE` with the name of your profile. For example:
+To use a specific profile when running the tool, set the environment variable `OPENVTC_CONFIG_PROFILE` with the name of your profile. For example:
 
 ```bash
-export OSTC_CONFIG_PROFILE=profile-1
+export OPENVTC_CONFIG_PROFILE=profile-1
 ```
 
-> **Tip:** Add `OSTC_CONFIG_PROFILE` variable to ~/.zshrc or ~/.bashrc to persist across terminal sessions.
+> **Tip:** Add `OPENVTC_CONFIG_PROFILE` variable to ~/.zshrc or ~/.bashrc to persist across terminal sessions.
 
 Each profile manages two types of configurations:
 
@@ -126,16 +126,16 @@ Stored in JSON format, the public configuration contains environment-specific de
 
 Config file location:
 
-- Default profile: `~/.config/ostc/config.json`
-- Named profiles: `~/.config/ostc/config-<PROFILE_NAME>.json`
+- Default profile: `~/.config/openvtc/config.json`
+- Named profiles: `~/.config/openvtc/config-<PROFILE_NAME>.json`
 
-You can change the default location where the public configuration is saved by setting the environment variable `OSTC_CONFIG_PATH` with the new path. For example:
+You can change the default location where the public configuration is saved by setting the environment variable `OPENVTC_CONFIG_PATH` with the new path. For example:
 
 ```bash
-export OSTC_CONFIG_PATH=~/.config/ostc-tool
+export OPENVTC_CONFIG_PATH=~/.config/openvtc-tool
 ```
 
-> **Tip:** Add `OSTC_CONFIG_PATH` variable to ~/.zshrc or ~/.bashrc to persist across terminal sessions.
+> **Tip:** Add `OPENVTC_CONFIG_PATH` variable to ~/.zshrc or ~/.bashrc to persist across terminal sessions.
 
 ### Private Configuration
 
@@ -165,15 +165,15 @@ For more details, refer to the [Secured Configuration Management](./docs/secured
 
 1. Rust version 1.88 or higher (Install [Rust](https://rust-lang.org/learn/get-started/))
 2. Publicly accessible domain to host your DID document.
-3. **Optional:** DIDComm mediator to send messages. OSTC provides a default DIDComm mediator.
+3. **Optional:** DIDComm mediator to send messages. OpenVTC provides a default DIDComm mediator.
 4. **Optional:** Set environment variables.
-   - `OSTC_CONFIG_PATH`: Path to ostc configuration files (default:
-     `~/.config/ostc/config.json`).
-   - `OSTC_CONFIG_PROFILE`: Set a specific configuration profile (defaults to `default`).
+   - `OPENVTC_CONFIG_PATH`: Path to openvtc configuration files (default:
+     `~/.config/openvtc/config.json`).
+   - `OPENVTC_CONFIG_PROFILE`: Set a specific configuration profile (defaults to `default`).
 
 ## Feature Flags
 
-OSTC currently supports `openpgp-card` as an option to perform cryptographic operations, such as signing and authentication.
+OpenVTC currently supports `openpgp-card` as an option to perform cryptographic operations, such as signing and authentication.
 
 | Flag           | Description                               | Default |
 | -------------- | ----------------------------------------- | ------- |
@@ -182,7 +182,7 @@ OSTC currently supports `openpgp-card` as an option to perform cryptographic ope
 To turn off default features, use `--no-default-features` flag on the setup command.
 
 ```bash
-ostc --no-default-features setup
+openvtc --no-default-features setup
 ```
 
 ## Getting Started
@@ -200,13 +200,13 @@ ostc --no-default-features setup
 2. Run the setup wizard.
 
    ```bash
-   ostc setup
+   openvtc setup
    ```
 
    To set up a named profile instead of **default**, set the `-p/--profile` option.
 
    ```bash
-   ostc -p profile-1 setup
+   openvtc -p profile-1 setup
    ```
 
 Follow the prompts to:
@@ -218,7 +218,7 @@ Follow the prompts to:
 
 ### Host Your DID Document
 
-After setup, OSTC generates a `did.jsonl` file for your Persona DID. The file must be hosted at a specific URL matching your configured DID.
+After setup, OpenVTC generates a `did.jsonl` file for your Persona DID. The file must be hosted at a specific URL matching your configured DID.
 
 The `did:webvh` method resolves your DID by fetching the DID document from a well-known location on the web. If the document is not hosted at the correct URL, the DID cannot be resolved or used.
 
@@ -242,18 +242,18 @@ To set up multiple profiles for the same domain, see the [Multiple DIDs on Same 
 
 ## Check Setup Status
 
-The OSTC configures your environment to ensure your setup is safe, secure, and private when running the tool.
+The OpenVTC configures your environment to ensure your setup is safe, secure, and private when running the tool.
 
 To check the status or health of your current environment, run the following command.
 
 ```bash
-ostc status
+openvtc status
 ```
 
 If you wish to check the status for a specific profile, run the following the command.
 
 ```bash
-ostc -p profile-1 status
+openvtc -p profile-1 status
 ```
 
 When successful, it displays the following info:
@@ -269,7 +269,7 @@ When successful, it displays the following info:
 To run commands from installed binary:
 
 ```bash
-ostc status
+openvtc status
 ```
 
 To run commands from the source:
@@ -278,11 +278,11 @@ To run commands from the source:
 cargo run -- status
 ```
 
-Refer to the complete [command reference](./docs/ostc-tool-commands.md).
+Refer to the complete [command reference](./docs/openvtc-tool-commands.md).
 
 ## Additional Resources
 
-Additional resources to learn more about the Open Source Trust Community (OSTC) Tool.
+Additional resources to learn more about the Open Source Trust Community (OpenVTC) Tool.
 
 - [First Person Project White Paper](https://www.firstperson.network/white-paper)
 - [Relationships and VRCs Guide](./docs/relationships-vrcs.md)
@@ -290,4 +290,4 @@ Additional resources to learn more about the Open Source Trust Community (OSTC) 
 - [Secured Configuration Management](./docs/secured-configuration-management.md)
 - [Backup and Restore](./docs/backup-restore.md)
 - [Multiple Profiles Setup](./docs/multiple-didweb-same-domain.md)
-- [Config Data Structure](./docs/ostc-config-data-structure.md)
+- [Config Data Structure](./docs/openvtc-config-data-structure.md)
