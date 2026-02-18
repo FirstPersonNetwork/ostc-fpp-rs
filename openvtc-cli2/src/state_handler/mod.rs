@@ -274,6 +274,28 @@ impl StateHandler {
                                         state.setup.vta.authenticated = true;
                                         state.setup.vta.messages.push(MessageType::Info("VTA authentication successful.".to_string()));
                                         state.setup.vta.completed = Completion::CompletedOK;
+
+                                        // Discover admin's allowed contexts from ACL
+                                        {
+                                            use vta_sdk::client::VtaClient;
+                                            let mut acl_client = VtaClient::new(&vta_url);
+                                            acl_client.set_token(state.setup.vta.access_token.clone().unwrap());
+                                            match acl_client.get_acl(&state.setup.vta.credential_did).await {
+                                                Ok(acl) => {
+                                                    if acl.allowed_contexts.len() == 1 {
+                                                        state.setup.vta.context_id = Some(acl.allowed_contexts[0].clone());
+                                                        state.setup.vta.messages.push(MessageType::Info(
+                                                            format!("Context: {}", acl.allowed_contexts[0]),
+                                                        ));
+                                                    }
+                                                }
+                                                Err(e) => {
+                                                    state.setup.vta.messages.push(MessageType::Info(
+                                                        format!("Could not discover context: {e}"),
+                                                    ));
+                                                }
+                                            }
+                                        }
                                     }
                                     Err(e) => {
                                         state.setup.vta.messages.push(MessageType::Error(format!("Authentication failed: {e}")));
@@ -316,6 +338,28 @@ impl StateHandler {
                                 state.setup.vta.authenticated = true;
                                 state.setup.vta.messages.push(MessageType::Info("VTA authentication successful.".to_string()));
                                 state.setup.vta.completed = Completion::CompletedOK;
+
+                                // Discover admin's allowed contexts from ACL
+                                {
+                                    use vta_sdk::client::VtaClient;
+                                    let mut acl_client = VtaClient::new(&vta_url);
+                                    acl_client.set_token(state.setup.vta.access_token.clone().unwrap());
+                                    match acl_client.get_acl(&state.setup.vta.credential_did).await {
+                                        Ok(acl) => {
+                                            if acl.allowed_contexts.len() == 1 {
+                                                state.setup.vta.context_id = Some(acl.allowed_contexts[0].clone());
+                                                state.setup.vta.messages.push(MessageType::Info(
+                                                    format!("Context: {}", acl.allowed_contexts[0]),
+                                                ));
+                                            }
+                                        }
+                                        Err(e) => {
+                                            state.setup.vta.messages.push(MessageType::Info(
+                                                format!("Could not discover context: {e}"),
+                                            ));
+                                        }
+                                    }
+                                }
                             }
                             Err(e) => {
                                 state.setup.vta.messages.push(MessageType::Error(format!("Authentication failed: {e}")));
@@ -339,7 +383,8 @@ impl StateHandler {
                         client.set_token(access_token);
 
                         // Create persona keys (signing, authentication, encryption)
-                        match vta::create_persona_keys(&client).await {
+                        let context_id = state.setup.vta.context_id.as_deref();
+                        match vta::create_persona_keys(&client, context_id).await {
                             Ok(persona_keys) => {
                                 state.setup.vta.messages.push(MessageType::Info("Persona keys created successfully.".to_string()));
                                 self.state_tx.send(state.clone())?;
@@ -348,7 +393,7 @@ impl StateHandler {
                                 state.setup.vta.messages.push(MessageType::Info("Creating WebVH update keys...".to_string()));
                                 self.state_tx.send(state.clone())?;
 
-                                match vta::create_update_keys(&client).await {
+                                match vta::create_update_keys(&client, context_id).await {
                                     Ok((update_secret, next_update_secret)) => {
                                         state.setup.vta.update_secret = Some(update_secret);
                                         state.setup.vta.next_update_secret = Some(next_update_secret);

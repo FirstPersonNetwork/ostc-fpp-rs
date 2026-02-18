@@ -35,7 +35,7 @@ pub async fn authenticate(
 /// Create persona keys via VTA service
 /// Creates 3 keys: Ed25519 signing, Ed25519 auth, X25519 encryption
 /// Returns PersonaDIDKeys with VtaManaged source
-pub async fn create_persona_keys(client: &VtaClient) -> Result<PersonaDIDKeys> {
+pub async fn create_persona_keys(client: &VtaClient, context_id: Option<&str>) -> Result<PersonaDIDKeys> {
     let created = Utc::now();
 
     // Signing key (Ed25519)
@@ -46,7 +46,7 @@ pub async fn create_persona_keys(client: &VtaClient) -> Result<PersonaDIDKeys> {
             key_id: None,
             mnemonic: None,
             label: Some("persona-signing".to_string()),
-            context_id: None,
+            context_id: context_id.map(|s| s.to_string()),
         })
         .await
         .map_err(|e| anyhow::anyhow!("Failed to create signing key: {e}"))?;
@@ -77,7 +77,7 @@ pub async fn create_persona_keys(client: &VtaClient) -> Result<PersonaDIDKeys> {
             key_id: None,
             mnemonic: None,
             label: Some("persona-authentication".to_string()),
-            context_id: None,
+            context_id: context_id.map(|s| s.to_string()),
         })
         .await
         .map_err(|e| anyhow::anyhow!("Failed to create authentication key: {e}"))?;
@@ -108,7 +108,7 @@ pub async fn create_persona_keys(client: &VtaClient) -> Result<PersonaDIDKeys> {
             key_id: None,
             mnemonic: None,
             label: Some("persona-encryption".to_string()),
-            context_id: None,
+            context_id: context_id.map(|s| s.to_string()),
         })
         .await
         .map_err(|e| anyhow::anyhow!("Failed to create encryption key: {e}"))?;
@@ -140,7 +140,7 @@ pub async fn create_persona_keys(client: &VtaClient) -> Result<PersonaDIDKeys> {
 
 /// Create WebVH update keys via VTA service
 /// Returns (update_secret, next_update_secret)
-pub async fn create_update_keys(client: &VtaClient) -> Result<(Secret, Secret)> {
+pub async fn create_update_keys(client: &VtaClient, context_id: Option<&str>) -> Result<(Secret, Secret)> {
     // Update key (Ed25519)
     let update_resp = client
         .create_key(CreateKeyRequest {
@@ -149,7 +149,7 @@ pub async fn create_update_keys(client: &VtaClient) -> Result<(Secret, Secret)> 
             key_id: None,
             mnemonic: None,
             label: Some("webvh-update".to_string()),
-            context_id: None,
+            context_id: context_id.map(|s| s.to_string()),
         })
         .await
         .map_err(|e| anyhow::anyhow!("Failed to create WebVH update key: {e}"))?;
@@ -170,7 +170,7 @@ pub async fn create_update_keys(client: &VtaClient) -> Result<(Secret, Secret)> 
             key_id: None,
             mnemonic: None,
             label: Some("webvh-next-update".to_string()),
-            context_id: None,
+            context_id: context_id.map(|s| s.to_string()),
         })
         .await
         .map_err(|e| anyhow::anyhow!("Failed to create WebVH next update key: {e}"))?;

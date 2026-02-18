@@ -118,6 +118,7 @@ pub struct VtaSetupState {
     pub access_token: Option<String>,
     pub messages: Vec<MessageType>,
     pub completed: Completion,
+    pub context_id: Option<String>,
     pub update_secret: Option<Secret>,
     pub next_update_secret: Option<Secret>,
 }
