@@ -1,5 +1,7 @@
 use crossterm::event::{Event, KeyCode, KeyEvent};
-use openvtc::colors::{COLOR_BORDER, COLOR_DARK_GRAY, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT};
+use openvtc::colors::{
+    COLOR_BORDER, COLOR_DARK_GRAY, COLOR_ORANGE, COLOR_SOFT_PURPLE, COLOR_TEXT_DEFAULT,
+};
 use ratatui::{
     Frame,
     layout::{
@@ -8,7 +10,7 @@ use ratatui::{
     },
     style::{Style, Stylize},
     text::{Line, Span},
-    widgets::{Block, Padding, Paragraph},
+    widgets::{Block, Padding, Paragraph, Wrap},
 };
 use tui_input::{Input, backend::crossterm::EventHandler};
 
@@ -63,8 +65,9 @@ impl VtaCredentialPaste {
 
         render_setup_header(frame, top, state);
 
-        let content: [Rect; 4] = Layout::vertical([Length(6), Length(2), Length(2), Min(0)])
-            .areas(middle.inner(Margin::new(3, 2)));
+        let content: [Rect; 5] =
+            Layout::vertical([Length(6), Length(2), Length(2), Length(2), Min(0)])
+                .areas(middle.inner(Margin::new(3, 2)));
 
         let [input_prompt, input_box] = Layout::horizontal([Length(2), Min(0)]).areas(content[1]);
 
@@ -124,6 +127,55 @@ impl VtaCredentialPaste {
                 content[3],
             );
         }
+
+        // PNM instructions
+        let pnm_lines = vec![
+            Line::styled(
+                "Don't have a credential? Use the PNM CLI to create one:",
+                Style::new().fg(COLOR_ORANGE).bold(),
+            ),
+            Line::default(),
+            Line::styled(
+                "1. Set up PNM with your VTA service URL:",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ),
+            Line::styled(
+                "   pnm setup --url <VTA_URL>",
+                Style::new().fg(COLOR_SOFT_PURPLE),
+            ),
+            Line::default(),
+            Line::styled(
+                "2. Create a new context and generate admin credentials:",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ),
+            Line::styled(
+                "   pnm contexts bootstrap --id <CONTEXT_ID> --name <NAME>",
+                Style::new().fg(COLOR_SOFT_PURPLE),
+            ),
+            Line::styled(
+                "   This outputs a one-time admin credential bundle.",
+                Style::new().fg(COLOR_DARK_GRAY),
+            ),
+            Line::default(),
+            Line::styled(
+                "   Or generate a credential for an existing context:",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ),
+            Line::styled(
+                "   pnm auth-credential create --role admin",
+                Style::new().fg(COLOR_SOFT_PURPLE),
+            ),
+            Line::default(),
+            Line::styled(
+                "3. Copy the base64 credential bundle and paste it above.",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ),
+        ];
+
+        frame.render_widget(
+            Paragraph::new(pnm_lines).wrap(Wrap { trim: false }),
+            content[4],
+        );
 
         let bottom_line = Line::from(vec![
             Span::styled("[F10]", Style::new().fg(COLOR_BORDER).bold()),
