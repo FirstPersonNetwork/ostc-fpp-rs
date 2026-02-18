@@ -15,10 +15,7 @@ use ratatui::{
 use tui_input::{Input, backend::crossterm::EventHandler};
 
 use crate::{
-    state_handler::{
-        actions::Action,
-        setup_sequence::SetupState,
-    },
+    state_handler::{actions::Action, setup_sequence::SetupState},
     ui::pages::setup_flow::{SetupFlow, render_setup_header},
 };
 
@@ -86,7 +83,7 @@ impl VtaCredentialPaste {
                     Style::new().fg(COLOR_DARK_GRAY),
                 ),
                 Line::styled(
-                    "You should have received a credential bundle from your VTA administrator.",
+                    "To connect to your VTA, please follow the instructions below.",
                     Style::new().fg(COLOR_DARK_GRAY),
                 ),
                 Line::default(),

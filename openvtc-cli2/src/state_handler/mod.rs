@@ -239,7 +239,12 @@ impl StateHandler {
                         use crate::state_handler::setup_sequence::vta;
                         match vta::decode_credential(&credential_input) {
                             Ok(bundle) => {
-                                let vta_url = bundle.vta_url.clone().unwrap_or_default();
+                                // Resolve VTA URL from DID document's #vta service endpoint,
+                                // falling back to bundle URL if resolution fails
+                                let vta_url = match vta_sdk::session::resolve_vta_url(&bundle.vta_did).await {
+                                    Ok(url) => url,
+                                    Err(_) => bundle.vta_url.clone().unwrap_or_default(),
+                                };
                                 state.setup.vta.credential_bundle_raw = Some(credential_input);
                                 state.setup.vta.credential_did = bundle.did.clone();
                                 state.setup.vta.vta_url = vta_url.clone();
@@ -247,6 +252,13 @@ impl StateHandler {
                                 state.setup.vta.messages.clear();
                                 state.setup.vta.completed = Completion::NotFinished;
                                 state.setup.active_page = SetupPage::VtaAuthenticate;
+
+                                // Pre-populate mediator DID from #didcomm service endpoint
+                                if let Ok(Some(mediator_did)) = vta_sdk::session::resolve_mediator_did(&bundle.vta_did).await {
+                                    state.setup.custom_mediator = Some(mediator_did);
+                                }
+
+                                state.setup.vta.messages.push(MessageType::Info(format!("VTA URL: {}", vta_url)));
                                 state.setup.vta.messages.push(MessageType::Info("Authenticating with VTA...".to_string()));
                                 self.state_tx.send(state.clone())?;
 
@@ -286,10 +298,15 @@ impl StateHandler {
 
                         let credential_raw = state.setup.vta.credential_bundle_raw.clone().unwrap();
                         let bundle = vta::decode_credential(&credential_raw).unwrap();
-                        let vta_url = bundle.vta_url.as_deref().unwrap_or(&state.setup.vta.vta_url);
+
+                        // Resolve VTA URL from DID document, falling back to stored URL
+                        let vta_url = match vta_sdk::session::resolve_vta_url(&bundle.vta_did).await {
+                            Ok(url) => url,
+                            Err(_) => state.setup.vta.vta_url.clone(),
+                        };
 
                         match vta::authenticate(
-                            vta_url,
+                            &vta_url,
                             &bundle.did,
                             &bundle.private_key_multibase,
                             &bundle.vta_did,
