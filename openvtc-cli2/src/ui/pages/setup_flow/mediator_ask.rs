@@ -91,7 +91,7 @@ impl MediatorAsk {
         // Render the active chocie
         if let MediatorAsk::Default = self {
             lines.push(Line::styled(
-                "[✓] Use Default OpenVTC Community Mediator (recommended)",
+                "[✓] Use the Default OpenVTC Mediator (recommended)",
                 Style::new().fg(COLOR_SUCCESS).bold(),
             ));
             lines.push(Line::styled(
@@ -104,7 +104,7 @@ impl MediatorAsk {
             ));
         } else {
             lines.push(Line::styled(
-                "[ ] Use Default OpenVTC Community Mediator (recommended)",
+                "[ ] Use the Default OpenVTC Mediator (recommended)",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ));
             lines.push(Line::styled(
