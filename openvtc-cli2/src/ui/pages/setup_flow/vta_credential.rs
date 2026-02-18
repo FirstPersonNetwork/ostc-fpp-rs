@@ -145,8 +145,12 @@ impl VtaCredentialPaste {
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ),
             Line::styled(
-                "   pnm setup --url <VTA_URL> --credential <ADMIN_CREDENTIAL>",
+                "   pnm setup --credential <ADMIN_CREDENTIAL>",
                 Style::new().fg(COLOR_SOFT_PURPLE),
+            ),
+            Line::styled(
+                "   Or run 'pnm setup' and paste the credential when prompted.",
+                Style::new().fg(COLOR_DARK_GRAY),
             ),
             Line::default(),
             Line::styled(
