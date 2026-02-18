@@ -7,7 +7,7 @@ use openvtc::config::{
     secured_config::KeySourceMaterial,
 };
 use vta_sdk::{
-    client::{CreateKeyRequest, GetKeySecretResponse, VtaClient},
+    client::{CreateKeyRequest, VtaClient},
     credentials::CredentialBundle,
     keys::KeyType,
     session::{TokenResult, challenge_response},
@@ -56,7 +56,8 @@ pub async fn create_persona_keys(client: &VtaClient) -> Result<PersonaDIDKeys> {
         .await
         .map_err(|e| anyhow::anyhow!("Failed to get signing key secret: {e}"))?;
 
-    let mut sign_secret = secret_from_vta_response(&sign_secret_resp)?;
+    let mut sign_secret = vta_sdk::did_key::secret_from_key_response(&sign_secret_resp)
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
     sign_secret.id = sign_secret.get_public_keymultibase()?;
 
     let signing = KeyInfo {
@@ -86,7 +87,8 @@ pub async fn create_persona_keys(client: &VtaClient) -> Result<PersonaDIDKeys> {
         .await
         .map_err(|e| anyhow::anyhow!("Failed to get authentication key secret: {e}"))?;
 
-    let mut auth_secret = secret_from_vta_response(&auth_secret_resp)?;
+    let mut auth_secret = vta_sdk::did_key::secret_from_key_response(&auth_secret_resp)
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
     auth_secret.id = auth_secret.get_public_keymultibase()?;
 
     let authentication = KeyInfo {
@@ -116,7 +118,8 @@ pub async fn create_persona_keys(client: &VtaClient) -> Result<PersonaDIDKeys> {
         .await
         .map_err(|e| anyhow::anyhow!("Failed to get encryption key secret: {e}"))?;
 
-    let mut enc_secret = secret_from_vta_response(&enc_secret_resp)?;
+    let mut enc_secret = vta_sdk::did_key::secret_from_key_response(&enc_secret_resp)
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
     enc_secret.id = enc_secret.get_public_keymultibase()?;
 
     let decryption = KeyInfo {
@@ -156,7 +159,8 @@ pub async fn create_update_keys(client: &VtaClient) -> Result<(Secret, Secret)> 
         .await
         .map_err(|e| anyhow::anyhow!("Failed to get WebVH update key secret: {e}"))?;
 
-    let update_secret = secret_from_vta_response(&update_secret_resp)?;
+    let update_secret = vta_sdk::did_key::secret_from_key_response(&update_secret_resp)
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
     // Next update key (Ed25519)
     let next_update_resp = client
@@ -176,23 +180,8 @@ pub async fn create_update_keys(client: &VtaClient) -> Result<(Secret, Secret)> 
         .await
         .map_err(|e| anyhow::anyhow!("Failed to get WebVH next update key secret: {e}"))?;
 
-    let next_update_secret = secret_from_vta_response(&next_update_secret_resp)?;
+    let next_update_secret = vta_sdk::did_key::secret_from_key_response(&next_update_secret_resp)
+        .map_err(|e| anyhow::anyhow!("{e:?}"))?;
 
     Ok((update_secret, next_update_secret))
-}
-
-/// Convert a VTA GetKeySecretResponse to a TDK Secret
-fn secret_from_vta_response(resp: &GetKeySecretResponse) -> Result<Secret> {
-    match resp.key_type {
-        KeyType::Ed25519 => {
-            let seed =
-                vta_sdk::did_key::decode_private_key_multibase(&resp.private_key_multibase)
-                    .map_err(|e| {
-                        anyhow::anyhow!("Failed to decode Ed25519 private key multibase: {:?}", e)
-                    })?;
-            Ok(Secret::generate_ed25519(None, Some(&seed)))
-        }
-        KeyType::X25519 => Secret::from_multibase(&resp.private_key_multibase, None)
-            .map_err(|e| anyhow::anyhow!("Failed to create X25519 secret from multibase: {e}")),
-    }
 }
