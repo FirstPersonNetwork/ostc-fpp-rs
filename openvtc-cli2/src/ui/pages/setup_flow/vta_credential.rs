@@ -136,16 +136,21 @@ impl VtaCredentialPaste {
             ),
             Line::default(),
             Line::styled(
-                "1. Set up PNM with your VTA service URL:",
+                "1. Get a VTA admin credential from your VTA administrator.",
+                Style::new().fg(COLOR_TEXT_DEFAULT),
+            ),
+            Line::default(),
+            Line::styled(
+                "2. Set up PNM with the admin credential:",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ),
             Line::styled(
-                "   pnm setup --url <VTA_URL>",
+                "   pnm setup --url <VTA_URL> --credential <ADMIN_CREDENTIAL>",
                 Style::new().fg(COLOR_SOFT_PURPLE),
             ),
             Line::default(),
             Line::styled(
-                "2. Create a new context and generate admin credentials:",
+                "3. Create a new context and generate a credential for OpenVTC:",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ),
             Line::styled(
@@ -153,21 +158,21 @@ impl VtaCredentialPaste {
                 Style::new().fg(COLOR_SOFT_PURPLE),
             ),
             Line::styled(
-                "   This outputs a one-time admin credential bundle.",
+                "   This outputs a one-time credential bundle.",
                 Style::new().fg(COLOR_DARK_GRAY),
             ),
             Line::default(),
             Line::styled(
-                "   Or generate a credential for an existing context:",
+                "   Or generate a credential from an existing context:",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ),
             Line::styled(
-                "   pnm auth-credential create --role admin",
+                "   pnm auth-credential create --role admin --contexts <CONTEXT_ID>",
                 Style::new().fg(COLOR_SOFT_PURPLE),
             ),
             Line::default(),
             Line::styled(
-                "3. Copy the base64 credential bundle and paste it above.",
+                "4. Copy the base64 credential bundle and paste it above.",
                 Style::new().fg(COLOR_TEXT_DEFAULT),
             ),
         ];
