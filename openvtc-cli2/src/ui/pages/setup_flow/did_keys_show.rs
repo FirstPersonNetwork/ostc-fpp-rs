@@ -168,7 +168,7 @@ impl DIDKeysShow {
 
         lines.push(Line::default());
         lines.push(Line::styled(
-            "ℹ️ Note: These keys can be exported later from within the OpenVTC.",
+            "ℹ️ Note: These keys can be exported later from your personal Verifiable Trust Agent.",
             Style::new().fg(COLOR_ORANGE),
         ));
 
