@@ -2,7 +2,7 @@ use crate::{
     KeyPurpose,
     bip32::Bip32Extension,
     config::{
-        KeyTypes,
+        KeyBackend, KeyTypes,
         secured_config::{KeyInfoConfig, KeySourceMaterial},
     },
     errors::OpenVTCError,
@@ -15,7 +15,7 @@ use affinidi_tdk::{
     secrets_resolver::{SecretsResolver, secrets::Secret},
 };
 use chrono::{DateTime, Utc};
-use ed25519_dalek_bip32::ExtendedSigningKey;
+use secrecy::ExposeSecret;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::{
@@ -153,12 +153,37 @@ impl Relationships {
         tdk: &TDK,
         our_p_did: &Arc<String>,
         mediator: &str,
-        bip32_root: &ExtendedSigningKey,
+        key_backend: &KeyBackend,
         key_info: &HashMap<String, KeyInfoConfig>,
     ) -> Result<HashMap<Arc<String>, Arc<ATMProfile>>, OpenVTCError> {
         let atm = tdk.atm.clone().unwrap();
 
         let mut profiles: HashMap<Arc<String>, Arc<ATMProfile>> = HashMap::new();
+
+        // For VTA-managed keys, authenticate once upfront if needed
+        let vta_client = if let KeyBackend::Vta {
+            credential_private_key,
+            credential_did,
+            vta_did,
+            vta_url,
+            ..
+        } = key_backend
+        {
+            let token_result = vta_sdk::session::challenge_response(
+                vta_url,
+                credential_did,
+                credential_private_key.expose_secret(),
+                vta_did,
+            )
+            .await
+            .map_err(|e| OpenVTCError::Config(format!("VTA authentication failed: {e}")))?;
+
+            let mut client = vta_sdk::client::VtaClient::new(vta_url);
+            client.set_token(token_result.access_token);
+            Some(client)
+        } else {
+            None
+        };
 
         for relationship in self.relationships.values() {
             let (our_did, state) = {
@@ -173,33 +198,54 @@ impl Relationships {
                 profiles.insert(our_did.clone(), atm.profile_add(&profile, false).await?);
 
                 // Generate secrets for this DID
-                let secrets: Vec<Secret> = key_info
-                    .iter()
-                    .filter_map(|(k, v)| {
-                        if k.starts_with(our_did.as_str()) {
-                            if let KeySourceMaterial::Derived { path } = &v.path {
-                                if let Some(kp) = match v.purpose {
-                                    KeyTypes::RelationshipVerification => Some(KeyPurpose::Signing),
-                                    KeyTypes::RelationshipEncryption => {
-                                        Some(KeyPurpose::Encryption)
+                let mut secrets: Vec<Secret> = Vec::new();
+                for (k, v) in key_info.iter() {
+                    if !k.starts_with(our_did.as_str()) {
+                        continue;
+                    }
+                    let kp = match v.purpose {
+                        KeyTypes::RelationshipVerification => KeyPurpose::Signing,
+                        KeyTypes::RelationshipEncryption => KeyPurpose::Encryption,
+                        _ => continue,
+                    };
+                    let secret = match &v.path {
+                        KeySourceMaterial::Derived { path } => {
+                            let KeyBackend::Bip32 { root, .. } = key_backend else {
+                                continue;
+                            };
+                            root.get_secret_from_path(path, kp).ok().map(|mut s| {
+                                s.id = k.clone();
+                                s
+                            })
+                        }
+                        KeySourceMaterial::Imported { seed } => {
+                            Secret::from_multibase(seed, None).ok().map(|mut s| {
+                                s.id = k.clone();
+                                s
+                            })
+                        }
+                        KeySourceMaterial::VtaManaged { key_id } => {
+                            if let Some(client) = &vta_client {
+                                match client.get_key_secret(key_id).await {
+                                    Ok(resp) => {
+                                        crate::config::secret_from_vta_response(&resp, kp)
+                                            .ok()
+                                            .map(|mut s| {
+                                                s.id = k.clone();
+                                                s
+                                            })
                                     }
-                                    _ => None,
-                                } {
-                                    bip32_root.get_secret_from_path(path, kp).ok().map(|mut s| {
-                                        s.id = k.clone();
-                                        s
-                                    })
-                                } else {
-                                    None
+                                    Err(_) => None,
                                 }
                             } else {
                                 None
                             }
-                        } else {
-                            None
                         }
-                    })
-                    .collect();
+                    };
+                    if let Some(s) = secret {
+                        secrets.push(s);
+                    }
+                }
                 tdk.get_shared_state()
                     .secrets_resolver
                     .insert_vec(&secrets)

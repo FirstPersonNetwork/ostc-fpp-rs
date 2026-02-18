@@ -1,6 +1,5 @@
 //! Handles the setup of the Persona WebVH DID
-//! If you have imported an existing BIP32 seed, then an option to import an existing DID will
-//! be shown. Otherwise it defaults to asking the hosting URL
+//! Allows creating a new DID or importing an existing one
 use crossterm::event::{Event, KeyCode, KeyEvent};
 use openvtc::colors::{
     COLOR_BORDER, COLOR_DARK_GRAY, COLOR_ORANGE, COLOR_SOFT_PURPLE, COLOR_SUCCESS,
@@ -202,7 +201,7 @@ fn render_selection(state: &WebvhAddress, frame: &mut Frame<'_>, area: Rect) {
     let mut lines = Vec::new();
 
     lines.push(Line::styled(
-        "You can create a new WebVH DID using the keys derived from your recovery phrase, or restore an existing DID you previously created with this same recovery phrase.",
+        "You can create a new WebVH DID using the keys created via your VTA service, or restore an existing DID.",
         Style::new().fg(COLOR_DARK_GRAY),
     ));
     lines.push(Line::default());
@@ -227,7 +226,7 @@ fn render_selection(state: &WebvhAddress, frame: &mut Frame<'_>, area: Rect) {
             Style::new().fg(COLOR_TEXT_DEFAULT),
         ));
         lines.push(Line::styled(
-            "    Restore a DID you previously created with the same recovery phrase. You'll need to provide the WebVH DID value.",
+            "    Restore a DID you previously created. You'll need to provide the WebVH DID value.",
             Style::new().fg(COLOR_DARK_GRAY),
         ));
     } else {
@@ -244,7 +243,7 @@ fn render_selection(state: &WebvhAddress, frame: &mut Frame<'_>, area: Rect) {
             Style::new().fg(COLOR_SUCCESS).bold(),
         ));
         lines.push(Line::styled(
-            "    Restore a DID you previously created with the same recovery phrase. You'll need to provide the WebVH DID value.",
+            "    Restore a DID you previously created. You'll need to provide the WebVH DID value.",
             Style::new().fg(COLOR_DARK_GRAY),
         ));
     }

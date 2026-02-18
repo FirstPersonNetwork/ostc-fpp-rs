@@ -20,7 +20,6 @@ use anyhow::Result;
 use openvtc::openpgp_card::{factory_reset, get_cards};
 use openvtc::{
     LF_PUBLIC_MEDIATOR_DID,
-    bip32::get_bip32_root,
     config::{Config, did::create_initial_webvh_did},
 };
 use pgp::composed::ArmorOptions;
@@ -232,11 +231,125 @@ impl StateHandler {
 
                 Action::SetDIDKeys(keys) => {
                         // Set the DID Persona Keys in setup state
-                        state.setup.did_keys = Some(keys.0);
-                        if let Some(bip32) = keys.1 {
-                            state.setup.mnemonic = bip32;
-                        }
+                        state.setup.did_keys = Some(*keys);
                         state.setup.active_page = SetupPage::DIDKeysShow;
+                    },
+                Action::VtaSubmitCredential(credential_input) => {
+                        // Decode and validate the VTA credential bundle, then auto-authenticate
+                        use crate::state_handler::setup_sequence::vta;
+                        match vta::decode_credential(&credential_input) {
+                            Ok(bundle) => {
+                                let vta_url = bundle.vta_url.clone().unwrap_or_default();
+                                state.setup.vta.credential_bundle_raw = Some(credential_input);
+                                state.setup.vta.credential_did = bundle.did.clone();
+                                state.setup.vta.vta_url = vta_url.clone();
+                                state.setup.vta.vta_did = bundle.vta_did.clone();
+                                state.setup.vta.messages.clear();
+                                state.setup.vta.completed = Completion::NotFinished;
+                                state.setup.active_page = SetupPage::VtaAuthenticate;
+                                state.setup.vta.messages.push(MessageType::Info("Authenticating with VTA...".to_string()));
+                                self.state_tx.send(state.clone())?;
+
+                                // Auto-trigger authentication inline
+                                match vta::authenticate(
+                                    &vta_url,
+                                    &bundle.did,
+                                    &bundle.private_key_multibase,
+                                    &bundle.vta_did,
+                                ).await {
+                                    Ok(token_result) => {
+                                        state.setup.vta.access_token = Some(token_result.access_token);
+                                        state.setup.vta.authenticated = true;
+                                        state.setup.vta.messages.push(MessageType::Info("VTA authentication successful.".to_string()));
+                                        state.setup.vta.completed = Completion::CompletedOK;
+                                    }
+                                    Err(e) => {
+                                        state.setup.vta.messages.push(MessageType::Error(format!("Authentication failed: {e}")));
+                                        state.setup.vta.completed = Completion::CompletedFail;
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                state.setup.vta.messages = vec![MessageType::Error(format!("Invalid credential bundle: {e}"))];
+                                state.setup.vta.completed = Completion::CompletedFail;
+                            }
+                        }
+                    },
+                Action::VtaAuthenticate => {
+                        // Retry authentication with VTA using challenge-response
+                        use crate::state_handler::setup_sequence::vta;
+                        state.setup.vta.messages.clear();
+                        state.setup.vta.completed = Completion::NotFinished;
+                        state.setup.active_page = SetupPage::VtaAuthenticate;
+                        state.setup.vta.messages.push(MessageType::Info("Authenticating with VTA...".to_string()));
+                        self.state_tx.send(state.clone())?;
+
+                        let credential_raw = state.setup.vta.credential_bundle_raw.clone().unwrap();
+                        let bundle = vta::decode_credential(&credential_raw).unwrap();
+                        let vta_url = bundle.vta_url.as_deref().unwrap_or(&state.setup.vta.vta_url);
+
+                        match vta::authenticate(
+                            vta_url,
+                            &bundle.did,
+                            &bundle.private_key_multibase,
+                            &bundle.vta_did,
+                        ).await {
+                            Ok(token_result) => {
+                                state.setup.vta.access_token = Some(token_result.access_token);
+                                state.setup.vta.authenticated = true;
+                                state.setup.vta.messages.push(MessageType::Info("VTA authentication successful.".to_string()));
+                                state.setup.vta.completed = Completion::CompletedOK;
+                            }
+                            Err(e) => {
+                                state.setup.vta.messages.push(MessageType::Error(format!("Authentication failed: {e}")));
+                                state.setup.vta.completed = Completion::CompletedFail;
+                            }
+                        }
+                    },
+                Action::VtaCreateKeys => {
+                        // Create keys via VTA service
+                        use crate::state_handler::setup_sequence::vta;
+                        use vta_sdk::client::VtaClient;
+                        state.setup.vta.messages.clear();
+                        state.setup.vta.completed = Completion::NotFinished;
+                        state.setup.active_page = SetupPage::VtaKeysFetch;
+                        state.setup.vta.messages.push(MessageType::Info("Creating persona keys via VTA...".to_string()));
+                        self.state_tx.send(state.clone())?;
+
+                        let access_token = state.setup.vta.access_token.clone().unwrap();
+                        let vta_url = state.setup.vta.vta_url.clone();
+                        let mut client = VtaClient::new(&vta_url);
+                        client.set_token(access_token);
+
+                        // Create persona keys (signing, authentication, encryption)
+                        match vta::create_persona_keys(&client).await {
+                            Ok(persona_keys) => {
+                                state.setup.vta.messages.push(MessageType::Info("Persona keys created successfully.".to_string()));
+                                self.state_tx.send(state.clone())?;
+
+                                // Create WebVH update keys
+                                state.setup.vta.messages.push(MessageType::Info("Creating WebVH update keys...".to_string()));
+                                self.state_tx.send(state.clone())?;
+
+                                match vta::create_update_keys(&client).await {
+                                    Ok((update_secret, next_update_secret)) => {
+                                        state.setup.vta.update_secret = Some(update_secret);
+                                        state.setup.vta.next_update_secret = Some(next_update_secret);
+                                        state.setup.vta.messages.push(MessageType::Info("WebVH update keys created successfully.".to_string()));
+                                        state.setup.vta.completed = Completion::CompletedOK;
+                                        state.setup.did_keys = Some(persona_keys);
+                                    }
+                                    Err(e) => {
+                                        state.setup.vta.messages.push(MessageType::Error(format!("Failed to create update keys: {e}")));
+                                        state.setup.vta.completed = Completion::CompletedFail;
+                                    }
+                                }
+                            }
+                            Err(e) => {
+                                state.setup.vta.messages.push(MessageType::Error(format!("Failed to create persona keys: {e}")));
+                                state.setup.vta.completed = Completion::CompletedFail;
+                            }
+                        }
                     },
                 Action::ExportDIDKeys(export_inputs) => {
                         // Handle exporting DID Keys
@@ -377,8 +490,15 @@ impl StateHandler {
                     Action::CreateWebVHDID(webvh_address) => {
                         // Set the WebVH DID in setup state
                         let mut keys = state.setup.did_keys.clone().unwrap();
-                        match create_initial_webvh_did(&webvh_address, &mut keys, state.setup.custom_mediator.as_ref().unwrap_or(&LF_PUBLIC_MEDIATOR_DID.to_string()),
-                        get_bip32_root(state.setup.mnemonic.mnemonic.to_entropy().as_slice()).unwrap()){
+                        let update_secret = state.setup.vta.update_secret.clone().expect("VTA update secret not set");
+                        let next_update_secret = state.setup.vta.next_update_secret.clone().expect("VTA next update secret not set");
+                        match create_initial_webvh_did(
+                            &webvh_address,
+                            &mut keys,
+                            state.setup.custom_mediator.as_ref().unwrap_or(&LF_PUBLIC_MEDIATOR_DID.to_string()),
+                            update_secret,
+                            next_update_secret,
+                        ) {
                             Ok((did, document)) => {
                                 state.setup.webvh_address.did = did;
                                 state.setup.webvh_address.document = document;

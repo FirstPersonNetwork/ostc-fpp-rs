@@ -13,68 +13,46 @@ use ratatui::{
 use tui_input::{Input, backend::crossterm::EventHandler};
 
 use crate::{
-    Interrupted,
     state_handler::{
         actions::Action,
-        setup_sequence::{SetupState, bip32::BIP32_39, did_keys::create_keys},
+        setup_sequence::SetupState,
     },
-    ui::pages::setup_flow::{SetupFlow, render_setup_header, webvh_address::WebVHState},
+    ui::pages::setup_flow::{SetupFlow, render_setup_header},
 };
 
 // ****************************************************************************
-// BIP32PhraseImport
+// VtaCredentialPaste
 // ****************************************************************************
 
 #[derive(Clone, Debug, Default)]
-pub struct BIP32PhraseImport {
-    pub mnemonic: Input,
+pub struct VtaCredentialPaste {
+    pub credential_input: Input,
     pub warning_msg: Option<String>,
 }
 
-impl BIP32PhraseImport {
+impl VtaCredentialPaste {
     pub fn handle_key_event(state: &mut SetupFlow, key: KeyEvent) {
         match key.code {
             KeyCode::F(10) => {
                 let _ = state.action_tx.send(Action::Exit);
             }
             KeyCode::Enter => {
-                // User has submitted their imported BIP32 phrase
-                let input_phrase = state.bip32_import.mnemonic.value();
-
-                // Validate the entered mnemonic
-                match BIP32_39::from_mnemonic(input_phrase) {
-                    Ok(bip32_39) => {
-                        // Create the DID Keys
-                        match create_keys(&bip32_39.mnemonic) {
-                            Ok(keys) => {
-                                let _ = state
-                                    .action_tx
-                                    .send(Action::SetDIDKeys(Box::new((keys, Some(bip32_39)))));
-                            }
-                            Err(e) => {
-                                let _ = state.action_tx.send(Action::UXError(
-                                    Interrupted::SystemError(format!(
-                                        "Failed to derive DID Keys: {}",
-                                        e
-                                    )),
-                                ));
-                            }
-                        }
-                        // Set the WebVH DID to be import option
-                        state.webvh_address.state = WebVHState::Unknown;
-                    }
-                    Err(e) => {
-                        // Invalid mnemonic entered
-                        state.bip32_import.warning_msg = Some(e.to_string());
-                    }
+                let input = state.vta_credential.credential_input.value().to_string();
+                if input.trim().is_empty() {
+                    state.vta_credential.warning_msg =
+                        Some("Please paste a credential bundle.".to_string());
+                } else {
+                    let _ = state.action_tx.send(Action::VtaSubmitCredential(input));
                 }
             }
             KeyCode::Esc => {
-                state.bip32_import.mnemonic.reset();
+                state.vta_credential.credential_input.reset();
             }
             _ => {
-                // Handle text input for mnemonic here
-                state.bip32_import.mnemonic.handle_event(&Event::Key(key));
+                state
+                    .vta_credential
+                    .credential_input
+                    .handle_event(&Event::Key(key));
             }
         }
     }
@@ -85,7 +63,7 @@ impl BIP32PhraseImport {
 
         render_setup_header(frame, top, state);
 
-        let content: [Rect; 4] = Layout::vertical([Length(4), Length(2), Length(2), Min(0)])
+        let content: [Rect; 4] = Layout::vertical([Length(6), Length(2), Length(2), Min(0)])
             .areas(middle.inner(Margin::new(3, 2)));
 
         let [input_prompt, input_box] = Layout::horizontal([Length(2), Min(0)]).areas(content[1]);
@@ -94,31 +72,36 @@ impl BIP32PhraseImport {
             Block::bordered()
                 .fg(COLOR_BORDER)
                 .padding(Padding::proportional(1))
-                .title(" Step 2/4: Import recovery phrase "),
+                .title(" Step 1/4: VTA Credential "),
             middle,
         );
 
         frame.render_widget(
             Paragraph::new(vec![
                 Line::styled(
-                    "Create your profile using an existing BIP39 recovery phrase to restore the same identity and security keys.",
-                    Style::new().fg(COLOR_DARK_GRAY).bold(),
+                    "OpenVTC uses a Verifiable Trust Agent (VTA) service to manage your cryptographic keys.",
+                    Style::new().fg(COLOR_DARK_GRAY),
+                ),
+                Line::styled(
+                    "You should have received a credential bundle from your VTA administrator.",
+                    Style::new().fg(COLOR_DARK_GRAY),
                 ),
                 Line::default(),
                 Line::styled(
-                    "Enter your 24-word recovery phrase, separated by spaces:",
+                    "Paste your VTA credential bundle below:",
                     Style::new().fg(COLOR_BORDER).bold(),
                 ),
                 Line::default(),
             ]),
             content[0],
         );
+
         frame.render_widget(
             Paragraph::new(Span::styled(">", Style::new().fg(COLOR_BORDER).bold())),
             input_prompt,
         );
 
-        render_input(&self.mnemonic, frame, input_box);
+        render_input(&self.credential_input, frame, input_box);
 
         frame.render_widget(
             Paragraph::new(Line::from(vec![
@@ -155,7 +138,6 @@ impl BIP32PhraseImport {
 }
 
 fn render_input(input: &Input, frame: &mut Frame, area: Rect) {
-    // keep 1 for borders and 1 for cursor
     let width = area.width.max(3) - 3;
     let scroll = input.visual_scroll(width as usize);
     frame.render_widget(

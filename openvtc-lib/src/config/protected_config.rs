@@ -237,4 +237,12 @@ impl ProtectedConfig {
                 .to_vec(),
         ))
     }
+
+    /// Derives an encryption seed from a VTA credential's private key multibase
+    /// Used as a replacement for BIP32 m/0'/0'/0' when using VTA key backend
+    pub fn get_seed_from_credential(private_key_multibase: &str) -> Result<SecretVec<u8>, OpenVTCError> {
+        use sha2::{Digest, Sha256};
+        let hash = Sha256::digest(private_key_multibase.as_bytes());
+        Ok(SecretVec::new(hash.to_vec()))
+    }
 }

@@ -23,7 +23,7 @@ use console::style;
 use ed25519_dalek_bip32::DerivationPath;
 use openvtc::{
     config::{
-        Config, KeyTypes,
+        Config, KeyBackend, KeyTypes,
         protected_config::Contacts,
         secured_config::{KeyInfoConfig, KeySourceMaterial},
     },
@@ -365,11 +365,14 @@ pub async fn create_relationship_did(
     .concat();
     config.private.relationships.path_pointer += 1;
 
-    let v_key = config
-        .bip32_root
+    let bip32_root = match &config.key_backend {
+        KeyBackend::Bip32 { root, .. } => root,
+        _ => bail!("create_relationship_did requires a BIP32 key backend"),
+    };
+
+    let v_key = bip32_root
         .derive(&v_path.parse::<DerivationPath>()?)?;
-    let e_key = config
-        .bip32_root
+    let e_key = bip32_root
         .derive(&e_path.parse::<DerivationPath>()?)?;
 
     let mut v_secret = Secret::generate_ed25519(None, Some(v_key.signing_key.as_bytes()));

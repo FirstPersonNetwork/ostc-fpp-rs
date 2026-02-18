@@ -7,9 +7,8 @@ use chrono::Utc;
 use ed25519_dalek_bip32::ExtendedSigningKey;
 use openvtc::{
     LF_ORG_DID, LF_PUBLIC_MEDIATOR_DID,
-    bip32::get_bip32_root,
     config::{
-        Config, ConfigProtectionType, ExportedConfig, KeyTypes, PersonaDID,
+        Config, ConfigProtectionType, ExportedConfig, KeyBackend, KeyTypes, PersonaDID,
         protected_config::ProtectedConfig,
         public_config::PublicConfig,
         secured_config::{KeyInfoConfig, ProtectionMethod, unlock_code_decrypt},
@@ -122,9 +121,11 @@ impl ConfigExtension for Config {
             }
         };
 
+        let bip32_seed = config.sc.bip32_seed.as_ref()
+            .expect("Imported config missing BIP32 seed");
         let bip32_root = ExtendedSigningKey::from_seed(
             BASE64_URL_SAFE_NO_PAD
-                .decode(&config.sc.bip32_seed)
+                .decode(bip32_seed)
                 .expect("Couldn't base64 decode BIP32 seed")
                 .as_slice(),
         )?;
@@ -214,7 +215,7 @@ impl ConfigExtension for Config {
             LF_PUBLIC_MEDIATOR_DID.to_string()
         };
 
-        // Keys are all derived from the BIP32 root seed
+        // Build key info from persona keys
         let mut key_info = HashMap::new();
         let persona_keys = state.did_keys.clone().unwrap();
         key_info.insert(
@@ -242,11 +243,23 @@ impl ConfigExtension for Config {
             },
         );
 
+        // Build VTA key backend from setup state
+        let credential_raw = state.vta.credential_bundle_raw.clone()
+            .expect("VTA credential bundle not set");
+        let bundle = crate::state_handler::setup_sequence::vta::decode_credential(&credential_raw)
+            .expect("Failed to decode credential bundle");
+        let encryption_seed = ProtectedConfig::get_seed_from_credential(&bundle.private_key_multibase)?;
+        let key_backend = KeyBackend::Vta {
+            credential_bundle: SecretString::new(credential_raw),
+            credential_did: bundle.did.clone(),
+            credential_private_key: SecretString::new(bundle.private_key_multibase.clone()),
+            vta_did: bundle.vta_did.clone(),
+            vta_url: bundle.vta_url.clone().unwrap_or_default(),
+            encryption_seed,
+        };
+
         let config = Config {
-            bip32_root: get_bip32_root(state.mnemonic.mnemonic.to_entropy().as_slice())?,
-            bip32_seed: SecretString::new(
-                BASE64_URL_SAFE_NO_PAD.encode(state.mnemonic.mnemonic.to_entropy()),
-            ),
+            key_backend,
             public: PublicConfig {
                 protection,
                 persona_did: Arc::new(state.webvh_address.did.clone()),

@@ -13,7 +13,7 @@ use crate::{
     Interrupted,
     state_handler::{
         main_page::{MainPanel, menu::MainMenu},
-        setup_sequence::{ConfigProtection, SetupPage, bip32::BIP32_39},
+        setup_sequence::{ConfigProtection, SetupPage},
     },
     ui::pages::setup_flow::{SetupFlow, did_keys_export_inputs::DIDKeysExportInputs},
 };
@@ -46,10 +46,21 @@ pub enum Action {
     SetProtection(ConfigProtection, SetupPage),
 
     /// Sets the DID Persona Keys
-    SetDIDKeys(Box<(PersonaDIDKeys, Option<BIP32_39>)>),
+    SetDIDKeys(Box<PersonaDIDKeys>),
 
     /// Export DID Private keys as PGP Armored file
     ExportDIDKeys(DIDKeysExportInputs),
+
+    // ************************************************************************
+    // VTA Actions
+    /// Submit a VTA credential bundle (base64 encoded)
+    VtaSubmitCredential(String),
+
+    /// Authenticate with VTA service
+    VtaAuthenticate,
+
+    /// Create keys via VTA service
+    VtaCreateKeys,
 
     // ************************************************************************
     // PGP Hardware token Specific Actions

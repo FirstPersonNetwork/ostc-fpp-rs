@@ -53,7 +53,7 @@ impl StartAskPanel {
             }
             KeyCode::Enter => match state.start_ask {
                 StartAskPanel::Create => {
-                    state.props.state.active_page = SetupPage::BIP32PhraseAsk;
+                    state.props.state.active_page = SetupPage::VtaCredentialPaste;
                 }
                 StartAskPanel::Import => {
                     state.props.state.active_page = SetupPage::ConfigImport;

@@ -13,13 +13,14 @@ use crate::{
     ui::{
         component::{Component, ComponentRender},
         pages::setup_flow::{
-            bip32_ask::BIP32PhraseAskChoice, bip32_import::BIP32PhraseImport,
-            bip32_show::BIP32PhraseShow, config_import::ConfigImport,
+            config_import::ConfigImport,
             did_keys_export_ask::DIDKeysExportAsk, did_keys_export_inputs::DIDKeysExportInputs,
             did_keys_export_show::DIDKeysExportShow, did_keys_show::DIDKeysShow,
             final_page::FinalPage, mediator_ask::MediatorAsk, mediator_custom::MediatorCustom,
             start_ask::StartAskPanel, unlock_code_ask::UnlockCodeAsk,
             unlock_code_set::UnlockCodeSet, unlock_code_warn::UnlockCodeWarn, username::UserName,
+            vta_authenticate::VtaAuthenticate, vta_credential::VtaCredentialPaste,
+            vta_keys_fetch::VtaKeysFetch,
             webvh_address::WebvhAddress,
         },
     },
@@ -35,9 +36,6 @@ use ratatui::{
 };
 use tokio::sync::mpsc::UnboundedSender;
 
-pub mod bip32_ask;
-pub mod bip32_import;
-pub mod bip32_show;
 pub mod config_import;
 pub mod did_keys_export_ask;
 pub mod did_keys_export_inputs;
@@ -51,6 +49,9 @@ pub mod unlock_code_ask;
 pub mod unlock_code_set;
 pub mod unlock_code_warn;
 pub mod username;
+pub mod vta_authenticate;
+pub mod vta_credential;
+pub mod vta_keys_fetch;
 pub mod webvh_address;
 
 #[cfg(feature = "openpgp-card")]
@@ -66,9 +67,9 @@ pub struct SetupFlow {
     pub start_ask: StartAskPanel,
     pub config_import: ConfigImport,
 
-    pub bip32_ask: BIP32PhraseAskChoice,
-    pub bip32_show: BIP32PhraseShow,
-    pub bip32_import: BIP32PhraseImport,
+    pub vta_credential: VtaCredentialPaste,
+    pub vta_authenticate: VtaAuthenticate,
+    pub vta_keys_fetch: VtaKeysFetch,
 
     pub did_keys_show: DIDKeysShow,
 
@@ -127,9 +128,9 @@ impl Component for SetupFlow {
 
             start_ask: StartAskPanel::default(),
             config_import: ConfigImport::default(),
-            bip32_ask: BIP32PhraseAskChoice::default(),
-            bip32_show: BIP32PhraseShow::default(),
-            bip32_import: BIP32PhraseImport::default(),
+            vta_credential: VtaCredentialPaste::default(),
+            vta_authenticate: VtaAuthenticate::default(),
+            vta_keys_fetch: VtaKeysFetch::default(),
             did_keys_show: DIDKeysShow::default(),
             did_keys_export_ask: DIDKeysExportAsk::default(),
             did_keys_export_inputs: DIDKeysExportInputs::default(),
@@ -180,9 +181,9 @@ impl Component for SetupFlow {
         match self.props.state.active_page {
             SetupPage::StartAsk => StartAskPanel::handle_key_event(self, key),
             SetupPage::ConfigImport => ConfigImport::handle_key_event(self, key),
-            SetupPage::BIP32PhraseAsk => BIP32PhraseAskChoice::handle_key_event(self, key),
-            SetupPage::BIP32PhraseShow => BIP32PhraseShow::handle_key_event(self, key),
-            SetupPage::BIP32PhraseImport => BIP32PhraseImport::handle_key_event(self, key),
+            SetupPage::VtaCredentialPaste => VtaCredentialPaste::handle_key_event(self, key),
+            SetupPage::VtaAuthenticate => VtaAuthenticate::handle_key_event(self, key),
+            SetupPage::VtaKeysFetch => VtaKeysFetch::handle_key_event(self, key),
             SetupPage::DIDKeysShow => DIDKeysShow::handle_key_event(self, key),
             SetupPage::DidKeysExportAsk => DIDKeysExportAsk::handle_key_event(self, key),
             SetupPage::DidKeysExportInputs => DIDKeysExportInputs::handle_key_event(self, key),
@@ -221,9 +222,13 @@ impl ComponentRender<()> for SetupFlow {
         match self.props.state.active_page {
             SetupPage::StartAsk => self.start_ask.render(&self.props.state, frame),
             SetupPage::ConfigImport => self.config_import.render(&self.props.state, frame),
-            SetupPage::BIP32PhraseAsk => self.bip32_ask.render(&self.props.state, frame),
-            SetupPage::BIP32PhraseShow => self.bip32_show.render(&self.props.state, frame),
-            SetupPage::BIP32PhraseImport => self.bip32_import.render(&self.props.state, frame),
+            SetupPage::VtaCredentialPaste => {
+                self.vta_credential.render(&self.props.state, frame)
+            }
+            SetupPage::VtaAuthenticate => {
+                self.vta_authenticate.render(&self.props.state, frame)
+            }
+            SetupPage::VtaKeysFetch => self.vta_keys_fetch.render(&self.props.state, frame),
             SetupPage::DIDKeysShow => self.did_keys_show.render(&self.props.state, frame),
             SetupPage::DidKeysExportAsk => {
                 self.did_keys_export_ask.render(&self.props.state, frame)
@@ -281,9 +286,9 @@ pub fn render_setup_header(frame: &mut Frame, rect: Rect, state: &SetupState) {
         ));
     }
 
-    if let SetupPage::BIP32PhraseAsk
-    | SetupPage::BIP32PhraseShow
-    | SetupPage::BIP32PhraseImport
+    if let SetupPage::VtaCredentialPaste
+    | SetupPage::VtaAuthenticate
+    | SetupPage::VtaKeysFetch
     | SetupPage::DIDKeysShow
     | SetupPage::DidKeysExportAsk
     | SetupPage::DidKeysExportInputs

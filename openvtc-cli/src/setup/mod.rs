@@ -23,7 +23,7 @@ use openvtc::{
     KeyPurpose, LF_ORG_DID, LF_PUBLIC_MEDIATOR_DID,
     bip32::{Bip32Extension, get_bip32_root},
     config::{
-        Config, ConfigProtectionType, KeyInfo, KeyTypes, PersonaDID, PersonaDIDKeys,
+        Config, ConfigProtectionType, KeyBackend, KeyInfo, KeyTypes, PersonaDID, PersonaDIDKeys,
         protected_config::ProtectedConfig,
         public_config::PublicConfig,
         secured_config::{KeyInfoConfig, KeySourceMaterial, ProtectionMethod},
@@ -180,8 +180,10 @@ pub async fn cli_setup(term: &Term, profile: &str) -> Result<()> {
 
     // Initial Configuration state
     let config = Config {
-        bip32_root: get_bip32_root(mnemonic.to_entropy().as_slice())?,
-        bip32_seed: SecretString::new(BASE64_URL_SAFE_NO_PAD.encode(mnemonic.to_entropy())),
+        key_backend: KeyBackend::Bip32 {
+            root: get_bip32_root(mnemonic.to_entropy().as_slice())?,
+            seed: SecretString::new(BASE64_URL_SAFE_NO_PAD.encode(mnemonic.to_entropy())),
+        },
         public: PublicConfig {
             protection,
             persona_did: p_did.did.clone(),

@@ -7,7 +7,6 @@ use affinidi_tdk::{
     secrets_resolver::secrets::Secret,
 };
 use didwebvh_rs::{DIDWebVHError, DIDWebVHState, parameters::Parameters, url::WebVHURL};
-use ed25519_dalek_bip32::{DerivationPath, ExtendedSigningKey};
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use url::Url;
@@ -18,7 +17,8 @@ pub fn create_initial_webvh_did(
     raw_url: &str,
     keys: &mut PersonaDIDKeys,
     mediator_did: &str,
-    bip32_root: ExtendedSigningKey,
+    update_secret: Secret,
+    next_update_secret: Secret,
 ) -> Result<(String, Document), OpenVTCError> {
     let did_url = WebVHURL::parse_url(&Url::parse(raw_url).map_err(|e| {
         OpenVTCError::WebVH(DIDWebVHError::ValidationError(format!(
@@ -143,15 +143,8 @@ pub fn create_initial_webvh_did(
         service_endpoint: endpoint,
     });
 
-    // Create the WebVH Parameters
-    let update_key = bip32_root
-        .derive(&"m/2'/1'/0'".parse::<DerivationPath>().unwrap())
-        .map_err(|e| {
-            OpenVTCError::BIP32(format!(
-                "Failed to create an Ed25519 log_entry signing key. {e}"
-            ))
-        })?;
-    let mut update_secret = Secret::generate_ed25519(None, Some(update_key.signing_key.as_bytes()));
+    // Create the WebVH Parameters using the provided update keys
+    let mut update_secret = update_secret;
     update_secret.id = [
         "did:key:",
         &update_secret.get_public_keymultibase().map_err(|e| {
@@ -167,14 +160,6 @@ pub fn create_initial_webvh_did(
         })?,
     ]
     .concat();
-
-    let next_update_key = bip32_root
-        .derive(&"m/2'/1'/1'".parse::<DerivationPath>().unwrap())
-        .map_err(|e| {
-            OpenVTCError::BIP32(format!("Failed to create an Ed25519 next_update key. {e}"))
-        })?;
-    let next_update_secret =
-        Secret::generate_ed25519(None, Some(next_update_key.signing_key.as_bytes()));
 
     let parameters = Parameters::new()
         .with_key_pre_rotation(true)

@@ -78,7 +78,7 @@ impl DIDKeysShow {
         let block = Block::bordered()
             .fg(COLOR_BORDER)
             .padding(Padding::proportional(1))
-            .title(" Step 3/4: Derived DID keys ");
+            .title(" Step 3/4: DID Keys ");
 
         let mut lines = vec![
             Line::styled(
@@ -87,7 +87,7 @@ impl DIDKeysShow {
             ),
             Line::default(),
             Line::styled(
-                "Your keys have been generated from the BIP39 recovery phrase you just saved.",
+                "Your keys have been created via the VTA service.",
                 Style::new().fg(COLOR_BORDER).bold(),
             ),
             Line::default(),

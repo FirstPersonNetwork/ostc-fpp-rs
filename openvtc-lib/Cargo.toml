@@ -53,6 +53,7 @@ tracing.workspace = true
 url.workspace = true
 uuid.workspace = true
 x25519-dalek.workspace = true
+vta-sdk.workspace = true
 zeroize.workspace = true
 
 # Openpgp-Card Support

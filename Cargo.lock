@@ -4368,6 +4368,7 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
+ "vta-sdk",
  "x25519-dalek",
  "zeroize",
 ]
@@ -4427,7 +4428,6 @@ dependencies = [
  "anyhow",
  "arboard",
  "base64 0.22.1",
- "bip39",
  "byteorder",
  "card-backend-pcsc",
  "chrono",
@@ -4465,6 +4465,7 @@ dependencies = [
  "tui-input",
  "url",
  "uuid",
+ "vta-sdk",
  "x25519-dalek",
  "zeroize",
 ]
@@ -7471,6 +7472,7 @@ dependencies = [
  "getrandom 0.4.1",
  "js-sys",
  "rand 0.9.2",
+ "serde_core",
  "wasm-bindgen",
 ]
 
@@ -7500,6 +7502,23 @@ name = "version_check"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
+
+[[package]]
+name = "vta-sdk"
+version = "0.1.0"
+dependencies = [
+ "affinidi-did-resolver-cache-sdk",
+ "affinidi-tdk",
+ "base64 0.22.1",
+ "chrono",
+ "keyring",
+ "multibase",
+ "reqwest 0.13.2",
+ "serde",
+ "serde_json",
+ "tracing",
+ "uuid",
+]
 
 [[package]]
 name = "vtparse"

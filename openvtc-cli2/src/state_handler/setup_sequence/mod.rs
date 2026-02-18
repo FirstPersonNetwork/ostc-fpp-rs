@@ -2,10 +2,10 @@
 // Setup Sequence Pages
 // ****************************************************************************
 
-use crate::state_handler::setup_sequence::bip32::BIP32_39;
 #[cfg(feature = "openpgp-card")]
 use ::openpgp_card::{Card, state::Open};
 use affinidi_tdk::did_common::Document;
+use affinidi_tdk::secrets_resolver::secrets::Secret;
 use openvtc::config::PersonaDIDKeys;
 use secrecy::SecretVec;
 use std::fmt;
@@ -13,11 +13,11 @@ use std::sync::Arc;
 #[cfg(feature = "openpgp-card")]
 use tokio::sync::Mutex;
 
-pub mod bip32;
 pub mod config;
 pub mod did_keys;
 #[cfg(feature = "openpgp-card")]
 pub mod openpgp_card;
+pub mod vta;
 
 /// Setup flow has many pages, they are listed here
 #[derive(Debug, Clone, Copy, Default)]
@@ -25,9 +25,9 @@ pub enum SetupPage {
     #[default]
     StartAsk,
     ConfigImport, // Optional path where user will import existing config
-    BIP32PhraseAsk,
-    BIP32PhraseShow,
-    BIP32PhraseImport,
+    VtaCredentialPaste,
+    VtaAuthenticate,
+    VtaKeysFetch,
     DIDKeysShow,
     DidKeysExportAsk,
     DidKeysExportInputs,
@@ -67,8 +67,8 @@ pub struct SetupState {
 
     pub config_import: ConfigImport,
 
-    /// BIP32 mnemonic to use
-    pub mnemonic: BIP32_39,
+    /// VTA setup state
+    pub vta: VtaSetupState,
 
     /// DID Keys
     pub did_keys: Option<PersonaDIDKeys>,
@@ -105,6 +105,21 @@ pub struct SetupState {
     pub webvh_address: WebVHAddress,
 
     pub final_page: FinalSetupPage,
+}
+
+/// VTA-specific setup state
+#[derive(Clone, Default, Debug)]
+pub struct VtaSetupState {
+    pub credential_bundle_raw: Option<String>,
+    pub vta_url: String,
+    pub vta_did: String,
+    pub credential_did: String,
+    pub authenticated: bool,
+    pub access_token: Option<String>,
+    pub messages: Vec<MessageType>,
+    pub completed: Completion,
+    pub update_secret: Option<Secret>,
+    pub next_update_secret: Option<Secret>,
 }
 
 /// How is the configuration protected?

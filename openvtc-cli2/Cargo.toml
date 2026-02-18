@@ -28,7 +28,6 @@ affinidi-tdk.workspace = true
 affinidi-data-integrity.workspace = true
 anyhow.workspace = true
 base64.workspace = true
-bip39.workspace = true
 byteorder.workspace = true
 chrono.workspace = true
 clap.workspace = true
@@ -64,6 +63,7 @@ tracing.workspace = true
 url.workspace = true
 uuid.workspace = true
 x25519-dalek.workspace = true
+vta-sdk.workspace = true
 zeroize.workspace = true
 
 # Openpgp-Card Support

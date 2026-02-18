@@ -38,6 +38,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::{collections::HashMap, fmt::Display, fs, sync::Arc};
 use tracing::warn;
+use vta_sdk::credentials::CredentialBundle;
 
 pub mod did;
 pub mod protected_config;
@@ -82,6 +83,44 @@ pub trait TokenInteractions: Send + Sync {
     fn touch_completed(&self);
 }
 
+/// The key backend determines how cryptographic keys are managed
+pub enum KeyBackend {
+    /// Legacy BIP32 key derivation from a local seed
+    Bip32 {
+        root: ExtendedSigningKey,
+        seed: SecretString,
+    },
+    /// Keys are managed by a VTA service
+    Vta {
+        credential_bundle: SecretString,
+        credential_did: String,
+        credential_private_key: SecretString,
+        vta_did: String,
+        vta_url: String,
+        /// SHA-256(private_key_multibase), replaces BIP32 m/0'/0'/0' for ProtectedConfig encryption
+        encryption_seed: SecretVec<u8>,
+    },
+}
+
+impl std::fmt::Debug for KeyBackend {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            KeyBackend::Bip32 { .. } => f.debug_struct("KeyBackend::Bip32").finish_non_exhaustive(),
+            KeyBackend::Vta {
+                credential_did,
+                vta_did,
+                vta_url,
+                ..
+            } => f
+                .debug_struct("KeyBackend::Vta")
+                .field("credential_did", credential_did)
+                .field("vta_did", vta_did)
+                .field("vta_url", vta_url)
+                .finish_non_exhaustive(),
+        }
+    }
+}
+
 /// Configuration information for openvtc tool
 /// This is the active configuration used by the application itself
 /// When you want to load/save this configuration, it will become:
@@ -95,11 +134,8 @@ pub struct Config {
     /// Private sensitive config items which are encrypted on disk
     pub private: ProtectedConfig,
 
-    /// Root node of derivative keys
-    pub bip32_root: ExtendedSigningKey,
-
-    // Protected BIP32 seed
-    pub bip32_seed: SecretString,
+    /// Key backend - either local BIP32 or VTA-managed
+    pub key_backend: KeyBackend,
 
     /// Where did the key values come from? Derived or Imported?
     pub key_info: HashMap<String, KeyInfoConfig>,
@@ -151,6 +187,18 @@ pub struct PersonaDID {
 }
 
 impl Config {
+    /// Returns the encryption seed for ProtectedConfig based on the key backend
+    pub fn get_encryption_seed(&self) -> Result<SecretVec<u8>, OpenVTCError> {
+        match &self.key_backend {
+            KeyBackend::Bip32 { root, .. } => {
+                ProtectedConfig::get_seed(root, "m/0'/0'/0'")
+            }
+            KeyBackend::Vta { encryption_seed, .. } => {
+                Ok(SecretVec::new(encryption_seed.expose_secret().to_vec()))
+            }
+        }
+    }
+
     /// Handles saving
     /// profile: Configuration profile name to use
     pub fn save(
@@ -158,10 +206,11 @@ impl Config {
         profile: &str,
         #[cfg(feature = "openpgp-card")] touch_prompt: &(dyn Fn() + Send + Sync),
     ) -> Result<(), OpenVTCError> {
+        let encryption_seed = self.get_encryption_seed()?;
         self.public.save(
             profile,
             &self.private,
-            &ProtectedConfig::get_seed(&self.bip32_root, "m/0'/0'/0'").unwrap(),
+            &encryption_seed,
         )?;
 
         let sc = SecuredConfig::from(self);
@@ -220,22 +269,53 @@ impl Config {
 
         debug!("Secured Config:\n{:#?}", sc);
 
-        let bip32_root = ExtendedSigningKey::from_seed(
-            BASE64_URL_SAFE_NO_PAD.decode(&sc.bip32_seed)?.as_slice(),
-        )
-        .map_err(|e| {
-            OpenVTCError::BIP32(format!(
-                "Couldn't get bip32 root from the secret seed material: {}",
-                e
-            ))
-        })?;
+        // Determine key backend from secured config
+        let key_backend = if let Some(ref bip32_seed) = sc.bip32_seed {
+            // Legacy BIP32 config
+            let bip32_root = ExtendedSigningKey::from_seed(
+                BASE64_URL_SAFE_NO_PAD.decode(bip32_seed)?.as_slice(),
+            )
+            .map_err(|e| {
+                OpenVTCError::BIP32(format!(
+                    "Couldn't get bip32 root from the secret seed material: {}",
+                    e
+                ))
+            })?;
+            KeyBackend::Bip32 {
+                root: bip32_root,
+                seed: SecretString::new(bip32_seed.clone()),
+            }
+        } else if let Some(ref credential_bundle) = sc.credential_bundle {
+            // VTA-managed config
+            let bundle = CredentialBundle::decode(credential_bundle).map_err(|e| {
+                OpenVTCError::Config(format!("Couldn't decode VTA credential bundle: {:?}", e))
+            })?;
+            let encryption_seed = ProtectedConfig::get_seed_from_credential(&bundle.private_key_multibase)?;
+            KeyBackend::Vta {
+                credential_bundle: SecretString::new(credential_bundle.clone()),
+                credential_did: bundle.did.clone(),
+                credential_private_key: SecretString::new(bundle.private_key_multibase.clone()),
+                vta_did: sc.vta_did.clone().unwrap_or_default(),
+                vta_url: sc.vta_url.clone().unwrap_or_default(),
+                encryption_seed,
+            }
+        } else {
+            return Err(OpenVTCError::Config(
+                "SecuredConfig has neither bip32_seed nor credential_bundle".to_string(),
+            ));
+        };
+
+        // Get the encryption seed for ProtectedConfig
+        let encryption_seed = match &key_backend {
+            KeyBackend::Bip32 { root, .. } => ProtectedConfig::get_seed(root, "m/0'/0'/0'")?,
+            KeyBackend::Vta { encryption_seed, .. } => {
+                SecretVec::new(encryption_seed.expose_secret().to_vec())
+            }
+        };
 
         // Unencrypt the private config data
         let private_cfg = if let Some(private_cfg_str) = &public_config.private {
-            ProtectedConfig::load(
-                &ProtectedConfig::get_seed(&bip32_root, "m/0'/0'/0'")?,
-                private_cfg_str,
-            )?
+            ProtectedConfig::load(&encryption_seed, private_cfg_str)?
         } else {
             ProtectedConfig::default()
         };
@@ -255,7 +335,7 @@ impl Config {
             })?;
 
         // Create keys from DID Document
-        Config::regenerate_persona_keys(tdk, &sc, &bip32_root, &rr.doc).await?;
+        Config::regenerate_persona_keys(tdk, &sc, &key_backend, &rr.doc).await?;
 
         // Create persona profile
         let persona_profile = ATMProfile::new(
@@ -277,7 +357,7 @@ impl Config {
                 tdk,
                 &public_config.persona_did,
                 &public_config.mediator_did,
-                &bip32_root,
+                &key_backend,
                 &sc.key_info,
             )
             .await?;
@@ -296,12 +376,11 @@ impl Config {
         }
 
         Ok(Config {
-            bip32_root,
+            key_backend,
             persona_did: PersonaDID {
                 document: rr.doc,
                 profile: persona_profile,
             },
-            bip32_seed: SecretString::new(sc.bip32_seed.clone()),
             public: public_config,
             private: private_cfg,
             key_info: sc.key_info.clone(),
@@ -424,7 +503,7 @@ impl Config {
     async fn regenerate_persona_keys(
         tdk: &mut TDK,
         sc: &SecuredConfig,
-        bip32_root: &ExtendedSigningKey,
+        key_backend: &KeyBackend,
         doc: &Document,
     ) -> Result<(), OpenVTCError> {
         // Rehydrate DID keys referenced by Verification Methods in the DID Document
@@ -454,7 +533,12 @@ impl Config {
 
             let mut secret = match &kp.path {
                 KeySourceMaterial::Derived { path } => {
-                    bip32_root.get_secret_from_path(path, k_purpose)?
+                    let KeyBackend::Bip32 { root, .. } = key_backend else {
+                        return Err(OpenVTCError::Config(
+                            "KeySourceMaterial::Derived requires KeyBackend::Bip32".to_string(),
+                        ));
+                    };
+                    root.get_secret_from_path(path, k_purpose)?
                 }
                 KeySourceMaterial::Imported { seed } => Secret::from_multibase(seed, None)
                     .map_err(|e| {
@@ -462,6 +546,44 @@ impl Config {
                             "Couldn't create secret from multibase for key id. Reason: {e}"
                         ))
                     })?,
+                KeySourceMaterial::VtaManaged { key_id } => {
+                    // For VTA-managed keys, we need to fetch the private key from VTA
+                    let KeyBackend::Vta {
+                        credential_private_key,
+                        vta_did,
+                        vta_url,
+                        credential_did,
+                        ..
+                    } = key_backend
+                    else {
+                        return Err(OpenVTCError::Config(
+                            "KeySourceMaterial::VtaManaged requires KeyBackend::Vta".to_string(),
+                        ));
+                    };
+
+                    // Authenticate with VTA and fetch key secret
+                    let token_result = vta_sdk::session::challenge_response(
+                        vta_url,
+                        credential_did,
+                        credential_private_key.expose_secret(),
+                        vta_did,
+                    )
+                    .await
+                    .map_err(|e| {
+                        OpenVTCError::Config(format!("VTA authentication failed: {e}"))
+                    })?;
+
+                    let mut client = vta_sdk::client::VtaClient::new(vta_url);
+                    client.set_token(token_result.access_token);
+
+                    let key_secret = client.get_key_secret(key_id).await.map_err(|e| {
+                        OpenVTCError::Config(format!(
+                            "Failed to get key secret from VTA for key_id {key_id}: {e}"
+                        ))
+                    })?;
+
+                    secret_from_vta_response(&key_secret, k_purpose)?
+                }
             };
 
             // Set the Secret key ID correctly
@@ -606,4 +728,30 @@ pub struct KeyInfo {
     /// Section 5.5.2 of RFC 4880 - Expiry time if set is # of days since creation
     pub expiry: Option<TimeDelta>,
     pub created: DateTime<Utc>,
+}
+
+/// Converts a VTA GetKeySecretResponse into a TDK Secret
+pub fn secret_from_vta_response(
+    resp: &vta_sdk::client::GetKeySecretResponse,
+    _purpose: KeyPurpose,
+) -> Result<Secret, OpenVTCError> {
+    match resp.key_type {
+        vta_sdk::keys::KeyType::Ed25519 => {
+            let seed = vta_sdk::did_key::decode_private_key_multibase(&resp.private_key_multibase)
+                .map_err(|e| {
+                    OpenVTCError::Secret(format!(
+                        "Failed to decode Ed25519 private key multibase: {:?}",
+                        e
+                    ))
+                })?;
+            Ok(Secret::generate_ed25519(None, Some(&seed)))
+        }
+        vta_sdk::keys::KeyType::X25519 => {
+            Secret::from_multibase(&resp.private_key_multibase, None).map_err(|e| {
+                OpenVTCError::Secret(format!(
+                    "Failed to create X25519 secret from multibase: {e}"
+                ))
+            })
+        }
+    }
 }

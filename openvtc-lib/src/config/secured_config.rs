@@ -11,7 +11,7 @@
 #[cfg(feature = "openpgp-card")]
 use crate::config::TokenInteractions;
 use crate::{
-    config::{Config, KeyTypes, UnlockCode},
+    config::{Config, KeyBackend, KeyTypes, UnlockCode},
     errors::OpenVTCError,
 };
 use aes_gcm::{AeadCore, Aes256Gcm, KeyInit, aead::Aead};
@@ -153,8 +153,21 @@ impl SecuredConfigFormat {
 /// Try to keep this as small as possible for ease of secure storage
 #[derive(Serialize, Deserialize, Debug, Zeroize, ZeroizeOnDrop)]
 pub struct SecuredConfig {
-    // base64 encoded BIP32 private seed
-    pub bip32_seed: String,
+    /// base64 encoded BIP32 private seed (legacy - present only for BIP32-based configs)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bip32_seed: Option<String>,
+
+    /// base64-encoded CredentialBundle for VTA auth
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub credential_bundle: Option<String>,
+
+    /// VTA service URL
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vta_url: Option<String>,
+
+    /// VTA's DID
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vta_did: Option<String>,
 
     /// Key information containing path info
     /// key is the DID VerificationMethod ID
@@ -169,10 +182,28 @@ pub struct SecuredConfig {
 impl From<&Config> for SecuredConfig {
     /// Extracts secured/private information from the full Config
     fn from(cfg: &Config) -> Self {
-        SecuredConfig {
-            bip32_seed: cfg.bip32_seed.expose_secret().to_owned(),
-            key_info: cfg.key_info.clone(),
-            protection_method: cfg.protection_method.clone(),
+        match &cfg.key_backend {
+            KeyBackend::Bip32 { seed, .. } => SecuredConfig {
+                bip32_seed: Some(seed.expose_secret().to_owned()),
+                credential_bundle: None,
+                vta_url: None,
+                vta_did: None,
+                key_info: cfg.key_info.clone(),
+                protection_method: cfg.protection_method.clone(),
+            },
+            KeyBackend::Vta {
+                credential_bundle,
+                vta_did,
+                vta_url,
+                ..
+            } => SecuredConfig {
+                bip32_seed: None,
+                credential_bundle: Some(credential_bundle.expose_secret().to_owned()),
+                vta_url: Some(vta_url.clone()),
+                vta_did: Some(vta_did.clone()),
+                key_info: cfg.key_info.clone(),
+                protection_method: cfg.protection_method.clone(),
+            },
         }
     }
 }
@@ -310,6 +341,10 @@ pub enum KeySourceMaterial {
     /// multiencoded private key
     /// Key Material will be stored in the OS Secure Store
     Imported { seed: String },
+
+    /// Managed by VTA service - key_id is VTA's opaque identifier
+    /// No derivation paths are stored in openvtc for VTA-managed keys
+    VtaManaged { key_id: String },
 }
 
 /// Creates an AES-256 key from the hash of the unlock code and attempts to encrypt using it
