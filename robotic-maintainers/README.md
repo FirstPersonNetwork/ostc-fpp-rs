@@ -1,6 +1,6 @@
-# Robotic Maintainers for OSTC
+# Robotic Maintainers for OpenVTC
 
-This is a dummy OSTC loopback that when you connect to them will automatically
+This is a dummy OpenVTC loopback that when you connect to them will automatically
 accept a relationship and issue Verified Relationship credentials back to you
 
 ## Environment setup

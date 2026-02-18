@@ -1,6 +1,6 @@
 # Handling Secured Configuration
 
-The OSTC CLI tool securely stores the sensitive configuration in a Base64 format in the OS secure storage layer of your device. The configuration contains the following information:
+The OpenVTC CLI tool securely stores the sensitive configuration in a Base64 format in the OS secure storage layer of your device. The configuration contains the following information:
 
 - BIP32 seed used to create the cryptographic keys to generate Decentralised Identifiers (DIDs), specifically your Persona DID.
 
@@ -9,7 +9,7 @@ The OSTC CLI tool securely stores the sensitive configuration in a Base64 format
 
   - Date and time of when the key info was first created.
 
-OSTC stores the configuration details in the OS secure storage in three different ways:
+OpenVTC stores the configuration details in the OS secure storage in three different ways:
 
 ## Hardware Token
 
@@ -57,4 +57,4 @@ When the tool later needs to retrieve the configuration:
 
 ## Plaintext
 
-The plaintext option stores the configuration in plaintext format in the OS's secure storage. The plaintext option is not part of the OSTC setup by default.
+The plaintext option stores the configuration in plaintext format in the OS's secure storage. The plaintext option is not part of the OpenVTC setup by default.

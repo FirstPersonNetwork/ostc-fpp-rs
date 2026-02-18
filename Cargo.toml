@@ -1,15 +1,15 @@
 [workspace]
 members = [
-  "ostc-lib",
-  "ostc-cli",
+  "openvtc-lib",
+  "openvtc-cli",
   "robotic-maintainers",
-  "ostc-service",
-  "ostc-cli2",
+  "openvtc-service",
+  "openvtc-cli2",
 ]
 resolver = "3"
 
 [workspace.package]
-description = "Open Source Trust Community - First Person Protocol"
+description = "Open Verifiable Trust Community (OpenVTC) - First Person Protocol"
 version = "0.1.0"
 edition = "2024"
 publish = false
@@ -20,7 +20,7 @@ license = "Apache-2.0"
 repository = "https://github.com/FirstPersonNetwork/ostc-fpp-rs"
 
 [workspace.dependencies]
-ostc = { version = "0.1.0", path = "ostc-lib", default-features = false }
+openvtc = { version = "0.1.0", path = "openvtc-lib", default-features = false }
 
 # Decentralized Trust Graph Credentials
 # NOTE: When this is published, switch from git to crates.io

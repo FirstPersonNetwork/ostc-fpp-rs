@@ -21,7 +21,7 @@ use std::{collections::HashMap, env, sync::Arc};
 use anyhow::{Result, bail};
 use chrono::{DateTime, Utc};
 use clap::Parser;
-use ostc::{
+use openvtc::{
     MessageType,
     relationships::{
         RelationshipRequestBody, create_send_message_accepted, create_send_message_rejected,

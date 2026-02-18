@@ -7,13 +7,13 @@ The tool provides functionality to backup your profile configurations, including
 To back up the configuration for your profile, run the following command:
 
 ```bash
-ostc export settings --file ~/Downloads/ostc-export.ostc --passphrase MyPassphrase
+openvtc export settings --file ~/Downloads/openvtc-export.openvtc --passphrase MyPassphrase
 ```
 
 The command will:
 
 - Export the default profile configuration, including key materials stored in the OS’s secure storage.
-- Save the encrypted backup to `~/Downloads/ostc-export.ostc`.
+- Save the encrypted backup to `~/Downloads/openvtc-export.openvtc`.
 - Encrypt the backup using the passphrase provided.
 
 **Important:** Store the backup file in a secure location for future recovery.
@@ -23,7 +23,7 @@ The command will:
 To restore the backup on another machine or recover your previous setup, run the following command:
 
 ```bash
-ostc setup import --file ~/Downloads/ostc-export.ostc --passphrase MyPassphrase
+openvtc setup import --file ~/Downloads/openvtc-export.openvtc --passphrase MyPassphrase
 ```
 
 The command will:
@@ -33,9 +33,9 @@ The command will:
 
 This process is helpful in use cases, such as:
 
-- Transferring OSTC configuration to a new machine.
+- Transferring OpenVTC configuration to a new machine.
 - Recovering access after losing the original machine.
-- Resetting the OSTC configuration.
+- Resetting the OpenVTC configuration.
 
 ## DID Secrets Recovery
 
@@ -44,7 +44,7 @@ To restore the same DID and associated secrets, use the **24-word recovery phras
 1. Run the setup command:
 
    ```bash
-   ostc setup
+   openvtc setup
    ```
 
    > Optionally, run the setup command with the `--profile` to setup another profile.

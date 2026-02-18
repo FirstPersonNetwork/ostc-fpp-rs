@@ -1,6 +1,6 @@
-# OSTC Secure Key Management Design
+# OpenVTC Secure Key Management Design
 
-The OSTC CLI tool requires the use of many secret keys for it to work; at a minimum
+The OpenVTC CLI tool requires the use of many secret keys for it to work; at a minimum
 the following keys are required:
 
 - **Persona DID**
@@ -21,7 +21,7 @@ the following keys are required:
 
 All of the above is linked back to the `Persona DID`.
 
-OSTC is designed to be used with physical hardware tokens, such as those made by Nitrokey or Yubikey.
+OpenVTC is designed to be used with physical hardware tokens, such as those made by Nitrokey or Yubikey.
 
 These tokens **MUST** support the openpgp-card protocol.
 
@@ -29,7 +29,7 @@ These tokens **MUST** support the openpgp-card protocol.
 
 | Path          | Description                                    |
 | ------------- | ---------------------------------------------- |
-| `m/0'/0'/`    | Reserved for OSTC management keys               |
+| `m/0'/0'/`    | Reserved for OpenVTC management keys               |
 | `m/1'/0'/`    | Reserved for Persona DID Keys                  |
 | `m/2'/1'/`    | Reserved for Persona DID WebVH Management keys |
 | `m/3'/1'/1'/` | Reserved for Relationship DID keys             |
@@ -89,7 +89,7 @@ flowchart TB
 
 ### Starting Key Space mapping
 
-OSTC derives key paths from a BIP32 root. Common starting key paths are:
+OpenVTC derives key paths from a BIP32 root. Common starting key paths are:
 
 - Persona DID Path `m/1'/0'/`
   - `m/1'/0'/0'` :: Persona DID Signing Key
@@ -127,7 +127,7 @@ flowchart TB
 
 ### Configuration management
 
-There are three configuration stores for the OSTC CLI tool:
+There are three configuration stores for the OpenVTC CLI tool:
 
 1. SecuredConfig :: OS Secure Storage (Key material)
 2. PrivateConfig :: Encrypted sensitive configuration (relationships and DID contacts,
