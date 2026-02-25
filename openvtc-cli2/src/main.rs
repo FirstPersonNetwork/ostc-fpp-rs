@@ -288,6 +288,28 @@ pub fn create_termination() -> (Terminator, broadcast::Receiver<Interrupted>) {
     (terminator, rx)
 }
 
+/// Applies OPENVTC_* environment variable overrides to a loaded Config.
+pub fn apply_env_overrides(config: &mut Config) {
+    use openvtc::config::KeyBackend;
+
+    if let Ok(val) = std::env::var("OPENVTC_MEDIATOR_DID") {
+        config.public.mediator_did = val;
+    }
+    if let Ok(val) = std::env::var("OPENVTC_VTA_URL") {
+        if let KeyBackend::Vta { ref mut vta_url, .. } = config.key_backend {
+            *vta_url = val;
+        }
+    }
+    if let Ok(val) = std::env::var("OPENVTC_VTA_DID") {
+        if let KeyBackend::Vta { ref mut vta_did, .. } = config.key_backend {
+            *vta_did = val;
+        }
+    }
+    if let Ok(val) = std::env::var("OPENVTC_FRIENDLY_NAME") {
+        config.public.friendly_name = val;
+    }
+}
+
 /// Loads openvtc with Trust Development Kit (TDK) and Config
 /// This does not need to be called for setup!
 async fn load(profile: &str) -> Result<(TDK, Config), OpenVTCError> {
@@ -384,6 +406,9 @@ async fn load(profile: &str) -> Result<(TDK, Config), OpenVTCError> {
             }
         }
     };
+
+    let mut config = config;
+    apply_env_overrides(&mut config);
 
     Ok((tdk, config))
 }

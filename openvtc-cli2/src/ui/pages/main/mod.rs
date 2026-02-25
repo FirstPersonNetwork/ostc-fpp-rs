@@ -2,7 +2,7 @@ use crate::{
     state_handler::{
         actions::Action,
         main_page::{MainPageState, MainPanel, menu::MainMenu},
-        state::State,
+        state::{ConnectionState, MediatorStatus, State},
     },
     ui::{
         component::{Component, ComponentRender},
@@ -10,7 +10,9 @@ use crate::{
     },
 };
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind};
-use openvtc::colors::{COLOR_BORDER, COLOR_SUCCESS, COLOR_TEXT_DEFAULT};
+use openvtc::colors::{
+    COLOR_BORDER, COLOR_ORANGE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED,
+};
 use ratatui::{
     Frame,
     layout::{
@@ -20,7 +22,7 @@ use ratatui::{
     },
     style::Stylize,
     symbols::merge::MergeStrategy,
-    text::Line,
+    text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
 };
 use tokio::sync::mpsc::UnboundedSender;
@@ -38,12 +40,14 @@ pub struct MainPage {
 
 struct Props {
     main_page: MainPageState,
+    connection: ConnectionState,
 }
 
 impl From<&State> for Props {
     fn from(state: &State) -> Self {
         Props {
             main_page: state.main_page.clone(),
+            connection: state.connection.clone(),
         }
     }
 }
@@ -130,7 +134,7 @@ impl ComponentRender<()> for MainPage {
         let [main_top, main_middle, main_bottom] =
             Layout::vertical([Length(2), Min(0), Length(3)]).areas(frame.area());
 
-        let top = Layout::horizontal([Percentage(50), Percentage(50)]).split(main_top);
+        let top = Layout::horizontal([Percentage(35), Percentage(30), Percentage(35)]).split(main_top);
         let middle = Layout::horizontal([Percentage(20), Min(0)]).split(main_middle);
 
         frame.render_widget(
@@ -139,6 +143,47 @@ impl ComponentRender<()> for MainPage {
                 .alignment(Alignment::Left),
             top[0],
         );
+
+        // Connection status indicator
+        let connection_line = match &self.props.connection.status {
+            MediatorStatus::Connected { latency_ms } => {
+                Line::from(vec![
+                    Span::styled("Connected ", ratatui::style::Style::default().fg(COLOR_SUCCESS)),
+                    Span::styled(
+                        format!("({}ms)", latency_ms),
+                        ratatui::style::Style::default().fg(COLOR_TEXT_DEFAULT),
+                    ),
+                ])
+            }
+            MediatorStatus::Connecting => {
+                Line::from(Span::styled(
+                    "Connecting...",
+                    ratatui::style::Style::default().fg(COLOR_TEXT_DEFAULT),
+                ))
+            }
+            MediatorStatus::Failed(reason) => {
+                let display = if reason.len() > 20 {
+                    format!("Failed: {}...", &reason[..17])
+                } else {
+                    format!("Failed: {}", reason)
+                };
+                Line::from(Span::styled(
+                    display,
+                    ratatui::style::Style::default().fg(COLOR_WARNING_ACCESSIBLE_RED),
+                ))
+            }
+            MediatorStatus::Unknown => {
+                Line::from(Span::styled(
+                    "Mediator: --",
+                    ratatui::style::Style::default().fg(COLOR_ORANGE),
+                ))
+            }
+        };
+        frame.render_widget(
+            Paragraph::new(connection_line).alignment(Alignment::Center),
+            top[1],
+        );
+
         frame.render_widget(
             Paragraph::new(vec![
                 Line::from(self.props.main_page.config.name.to_string()).fg(COLOR_SUCCESS),
@@ -146,7 +191,7 @@ impl ComponentRender<()> for MainPage {
                     .fg(COLOR_TEXT_DEFAULT),
             ])
             .alignment(Alignment::Right),
-            top[1],
+            top[2],
         );
 
         // Middle block
@@ -159,6 +204,7 @@ impl ComponentRender<()> for MainPage {
             frame,
             middle[1],
             &self.props.main_page.menu_panel,
+            &self.props.connection,
         );
 
         let bottom_block = Block::new()

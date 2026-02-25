@@ -32,6 +32,7 @@ use tokio::sync::{
 
 pub mod actions;
 pub mod main_page;
+pub mod messaging;
 pub mod setup_sequence;
 pub mod state;
 
@@ -94,7 +95,10 @@ impl StateHandler {
                     .setup_wizard(&mut action_rx, &mut interrupt_rx, &mut state, &tdk)
                     .await
                 {
-                    Ok(SetupWizardExit::Config(config)) => (tdk, config),
+                    Ok(SetupWizardExit::Config(mut config)) => {
+                        crate::apply_env_overrides(&mut config);
+                        (tdk, config)
+                    }
                     Ok(SetupWizardExit::Interrupted(interrupted)) => {
                         let _ = terminator.terminate(interrupted.clone());
                         return Ok(interrupted);
@@ -117,6 +121,57 @@ impl StateHandler {
                     "Starting Mode is Not Set!".to_string(),
                 ));
             }
+        };
+
+        // Initialize DIDComm messaging
+        let (msg_tx, mut msg_rx) = mpsc::unbounded_channel();
+        let msg_task_handle = if let Some((atm, profile)) =
+            messaging::init_didcomm_connection(&tdk, &config).await
+        {
+            state.connection.status = state::MediatorStatus::Connecting;
+            self.state_tx.send(state.clone())?;
+
+            // Validate the mediator connection with a trust-ping (10s timeout)
+            let persona_did = config.public.persona_did.to_string();
+            let mediator_did = config.public.mediator_did.clone();
+            match tokio::time::timeout(
+                std::time::Duration::from_secs(10),
+                messaging::validate_mediator_connection(
+                    &atm,
+                    &profile,
+                    &mediator_did,
+                    &persona_did,
+                ),
+            )
+            .await
+            {
+                Ok(Ok(latency_ms)) => {
+                    state.connection.status =
+                        state::MediatorStatus::Connected { latency_ms };
+                    state.connection.last_ping_latency_ms = Some(latency_ms);
+                }
+                Ok(Err(e)) => {
+                    state.connection.status =
+                        state::MediatorStatus::Failed(format!("{e}"));
+                }
+                Err(_) => {
+                    state.connection.status =
+                        state::MediatorStatus::Failed("trust-ping timed out".to_string());
+                }
+            }
+
+            // Spawn the message loop
+            let handle = tokio::spawn(messaging::run_didcomm_loop(
+                atm,
+                profile,
+                persona_did,
+                msg_tx,
+                interrupt_rx.resubscribe(),
+            ));
+            state.connection.messaging_active = true;
+            Some(handle)
+        } else {
+            None
         };
 
         // Send the initial state once
@@ -156,6 +211,33 @@ impl StateHandler {
                     },
                     _ => {}
                 },
+                Some(event) = msg_rx.recv() => {
+                    match event {
+                        messaging::MessagingEvent::TrustPingReceived { .. } => {}
+                        messaging::MessagingEvent::TrustPongReceived { latency_ms, .. } => {
+                            if let Some(ms) = latency_ms {
+                                state.connection.last_ping_latency_ms = Some(ms);
+                            }
+                        }
+                        messaging::MessagingEvent::ConnectionStatus(status) => {
+                            match status {
+                                messaging::ConnectionStatus::Connected => {
+                                    state.connection.status = state::MediatorStatus::Connected {
+                                        latency_ms: state.connection.last_ping_latency_ms.unwrap_or(0),
+                                    };
+                                }
+                                messaging::ConnectionStatus::Disconnected => {
+                                    state.connection.status = state::MediatorStatus::Unknown;
+                                    state.connection.messaging_active = false;
+                                }
+                                messaging::ConnectionStatus::Error(e) => {
+                                    state.connection.status = state::MediatorStatus::Failed(e);
+                                }
+                            }
+                        }
+                        messaging::MessagingEvent::InboundMessage { .. } => {}
+                    }
+                },
                 // Catch and handle interrupt signal to gracefully shutdown
                 Ok(interrupted) = interrupt_rx.recv() => {
                     break interrupted;
@@ -163,6 +245,11 @@ impl StateHandler {
             }
             self.state_tx.send(state.clone())?;
         };
+
+        // Wait for messaging task to finish shutdown
+        if let Some(handle) = msg_task_handle {
+            let _ = handle.await;
+        }
 
         Ok(result)
     }

@@ -1,6 +1,9 @@
-use crate::state_handler::main_page::{
-    content::ContentPanelState,
-    menu::{MainMenu, MenuPanelState},
+use crate::state_handler::{
+    main_page::{
+        content::ContentPanelState,
+        menu::{MainMenu, MenuPanelState},
+    },
+    state::{ConnectionState, MediatorStatus},
 };
 use openvtc::colors::{
     COLOR_BORDER, COLOR_ORANGE, COLOR_SUCCESS, COLOR_TEXT_DEFAULT, COLOR_WARNING_ACCESSIBLE_RED,
@@ -19,7 +22,13 @@ use ratatui::{
 // ****************************************************************************
 impl ContentPanelState {
     /// Render the content panel based on current state
-    pub fn render(&self, frame: &mut Frame, rect: Rect, menu: &MenuPanelState) {
+    pub fn render(
+        &self,
+        frame: &mut Frame,
+        rect: Rect,
+        menu: &MenuPanelState,
+        connection: &ConnectionState,
+    ) {
         // The surrounding block for the menu
 
         let content_block = if self.selected {
@@ -36,6 +45,53 @@ impl ContentPanelState {
         };
 
         let lines = match menu.selected_menu {
+            MainMenu::Inbox => {
+                let mut lines = vec![Line::from("")];
+
+                // Mediator connection status
+                match &connection.status {
+                    MediatorStatus::Connected { latency_ms } => {
+                        lines.push(
+                            Line::from(format!("Mediator: Connected ({}ms)", latency_ms))
+                                .fg(COLOR_SUCCESS),
+                        );
+                    }
+                    MediatorStatus::Connecting => {
+                        lines.push(
+                            Line::from("Mediator: Connecting...").fg(COLOR_TEXT_DEFAULT),
+                        );
+                    }
+                    MediatorStatus::Failed(reason) => {
+                        lines.push(
+                            Line::from(format!("Mediator: Failed - {}", reason))
+                                .fg(COLOR_WARNING_ACCESSIBLE_RED),
+                        );
+                    }
+                    MediatorStatus::Unknown => {
+                        lines.push(
+                            Line::from("Mediator: Not connected").fg(COLOR_ORANGE),
+                        );
+                    }
+                }
+
+                if connection.messaging_active {
+                    lines.push(Line::from("Messaging: Active").fg(COLOR_SUCCESS));
+                } else {
+                    lines.push(Line::from("Messaging: Inactive").fg(COLOR_ORANGE));
+                }
+
+                if let Some(latency) = connection.last_ping_latency_ms {
+                    lines.push(
+                        Line::from(format!("Last ping latency: {}ms", latency))
+                            .fg(COLOR_TEXT_DEFAULT),
+                    );
+                }
+
+                lines.push(Line::from(""));
+                lines.push(Line::from("No messages").dark_gray());
+
+                lines
+            }
             MainMenu::Settings => {
                 vec![
                     Line::from(""),
